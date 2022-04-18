@@ -1,6 +1,4 @@
-﻿using CHMsharp;
-using Microsoft.Xna.Framework.Content;
-using Smx.SharpIO;
+﻿using Smx.SharpIO;
 using Smx.Yafex.Support;
 using System;
 using System.Collections.Generic;
