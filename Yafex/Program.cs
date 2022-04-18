@@ -1,14 +1,17 @@
 ﻿using FirmexSharp.Cygwin;
 using Smx.Yafex;
+using Smx.Yafex.Common;
 using Smx.Yafex.FileFormats;
 using Smx.Yafex.FileFormats.EpkV1;
 using Smx.Yafex.FileFormats.EpkV2;
 using Smx.Yafex.FileFormats.EpkV3;
+using Smx.Yafex.FileFormats.FreescaleNand;
 using Smx.Yafex.FileFormats.Lzhs;
 using Smx.Yafex.FileFormats.LzhsFs;
 using Smx.Yafex.FileFormats.MStarPkg;
 using Smx.Yafex.FileFormats.Partinfo;
 using Smx.Yafex.FileFormats.Squashfs;
+using Smx.Yafex.FileFormats.Xex;
 using Smx.Yafex.Support;
 using System;
 using System.Collections.Generic;
@@ -21,7 +24,7 @@ using System.Threading;
 
 namespace Smx.Yafex
 {
-	class Program
+	public class Program
 	{
 		Program() {
 			try {
@@ -34,13 +37,18 @@ namespace Smx.Yafex
 		[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
 		private static extern IntPtr GetModuleHandle(string lpModuleName);
 
+		private void Extract() {
+
+		}
+
 		void Run(string[] args) {
+			DebugHelper.Launch();
 			Console.WriteLine("Firmex#");
 
 			var inputFile = args[0];
 
 			Config config = new Config() {
-				ConfigDir = Environment.GetEnvironmentVariable("CONFIG_DIR"),
+				ConfigDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
 				DestDir = Path.GetDirectoryName(inputFile)
 			};
 
@@ -52,6 +60,9 @@ namespace Smx.Yafex
 			repo.RegisterFormat(FileFormat.LZHS, new LzhsAddon());
 			repo.RegisterFormat(FileFormat.LZHSFS, new LzhsFsAddon());
 			repo.RegisterFormat(FileFormat.MStarPkg, new MStarPkgAddon());
+			repo.RegisterFormat(FileFormat.FreescaleNand, new FreescaleNandAddon());
+			repo.RegisterFormat(FileFormat.Xex, new XexAddon());
+
 
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || IsRunningInCygwin()) {
 				repo.RegisterFormat(FileFormat.Squashfs, new SquashfsAddon());
@@ -88,7 +99,7 @@ namespace Smx.Yafex
 			return GetModuleHandle("cygwin1") != IntPtr.Zero;
 		}
 
-		private static int Entry(IntPtr args, int sizeBytes) {
+		public static int Entry(IntPtr args, int sizeBytes) {
 			string[] argv = ReadArgv(args, sizeBytes);
 
 			string thisDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

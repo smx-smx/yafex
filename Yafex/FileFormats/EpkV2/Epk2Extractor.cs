@@ -40,7 +40,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 			return ArtifactOpen(destPath);
 		}
 
-		private (string, string) HandlePak(ReadOnlySpan<byte> fileData, int offset, string baseDir, out int numberOfSegments) {
+		private (string, string, IArtifact) HandlePak(ReadOnlySpan<byte> fileData, int offset, string baseDir, out int numberOfSegments) {
 			string? pakName = null;
 			IArtifact? outputFile = null;
 
@@ -90,7 +90,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 				offset += Marshal.SizeOf<PAK_V2_STRUCTURE>() + (int)pakHdr.segmentSize;
 			}
 
-			return (pakName!, outputFile.Name);
+			return (pakName!, outputFile.Name, outputFile);
 		}
 
 		public IList<IArtifact> Extract(IDataSource source) {
@@ -114,18 +114,22 @@ namespace Smx.Yafex.FileFormats.EpkV2
 			var destDir = Path.Combine(config.DestDir, fwVersion);
 			Directory.CreateDirectory(destDir);
 
+			List<IArtifact> artifacts = new List<IArtifact>();
+
 			int numSignatures = 1; //header signature
 			for(int curPak=0; curPak<hdr.fileNum; curPak++) {
 				int pakLoc = (int)hdr.imageLocations[curPak].ImageOffset + (numSignatures * EPK_V2_STRUCTURE.SIGNATURE_SIZE);
 
-				(string pakName, string pakOutputPath) = HandlePak(fileData, pakLoc, destDir, out int numberOfSegments);
+				(string pakName,
+				 string pakOutputPath,
+				 IArtifact pak) = HandlePak(fileData, pakLoc, destDir, out int numberOfSegments);
 				numSignatures += numberOfSegments;
 
 				log.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");
+				artifacts.Add(pak);
 			}
 
-			// $TODO: return extracted partitions for further processing
-			return new List<IArtifact>();
+			return artifacts;
 		}
 	}
 }

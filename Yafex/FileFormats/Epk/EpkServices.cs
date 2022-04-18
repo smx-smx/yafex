@@ -42,10 +42,17 @@ namespace Smx.Yafex.FileFormats.Epk
 		public EpkServicesFactory(Config config) {
 			this.config = config;
 
-			this.KeyFile = new KeyFile(Path.Combine(config.ConfigDir, "AES.key"));
+			var keyFilePath = Path.Combine(config.ConfigDir, "AES.key");
+			if (File.Exists(keyFilePath)) {
+				this.KeyFile = new KeyFile(keyFilePath);
+			}
 		}
 
-		public EpkDecryptionService CreateEpkDecryptor(ReadOnlySpan<byte> data, ValidatorDelegate validator) {
+		public EpkDecryptionService? CreateEpkDecryptor(ReadOnlySpan<byte> data, ValidatorDelegate validator) {
+			if (KeyFile == null) {
+				return null;
+			}
+
 			Aes key = KeyFile.FindAesKey(data, validator);
 			if (key == null) {
 				return null;
