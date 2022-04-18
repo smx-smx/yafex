@@ -34,6 +34,7 @@ namespace Smx.Yafex
 		}
 
         public static void InstallHooks() {
+            // this is required for Log4Net to function properly 
             ReplaceGetEntryAssembly();
 		}
 	}

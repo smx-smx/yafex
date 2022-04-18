@@ -11,6 +11,8 @@
 		LZHS,
 		LZHSFS,
 		EpkV3b,
-		MStarPkg
+		MStarPkg,
+		FreescaleNand,
+		Xex
 	}
 }

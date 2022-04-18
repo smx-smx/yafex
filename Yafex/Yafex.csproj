@@ -18,7 +18,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Support\Endianness.cs" />
+    <Compile Remove="Support\SpanStream.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.12" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.8.10" />
+    <PackageReference Include="Smx.SharpIO" Version="1.0.0" />
   </ItemGroup>
 </Project>
