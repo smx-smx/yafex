@@ -83,7 +83,7 @@ namespace Smx.Yafex
 			var inputFile = args[0];
 
 			Config config = new Config() {
-				ConfigDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+				ConfigDir = Directory.GetCurrentDirectory(),
 				DestDir = Path.GetDirectoryName(inputFile)
 			};
 			this.config = config;

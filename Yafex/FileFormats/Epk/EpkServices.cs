@@ -17,7 +17,7 @@ namespace Smx.Yafex.FileFormats.Epk
 			this.aes = aes;
 		}
 
-		public ReadOnlySpan<byte> Decrypt(ReadOnlySpan<byte> data) {
+		public Span<byte> Decrypt(ReadOnlySpan<byte> data) {
 			ICryptoTransform decryptor = aes.CreateDecryptor();
 
 			MemoryStream outStream = new MemoryStream(data.Length);
