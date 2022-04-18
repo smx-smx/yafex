@@ -127,8 +127,8 @@ namespace Smx.Yafex.FileFormats.LzhsFs
 			this.result = result;
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
-			string fileName = Path.GetFileNameWithoutExtension(source.Path);
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
+			string fileName = Path.GetFileNameWithoutExtension(source.Name);
 			string destPath = Path.Combine(config.DestDir, $"{fileName}.ext4");
 
 			int activeThreads = 0;
@@ -152,7 +152,7 @@ namespace Smx.Yafex.FileFormats.LzhsFs
 				allFinished.WaitOne();
 			}
 
-			return new List<IArtifact>();
+			return Enumerable.Empty<IDataSource>();
 		}
 	}
 }

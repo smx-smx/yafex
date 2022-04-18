@@ -39,7 +39,7 @@ namespace Smx.Yafex.FileFormats.Xex
         private xex2_opt_file_format_info? opt_file_format_info;
         private byte[]? session_key;
 
-        private Memory<byte> xex;
+        private Memory<byte> peFile;
 
         private XexFormat GetXexFormat()
         {
@@ -137,8 +137,8 @@ namespace Smx.Yafex.FileFormats.Xex
             int exe_length = mem.Length - (int)header.header_size;
             int uncompressed_size = exe_length;
 
-            this.xex = new Memory<byte>(new byte[exe_length]);
-            var out_ptr = xex;
+            this.peFile = new Memory<byte>(new byte[exe_length]);
+            var out_ptr = peFile;
 
             var ivec = new byte[16];
             var aes = new RijndaelManaged()
@@ -204,8 +204,8 @@ namespace Smx.Yafex.FileFormats.Xex
                 Padding = PaddingMode.None
             }.CreateDecryptor();
 
-            this.xex = new Memory<byte>(new byte[(int)total_size]);
-            var out_ptr = xex;
+            this.peFile = new Memory<byte>(new byte[(int)total_size]);
+            var out_ptr = peFile;
 
             foreach (var block in blocks)
             {
@@ -305,6 +305,7 @@ namespace Smx.Yafex.FileFormats.Xex
 
             var uncompressed_size = ImageSize();
             var out_data = new byte[uncompressed_size];
+            this.peFile = out_data;
 
             var compressed_data = compress_buffer
                 // d - compress_buffer
@@ -331,7 +332,7 @@ namespace Smx.Yafex.FileFormats.Xex
             return total_size;
         }
 
-        public IList<IArtifact> Extract(IDataSource source)
+        public IEnumerable<IDataSource> Extract(IDataSource source)
         {
             this.mem = source.Data;
             header = new xex2_header(mem);
@@ -392,7 +393,13 @@ namespace Smx.Yafex.FileFormats.Xex
                     break;
             }
 
-            return new List<IArtifact>();
+            var outputName = Path.GetFileNameWithoutExtension(source.Directory) + ".exe";
+            var exeArtifact = new MemoryDataSource(peFile)
+            {
+                Name = outputName,
+                Flags = DataSourceType.Output
+            };
+            yield return exeArtifact;
         }
     }
 }

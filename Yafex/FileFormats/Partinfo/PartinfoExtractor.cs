@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Smx.Yafex.FileFormats.Partinfo
 {
-	public class PartinfoExtractor : ExtractorBase, IFormatExtractor
+	public class PartinfoExtractor : IFormatExtractor
 	{
 		private PartinfoContext ctx;
 
@@ -100,18 +100,16 @@ namespace Smx.Yafex.FileFormats.Partinfo
 			return sb.ToString();
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			string sOut = DumpPartinfo(source.Data.ToReadOnlySpan());
 
 			string artifactName = Path.Combine(
-				Path.GetDirectoryName(source.Path),
-				Path.GetFileNameWithoutExtension(source.Path) + ".txt"
+				Path.GetDirectoryName(source.Directory),
+				Path.GetFileNameWithoutExtension(source.Directory) + ".txt"
 			);
-			var artifact = ArtifactOpen(artifactName);
-			artifact.Write(Encoding.ASCII.GetBytes(sOut));
-			artifact.Finish();
 
-			return GetArtifacts();
+			var artifact = new MemoryDataSource(Encoding.ASCII.GetBytes(sOut));
+			yield return artifact;
 		}
 	}
 }

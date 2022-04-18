@@ -14,12 +14,25 @@ namespace Smx.Yafex.Support
 		private MemoryMappedFile mf;
 		private MemoryMappedSpan<byte> span;
 
-		public string Path => filePath;
-
-		//public ReadOnlySpan<byte> Data => GetData<byte>();
 		public Memory<byte> Data => span.Memory;
 
-		public Span<T> GetData<T>(int offset=0) where T : unmanaged {
+		private string _name;
+        public string? Name {
+			get => _name;
+			set => throw new NotSupportedException();
+		}
+        public string? Directory {
+			get => filePath;
+			set => throw new NotSupportedException();
+		}
+
+		private DataSourceType _flags;
+        public DataSourceType Flags {
+			get => _flags;
+			set => throw new NotImplementedException();
+		}
+
+        public Span<T> GetData<T>(int offset=0) where T : unmanaged {
 			return span.GetSpan()
 					   .Slice(offset)
 					   .Cast<T>();
@@ -83,6 +96,9 @@ namespace Smx.Yafex.Support
 			if(this.fs.Length > 0) {
 				CreateMapping((int)fs.Length);
 			}
+
+			_name = System.IO.Path.GetFileNameWithoutExtension(filePath);
+			_flags = (readOnly) ? DataSourceType.Input : DataSourceType.Input | DataSourceType.Output;
 		}
 
 		public void Dispose() {

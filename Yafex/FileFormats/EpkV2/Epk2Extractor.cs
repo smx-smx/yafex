@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace Smx.Yafex.FileFormats.EpkV2
 {
-	public class Epk2Extractor : ExtractorBase, IFormatExtractor
+	public class Epk2Extractor : IFormatExtractor
 	{
 		private static ILog log = LogManager.GetLogger(nameof(EpkV2));
 
@@ -35,14 +35,11 @@ namespace Smx.Yafex.FileFormats.EpkV2
 			return (Pak2DetectionResult)pakResult.Context!;
 		}
 
-		private IArtifact OpenOutputFile(PAK_V2_HEADER pakHdr, string baseDir) {
-			string destPath = Path.Combine(baseDir, $"{pakHdr.ImageType}.pak");
-			return ArtifactOpen(destPath);
-		}
-
-		private (string, string, IArtifact) HandlePak(ReadOnlySpan<byte> fileData, int offset, string baseDir, out int numberOfSegments) {
+		private (string, string, IDataSource) HandlePak(ReadOnlySpan<byte> fileData, int offset, string baseDir, out int numberOfSegments) {
 			string? pakName = null;
-			IArtifact? outputFile = null;
+
+			MemoryDataSource outputFile;
+			MemoryDataSourceBuffer outputBuffer = null;
 
 			numberOfSegments = 0;
 
@@ -55,20 +52,25 @@ namespace Smx.Yafex.FileFormats.EpkV2
 				if (curSeg == 0) {
 					log.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
 					
-					outputFile = OpenOutputFile(pakHdr, baseDir);
+					outputBuffer = new MemoryDataSourceBuffer(
+						$"{pakHdr.ImageType}.pak",
+						DataSourceType.Output | DataSourceType.ProcessFurther
+					);
+					
 					pakName = pakHdr.ImageType;
 					numberOfSegments = (int)pakHdr.segmentCount;
 				}
 
-				if (outputFile == null) {
+				if (outputBuffer == null) {
 					throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
 				}
 
 				var pakData = fileData.Slice(offset + Marshal.SizeOf<PAK_V2_STRUCTURE>(), (int)pakHdr.segmentSize);
-				if (needsDecryption) {
+				if (needsDecryption)
+				{
 					pakData = ctx.Services.Decryptor!.Decrypt(pakData);
-				}				
-				outputFile.Write(pakData);
+				}
+				outputBuffer.Write(pakData);
 
 				var build = pakHdr.devMode switch {
 					PakBuildMode.DEBUG => "DEBUG",
@@ -83,17 +85,19 @@ namespace Smx.Yafex.FileFormats.EpkV2
 					$" build={build})");
 
 				if (curSeg + 1 == pakHdr.segmentCount) {
-					outputFile.Dispose();
+					outputFile = outputBuffer.ToDataSource();
+					outputBuffer.Dispose();
 					break;
 				}
 
 				offset += Marshal.SizeOf<PAK_V2_STRUCTURE>() + (int)pakHdr.segmentSize;
 			}
 
+			outputFile.Directory = baseDir;
 			return (pakName!, outputFile.Name, outputFile);
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			var fileData = source.Data.ToReadOnlySpan();
 
 			var hdr = ctx.Header;
@@ -114,7 +118,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 			var destDir = Path.Combine(config.DestDir, fwVersion);
 			Directory.CreateDirectory(destDir);
 
-			List<IArtifact> artifacts = new List<IArtifact>();
+			List<IDataSource> artifacts = new List<IDataSource>();
 
 			int numSignatures = 1; //header signature
 			for(int curPak=0; curPak<hdr.fileNum; curPak++) {
@@ -122,7 +126,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 
 				(string pakName,
 				 string pakOutputPath,
-				 IArtifact pak) = HandlePak(fileData, pakLoc, destDir, out int numberOfSegments);
+				 IDataSource pak) = HandlePak(fileData, pakLoc, destDir, out int numberOfSegments);
 				numSignatures += numberOfSegments;
 
 				log.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");

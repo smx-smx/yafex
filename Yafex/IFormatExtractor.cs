@@ -6,6 +6,6 @@ namespace Smx.Yafex
 {
 	public interface IFormatExtractor
 	{
-		IList<IArtifact> Extract(IDataSource source);
+		IEnumerable<IDataSource> Extract(IDataSource source);
 	}
 }
