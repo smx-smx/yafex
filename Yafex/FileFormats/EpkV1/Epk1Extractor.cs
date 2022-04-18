@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 namespace Smx.Yafex.FileFormats.EpkV1
 {
-	internal class Epk1Extractor : ExtractorBase, IFormatExtractor
+	internal class Epk1Extractor : IFormatExtractor
 	{
 		private Config config;
 		private DetectionResult result;
@@ -23,7 +23,7 @@ namespace Smx.Yafex.FileFormats.EpkV1
 			this.epkType = (Epk1Type)result.Context!;
 		}
 
-		private void ExtractEpk1Be(ReadOnlySpan<byte> fileData) {
+		private IEnumerable<IDataSource> ExtractEpk1Be(Memory<byte> fileData) {
 			var hdr = fileData.ReadStruct<Epk1BeHeader>();
 
 			Func<int, PakRec> GetPakRec = (int i) => {
@@ -72,13 +72,11 @@ namespace Smx.Yafex.FileFormats.EpkV1
 					$" offset=0x{rec.offset:X}," +
 					$" size='{rec.size}') to file {filePath}");
 
-				var artifact = ArtifactOpen(filePath);
-				artifact.Write(pakData);
-				artifact.Finish();
+				yield return new MemoryDataSource(pakData.ToArray());
 			}
 		}
 
-		private void ExtractEpk1Old(ReadOnlySpan<byte> fileData) {
+		private IEnumerable<IDataSource> ExtractEpk1Old(Memory<byte> fileData) {
 			var hdr = fileData.ReadStruct<Epk1Header>();
 
 			var basedir = Path.Combine(config.DestDir, $"{hdr.EpakVersion}-{hdr.OtaID}");
@@ -101,26 +99,25 @@ namespace Smx.Yafex.FileFormats.EpkV1
 					(int)(rec.offset + Marshal.SizeOf<PakHeader>()),
 					(int)(pakHdr.imageSize)
 				);
-				var artifact = ArtifactOpen(filePath);
-				artifact.Write(pakData);
-				artifact.Finish();
+
+				yield return new MemoryDataSource(pakData.ToArray());
 			}
 		}
 
-		private void ExtractEpk1New(ReadOnlySpan<byte> fileData) {
+		private IEnumerable<IDataSource> ExtractEpk1New(Memory<byte> fileData) {
 			var hdr = fileData.ReadStruct<Epk1HeaderNew>();
 			throw new NotImplementedException();
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
-			var fileData = source.Data.ToReadOnlySpan();
-			switch (epkType) {
-				case Epk1Type.BigEndian: ExtractEpk1Be(fileData); break;
-				case Epk1Type.Old: ExtractEpk1Old(fileData); break;
-				case Epk1Type.New: ExtractEpk1New(fileData); break;
-			}
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
+			var fileData = source.Data;
 
-			return new List<IArtifact>();
+			var artifacts = epkType switch {
+				Epk1Type.BigEndian => ExtractEpk1Be(fileData),
+				Epk1Type.Old => ExtractEpk1Old(fileData),
+				Epk1Type.New => ExtractEpk1New(fileData)
+			};
+			return artifacts;
 		}
 	}
 }

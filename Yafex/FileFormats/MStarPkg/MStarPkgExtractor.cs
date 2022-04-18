@@ -20,7 +20,7 @@ namespace Smx.Yafex.FileFormats.MStarPkg
 		}
 	}
 
-	public class MStarPkgExtractor : ExtractorBase, IFormatExtractor
+	public class MStarPkgExtractor : IFormatExtractor
 	{
 		private Config config;
 
@@ -64,24 +64,26 @@ namespace Smx.Yafex.FileFormats.MStarPkg
 			yield break;
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			var mbootScript = Encoding.ASCII.GetString(
 				source.Data.Slice(0, MStarPkgDetector.MBOOT_SCRIPT_SIZE).ToArray()
 			);
 			var partitions = ParseMBootScript(mbootScript);
 
-			var baseDir = Path.Combine(config.DestDir, Path.GetFileNameWithoutExtension(source.Path));
+			var baseDir = Path.Combine(config.DestDir, Path.GetFileNameWithoutExtension(source.Directory));
 			Directory.CreateDirectory(baseDir);
 
 			foreach(var part in partitions) {
 				var destPath = Path.Combine(baseDir, $"{part.Name}.pak");
-				using (var artifact = ArtifactOpen(destPath)) {
-					var span = source.Data.Span.Slice((int)part.Offset, (int)part.Size);
-					artifact.Write(span);
-				}
-			}
 
-			return new List<IArtifact>();
+				var artifact = new MemoryDataSource(
+					source
+						.Data.Span
+						.Slice((int)part.Offset, (int)part.Size)
+						.ToArray()
+				);
+				yield return artifact;
+			}
 		}
 	}
 }

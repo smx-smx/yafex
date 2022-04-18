@@ -14,9 +14,11 @@ using Smx.Yafex.FileFormats.Squashfs;
 using Smx.Yafex.FileFormats.Xex;
 using Smx.Yafex.Support;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -37,8 +39,41 @@ namespace Smx.Yafex
 		[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
 		private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-		private void Extract() {
+		private Config config;
+		private FormatFinder finder;
 
+		private void Process(IDataSource input)
+        {
+			var extractor = finder.CreateExtractor(input);
+			if (extractor == null)
+            {
+				return;
+            }
+
+			var artifacts = extractor.Extract(input);
+			foreach (var artifact in artifacts)
+			{
+                // save intermediate 
+                if (artifact.Flags.HasFlag(DataSourceType.Output)
+				&& !artifact.Flags.HasFlag(DataSourceType.Temporary
+				)) {
+					if (artifact.Directory == null) {
+						// if not overridden, use Config
+						artifact.Directory = config.DestDir;
+					}
+
+					var path = Path.Combine(artifact.Directory, artifact.Name);
+					
+					// $TODO: use MFile in output mode?
+					File.WriteAllBytes(path, artifact.Data.ToArray());
+				}
+
+				// handle matryoshka formats
+				if (artifact.Flags.HasFlag(DataSourceType.ProcessFurther))
+				{
+					Process(artifact);
+				}
+			}
 		}
 
 		void Run(string[] args) {
@@ -51,6 +86,7 @@ namespace Smx.Yafex
 				ConfigDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
 				DestDir = Path.GetDirectoryName(inputFile)
 			};
+			this.config = config;
 
 			FileFormatRepository repo = new FileFormatRepository();
 			repo.RegisterFormat(FileFormat.EpkV1, new Epk1Addon());
@@ -69,13 +105,13 @@ namespace Smx.Yafex
 			}
 
 			FormatFinder finder = new FormatFinder(config, repo);
+			this.finder = finder;
 
-			using (MFile input = new MFile(inputFile)) {
-				var extractor = finder.CreateExtractor(input);
-				if (extractor != null) {
-					extractor.Extract(input);
-				}
-			}
+
+			using (MFile input = new MFile(inputFile))
+            {
+				Process(input);
+            }
 		}
 
 		static void Main(string[] args) {

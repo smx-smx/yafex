@@ -23,7 +23,7 @@ namespace Smx.Yafex.FileFormats.Squashfs
 
 			var squashfs = new SquashfsNative();
 
-			string cygwinPath = Cygwin.ToPosixPath(source.Path);
+			string cygwinPath = Cygwin.ToPosixPath(source.Directory);
 
 			int confidence = 0;
 

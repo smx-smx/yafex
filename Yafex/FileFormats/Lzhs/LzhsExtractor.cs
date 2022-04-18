@@ -1,5 +1,6 @@
 ﻿using Smx.Yafex.Support;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Smx.Yafex.FileFormats.Lzhs
 {
@@ -13,8 +14,8 @@ namespace Smx.Yafex.FileFormats.Lzhs
 			this.result = result;
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
-			return new List<IArtifact>();
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
+			return Enumerable.Empty<IDataSource>();
 		}
 	}
 }

@@ -17,20 +17,20 @@ namespace Smx.Yafex.FileFormats.Squashfs
 			this.config = config;
 		}
 
-		public IList<IArtifact> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			if (!(source is MFile)) {
 				throw new NotSupportedException();
 			}
 
 			var squashfs = new SquashfsNative();
 
-			string cygSource = Cygwin.ToPosixPath(source.Path);
-			string dirName = source.Path + ".unsquashfs";
+			string cygSource = Cygwin.ToPosixPath(source.Directory);
+			string dirName = source.Directory + ".unsquashfs";
 
 			string cygDest = Cygwin.ToPosixPath(Path.Combine(config.DestDir, dirName));
 			squashfs.ExtractSquashfs(cygSource, cygDest);
 
-			return new List<IArtifact>(); 
+			return Enumerable.Empty<IDataSource>();
 		}
 	}
 }

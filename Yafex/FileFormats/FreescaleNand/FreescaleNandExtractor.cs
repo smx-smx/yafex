@@ -54,7 +54,7 @@ namespace Smx.Yafex.FileFormats.FreescaleNand
 
 	public class FreescaleNandExtractor : IFormatExtractor
 	{
-		public IList<IArtifact> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			var nand = new FreescaleNand(source);
 
 			// $DEBUG
@@ -63,7 +63,7 @@ namespace Smx.Yafex.FileFormats.FreescaleNand
 			File.WriteAllBytes("C:/temp/fw2.bin", nand.GetFirmware2Data().ToArray());
 			*/
 
-			return new List<IArtifact>();
+			return Enumerable.Empty<IDataSource>();
 		}
 	}
 }

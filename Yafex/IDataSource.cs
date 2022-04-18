@@ -4,10 +4,22 @@ using System.Text;
 
 namespace Smx.Yafex
 {
-	public interface IDataSource
+	[Flags]
+    public enum DataSourceType {
+		Input,
+		Output,
+		Temporary,
+		ProcessFurther
+	}
+
+
+    public interface IDataSource
 	{
-		string Path { get; }
-		//ReadOnlySpan<byte> Data { get; }
+		string? Name { get; set; }
+		string? Directory { get; set; }
+
 		Memory<byte> Data { get; }
+
+		DataSourceType Flags { get; set; }
 	}
 }
