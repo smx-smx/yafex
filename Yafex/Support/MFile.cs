@@ -22,7 +22,7 @@ namespace Smx.Yafex.Support
 			set => throw new NotSupportedException();
 		}
         public string? Directory {
-			get => filePath;
+			get => Path.GetDirectoryName(filePath);
 			set => throw new NotSupportedException();
 		}
 

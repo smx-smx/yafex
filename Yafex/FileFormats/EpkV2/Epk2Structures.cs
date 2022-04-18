@@ -44,7 +44,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 		public UInt32 segmentCrc32;
 
 		public string ImageType => imageType.AsString(Encoding.ASCII);
-		public string ModelName => modelData.AsString(Encoding.ASCII).TakeUntilChar((char)0);
+		public string ModelName => modelData.AsString(Encoding.ASCII);
 
 		public string PakMagic => pakMagic.AsString(Encoding.ASCII);
 		public string SwVersion => string.Format("{0:X2}.{1:X2}.{2:X2}.{3:X2}",
@@ -61,7 +61,7 @@ namespace Smx.Yafex.FileFormats.EpkV2
 		public byte[] signature;
 		public PAK_V2_HEADER pakHeader;
 
-		public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> pak2) where T : unmanaged {
+		public static ReadOnlySpan<T> GetHeader<T>(Span<T> pak2) where T : unmanaged {
 			return pak2.GetField<T, PAK_V2_STRUCTURE, PAK_V2_HEADER>(nameof(pakHeader));
 		}
 	}

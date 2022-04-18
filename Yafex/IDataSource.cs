@@ -6,10 +6,10 @@ namespace Smx.Yafex
 {
 	[Flags]
     public enum DataSourceType {
-		Input,
-		Output,
-		Temporary,
-		ProcessFurther
+		Input = 1 << 0,
+		Output = 1 << 1,
+		Temporary = 1 << 2,
+		ProcessFurther = 1 << 3
 	}
 
 
