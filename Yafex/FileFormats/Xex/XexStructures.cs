@@ -247,28 +247,6 @@ namespace Smx.Yafex.FileFormats.Xex
         {}
     }
 
-#if DOTNETBUG // relative offsetting (0) inside an union within a struct doesn't work
-
-    [Endian(Endianness.BigEndian)]
-    public struct xex2_opt_file_format_info
-    {
-        public uint info_size;
-        public xex2_encryption_type encryption_type;
-        public xex2_compression_type compression_type;
-
-        [StructLayout(LayoutKind.Explicit)]
-        public struct _compression_info
-        {
-            [FieldOffset(0)]
-            public xex2_file_basic_compression_info basic;
-            [FieldOffset(0)]
-            public xex2_file_normal_compression_info normal;
-        };
-
-        public _compression_info compression_info;
-    }
-#else
-
     public class xex2_opt_file_format_info
     {
         public uint info_size;
@@ -295,7 +273,6 @@ namespace Smx.Yafex.FileFormats.Xex
             return new xex2_file_normal_compression_info(union.SliceHere());
         }
     }
-#endif
 
     public struct xex2_version
     {

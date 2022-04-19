@@ -2,6 +2,7 @@
 using Smx.Yafex.Support;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -37,7 +38,7 @@ namespace Smx.Yafex.FileFormats.Xex
         private xex2_opt_file_format_info? opt_file_format_info;
         private byte[]? session_key;
 
-        private Memory<byte> peFile;
+        private Memory<byte> peMem;
 
         private XexFormat GetXexFormat()
         {
@@ -135,8 +136,8 @@ namespace Smx.Yafex.FileFormats.Xex
             int exe_length = mem.Length - (int)header.header_size;
             int uncompressed_size = exe_length;
 
-            this.peFile = new Memory<byte>(new byte[exe_length]);
-            var out_ptr = peFile;
+            this.peMem = new Memory<byte>(new byte[exe_length]);
+            var out_ptr = peMem;
 
             var ivec = new byte[16];
             var aes = new RijndaelManaged()
@@ -202,8 +203,8 @@ namespace Smx.Yafex.FileFormats.Xex
                 Padding = PaddingMode.None
             }.CreateDecryptor();
 
-            this.peFile = new Memory<byte>(new byte[(int)total_size]);
-            var out_ptr = peFile;
+            this.peMem = new Memory<byte>(new byte[(int)total_size]);
+            var out_ptr = peMem;
 
             foreach (var block in blocks)
             {
@@ -228,6 +229,78 @@ namespace Smx.Yafex.FileFormats.Xex
             }
 
             aes.Dispose();
+        }
+
+        private IMAGE_SECTION_HEADER[] ReadPEHeaders()
+        {
+            var doshdr = new IMAGE_DOS_HEADER(peMem);
+            if (doshdr.e_magic != IMAGE_DOS_HEADER.IMAGE_DOS_SIGNATURE)
+            {
+                throw new InvalidDataException("DOS signature mismatch");
+            }
+
+            var nthdr_mem = peMem.Slice(doshdr.e_lfanew);
+
+            var nthdr = new IMAGE_NT_HEADERS(nthdr_mem);
+            if (nthdr.Signature != IMAGE_NT_HEADERS.IMAGE_NT_SIGNATURE)
+            {
+                throw new InvalidDataException("NT signature mismatch");
+            }
+
+            var filehdr = nthdr.FileHeader;
+            if(filehdr.Machine != IMAGE_FILE_HEADER.IMAGE_FILE_MACHINE_POWERPCBE
+                || (filehdr.Characteristics & IMAGE_FILE_HEADER.IMAGE_FILE_32BIT_MACHINE) != IMAGE_FILE_HEADER.IMAGE_FILE_32BIT_MACHINE)
+            {
+                throw new InvalidDataException("Unexpected PE Machine/Characteristics");
+            }
+
+            if(filehdr.SizeOfOptionalHeader != IMAGE_FILE_HEADER.IMAGE_SIZEOF_NT_OPTIONAL_HEADER)
+            {
+                throw new InvalidDataException("Unexpected SizeOfOptionalHeader");
+            }
+
+            var opthdr = nthdr.OptionalHeader;
+            if(opthdr.Magic != IMAGE_OPTIONAL_HEADER.IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+            {
+                throw new InvalidDataException("Optional Header signature mismatch");
+            }
+
+            if(opthdr.Subsystem != IMAGE_OPTIONAL_HEADER.IMAGE_SUBSYSTEM_XBOX)
+            {
+                throw new InvalidDataException("Unexpected Subsystem");
+            }
+
+            var section_headers = new SpanStream(nthdr_mem.Slice(nthdr.SIZEOF));
+            var sections = Enumerable.Range(0, filehdr.NumberOfSections)
+                .Select(_ => new IMAGE_SECTION_HEADER(section_headers))
+                .ToArray();
+
+            return sections;
+        }
+
+        private Memory<byte> BuildFinalPE(IMAGE_SECTION_HEADER[] sections)
+        {
+            var lastSection = sections.Aggregate((a, b) =>
+                a.PointerToRawData > b.PointerToRawData ? a : b);
+            var fileSize = lastSection.PointerToRawData + lastSection.SizeOfRawData;
+
+            var peFile = new Memory<byte>(new byte[fileSize]);
+
+            // copy all headers
+            var minSection = (int)sections.Min(s => s.VirtualAddress);
+            peMem.Slice(0, minSection)
+                .CopyTo(peFile);
+
+            foreach(var s in sections)
+            {
+                var source = (int)s.VirtualAddress;
+                var target = peFile.Slice((int)s.PointerToRawData);
+                if (source >= peMem.Length) continue;
+                var sectionData = peMem.Slice(source, (int)s.VirtualSize);
+                sectionData.CopyTo(target);
+            }
+
+            return peFile;
         }
 
         private void ReadImageCompressed()
@@ -303,7 +376,7 @@ namespace Smx.Yafex.FileFormats.Xex
 
             var uncompressed_size = ImageSize();
             var out_data = new byte[uncompressed_size];
-            this.peFile = out_data;
+            this.peMem = out_data;
 
             var compressed_data = compress_buffer
                 // d - compress_buffer
@@ -390,6 +463,9 @@ namespace Smx.Yafex.FileFormats.Xex
                     ReadImageCompressed();
                     break;
             }
+
+            var sections = ReadPEHeaders();
+            var peFile = BuildFinalPE(sections);
 
             var outputName = Path.GetFileNameWithoutExtension(source.Directory) + ".exe";
             var exeArtifact = new MemoryDataSource(peFile)
