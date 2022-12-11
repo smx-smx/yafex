@@ -188,6 +188,22 @@ namespace Smx.Yafex.FileFormats.Xex
         public const ushort IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
         public const ushort IMAGE_SUBSYSTEM_XBOX = 14;
 
+        public const int IMAGE_DIRECTORY_ENTRY_EXPORT         =  0;   // Export Directory
+        public const int IMAGE_DIRECTORY_ENTRY_IMPORT         =  1;   // Import Directory
+        public const int IMAGE_DIRECTORY_ENTRY_RESOURCE       =  2;   // Resource Directory
+        public const int IMAGE_DIRECTORY_ENTRY_EXCEPTION      =  3;   // Exception Directory
+        public const int IMAGE_DIRECTORY_ENTRY_SECURITY       =  4;   // Security Directory
+        public const int IMAGE_DIRECTORY_ENTRY_BASERELOC      =  5;   // Base Relocation Table
+        public const int IMAGE_DIRECTORY_ENTRY_DEBUG          =  6;   // Debug Directory
+        public const int IMAGE_DIRECTORY_ENTRY_ARCHITECTURE   =  7;   // Architecture Specific Data
+        public const int IMAGE_DIRECTORY_ENTRY_GLOBALPTR      =  8;   // RVA of GP
+        public const int IMAGE_DIRECTORY_ENTRY_TLS            =  9;   // TLS Directory
+        public const int IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    = 10;   // Load Configuration Directory
+        public const int IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   = 11;   // Bound Import Directory in headers
+        public const int IMAGE_DIRECTORY_ENTRY_IAT            = 12;   // Import Address Table
+        public const int IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 13;   // Delay Load Import Descriptors
+        public const int IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14;   // COM Runtime descriptor
+
         public IMAGE_OPTIONAL_HEADER(SpanStream r)
         {
             var pos = r.Position;
@@ -229,6 +245,96 @@ namespace Smx.Yafex.FileFormats.Xex
         }
 
         public IMAGE_OPTIONAL_HEADER(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        { }
+    }
+
+    public class IMAGE_IMPORT_DESCRIPTOR
+    {
+        private uint DUMMYUNIONNAME;
+
+        public uint Characteristics => DUMMYUNIONNAME;
+        public uint OriginalFirstThunk => DUMMYUNIONNAME;
+
+        public uint TimeDateStamp;
+        public uint ForwarderChain;
+        public uint Name;
+        public uint FirstThunk;
+
+        public const int SIZEOF = 20;
+
+        public IMAGE_IMPORT_DESCRIPTOR() { }
+
+        public IMAGE_IMPORT_DESCRIPTOR(SpanStream r)
+        {
+            DUMMYUNIONNAME = r.ReadUInt32();
+            TimeDateStamp = r.ReadUInt32();
+            ForwarderChain = r.ReadUInt32();
+            Name = r.ReadUInt32();
+            FirstThunk = r.ReadUInt32();
+        }
+
+        public void Write(Memory<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
+        public void Write(SpanStream r)
+        {
+            r.WriteUInt32(DUMMYUNIONNAME);
+            r.WriteUInt32(TimeDateStamp);
+            r.WriteUInt32(ForwarderChain);
+            r.WriteUInt32(Name);
+            r.WriteUInt32(FirstThunk);
+        }
+
+        public IMAGE_IMPORT_DESCRIPTOR(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        { }
+    }
+
+    public class IMAGE_THUNK_DATA32
+    {
+        public uint value;
+
+        public const int SIZEOF = 4;
+
+        /*public uint ForwarderString => value;
+        public uint Function => value;
+        public uint Ordinal => value;
+        public uint AddressOfData => value;*/
+
+        public bool IsOrdinal => ((value >> 31) & 1) == 1;
+
+        public uint Ordinal
+        {
+            get
+            {
+                if (!IsOrdinal) throw new InvalidOperationException();
+                return value & 0xFFFF;
+            }
+        }
+
+        public uint HintRVA
+        {
+            get
+            {
+                if (IsOrdinal) throw new InvalidOperationException();
+                return value >> 1;
+            }
+        }
+
+
+        public IMAGE_THUNK_DATA32()
+        {}
+
+        public void Write(Memory<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
+        public void Write(SpanStream r)
+        {
+            r.WriteUInt32(value);
+        }
+
+
+        public IMAGE_THUNK_DATA32(SpanStream r)
+        {
+            value = r.ReadUInt32();
+        }
+
+        public IMAGE_THUNK_DATA32(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 

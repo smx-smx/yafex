@@ -2,6 +2,7 @@
 using Smx.Yafex.Support;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -447,30 +448,102 @@ namespace Smx.Yafex.FileFormats.Xex
         { }
     }
 
-    [Endian(Endianness.BigEndian)]
-    public struct xex2_opt_import_libraries
+    public class xex2_opt_import_libraries
     {
-        public uint size;
-
-        public struct _string_table {
+        public class _string_table {
             public uint size;
             public uint count;
-            public sbyte data;
+            public string[] table;
+
+            public int SIZEOF;
+
+            public _string_table(SpanStream r)
+            {
+                size = r.ReadUInt32();
+                count = r.ReadUInt32();
+
+                table = Enumerable.Range(0, (int)count)
+                    .Select(_ => {
+                        var str = r.ReadCString();
+                        r.AlignStream(sizeof(uint));
+                        return str;
+                     })
+                    .ToArray();
+
+                SIZEOF = 8 + (int)size;
+            }
+
+            public _string_table(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
+            { }
         }
+
+        public uint size;
         public _string_table string_table;
+
+        public xex2_import_library[] import_libraries;
+
+        public int HEADER_SIZEOF;
+
+        private IEnumerable<xex2_import_library> read_import_libraries(SpanStream r)
+        {
+            // expected to be placed at HEADER_SIZEOF by caller
+            while (r.Position < size)
+            {
+                var posBefore = r.Position;
+                var lib = new xex2_import_library(r);
+                var posAfter = r.Position;
+                Debug.Assert(posAfter - posBefore == lib.size);
+                yield return lib;
+            }
+        }
+
+        public xex2_opt_import_libraries(SpanStream r)
+        {
+            size = r.ReadUInt32();
+            string_table = new _string_table(r);
+
+            HEADER_SIZEOF = 4 + string_table.SIZEOF;
+
+            import_libraries = read_import_libraries(r).ToArray();
+        }
+
+        public xex2_opt_import_libraries(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
+        { }
+
+
+
+
     }
 
-    public struct xex2_import_library
+    public class xex2_import_library
     {
         public uint size;   
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x14)]
         public byte[] next_import_digest;  
         public uint id;                
         public uint version_value;     
         public uint version_min_value; 
         public ushort name_index;      
         public ushort count;           
-        public uint import_table;    
+        
+        public uint[] import_table;
+
+        public xex2_import_library(SpanStream r)
+        {
+            size = r.ReadUInt32();
+            next_import_digest = r.ReadBytes(0x14);
+            id = r.ReadUInt32();
+            version_value = r.ReadUInt32();
+            version_min_value = r.ReadUInt32();
+            name_index = r.ReadUInt16();
+            count = r.ReadUInt16();
+
+            import_table = Enumerable.Range(0, (count))
+                .Select(_ => r.ReadUInt32())
+                .ToArray();
+        }
+
+        public xex2_import_library(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
+        { }
     }
 
     [Endian(Endianness.BigEndian)]

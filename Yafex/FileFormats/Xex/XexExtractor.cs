@@ -61,7 +61,7 @@ namespace Smx.Yafex.FileFormats.Xex
         private Memory<byte>? GetOptHeader<T>(xex2_header_keys key, out int header_offset)
         {
             var offset = GetOptHeader(key, out header_offset);
-            if (!offset.HasValue) return default;
+            if (!offset.HasValue) return null;
             return mem.Slice((int)offset.Value);
         }
 
@@ -231,7 +231,85 @@ namespace Smx.Yafex.FileFormats.Xex
             aes.Dispose();
         }
 
-        private IMAGE_SECTION_HEADER[] ReadPEHeaders()
+        private Memory<byte> BuildIAT(IMAGE_NT_HEADERS nthdr)
+        {
+            var pe_impdir = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IMPORT];
+            var pe_iat = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IAT];
+
+            Memory<byte> xex_implibs_data;
+            {
+                var maybe_xex_implibs_data = GetOptHeader<xex2_opt_import_libraries>(xex2_header_keys.IMPORT_LIBRARIES);
+                if (maybe_xex_implibs_data == null)
+                {
+                    return null;
+                }
+                xex_implibs_data = maybe_xex_implibs_data.Value;
+            }
+
+            var xex_implibs = new xex2_opt_import_libraries(xex_implibs_data);
+
+            // import descriptors (including trailing NULL descriptor)
+            var size_descr = IMAGE_IMPORT_DESCRIPTOR.SIZEOF * (xex_implibs.import_libraries.Length + 1);
+            var size_strings = xex_implibs.string_table.size;
+            // import entries (including trailing NULL entry for each lib)
+            var size_entries = (IMAGE_THUNK_DATA32.SIZEOF * xex_implibs.import_libraries.Sum(lib => lib.import_table.Length + 1));
+
+            var size_iat = size_descr + size_strings + size_entries;
+            var iat_mem = new Memory<byte>(new byte[size_iat]);
+            var iat = new SpanStream(iat_mem);
+
+            /**
+             * layout:
+             * - IMAGE_IMPORT_DESCRIPTOR[] descriptors
+             * - string[] names
+             * - IMAGE_THUNK_DATA32[] entries
+             **/
+
+            var rva_descr = pe_impdir.VirtualAddress;
+            var rva_strings = rva_descr + size_descr;
+            var rva_entries = rva_strings + size_strings;
+
+            var off_descr = 0;
+            var off_strings = 0;
+            var off_entries = 0;
+
+
+            foreach(var lib in xex_implibs.import_libraries)
+            {
+                var name = xex_implibs.string_table.table[lib.name_index];
+                var id = new IMAGE_IMPORT_DESCRIPTOR()
+                {
+                    Name = (uint)(rva_strings + off_strings),
+                    FirstThunk = (uint)(rva_entries + off_entries)
+                };
+
+                // write desriptor
+                iat.PerformAt(off_descr, () => id.Write(iat));
+                off_descr += IMAGE_IMPORT_DESCRIPTOR.SIZEOF;
+
+                // write name
+                iat.PerformAt(off_strings, () => iat.WriteCString(name));
+                off_strings += name.Length + 1;
+
+                // write thunks
+                iat.PerformAt(off_entries, () =>
+                {
+                    var thunks = lib.import_table.Select(imp => new IMAGE_THUNK_DATA32()
+                    {
+                        value = imp
+                    });
+                    foreach(var t in thunks)
+                    {
+                        t.Write(iat);
+                    }
+                });
+                off_entries += IMAGE_THUNK_DATA32.SIZEOF * (lib.import_table.Length + 1);
+            }
+
+            return iat_mem;
+        }
+
+        private (IMAGE_NT_HEADERS, IMAGE_SECTION_HEADER[]) ReadPEHeaders()
         {
             var doshdr = new IMAGE_DOS_HEADER(peMem);
             if (doshdr.e_magic != IMAGE_DOS_HEADER.IMAGE_DOS_SIGNATURE)
@@ -275,14 +353,18 @@ namespace Smx.Yafex.FileFormats.Xex
                 .Select(_ => new IMAGE_SECTION_HEADER(section_headers))
                 .ToArray();
 
-            return sections;
+            return (nthdr, sections);
         }
 
-        private Memory<byte> BuildFinalPE(IMAGE_SECTION_HEADER[] sections)
+        private Memory<byte> BuildFinalPE(IMAGE_SECTION_HEADER[] sections, Memory<byte>? iat)
         {
             var lastSection = sections.Aggregate((a, b) =>
                 a.PointerToRawData > b.PointerToRawData ? a : b);
+
             var fileSize = lastSection.PointerToRawData + lastSection.SizeOfRawData;
+
+            var iat_segment = sections.Where(s => s.Name == ".idata").First();
+            var iat_file_offset = iat_segment.PointerToRawData;
 
             var peFile = new Memory<byte>(new byte[fileSize]);
 
@@ -300,6 +382,22 @@ namespace Smx.Yafex.FileFormats.Xex
                 sectionData.CopyTo(target);
             }
 
+            // copy IAT
+            if (iat != null)
+            {
+                
+                var iat_data = peFile.Slice((int)iat_file_offset);
+                //iat.Value.CopyTo(iat_data);
+            }
+
+            return peFile;
+        }
+
+        private Memory<byte> RebuildPEFile()
+        {
+            var (nthdr, sections) = ReadPEHeaders();
+            var iat = BuildIAT(nthdr);
+            var peFile = BuildFinalPE(sections, iat);
             return peFile;
         }
 
@@ -464,8 +562,7 @@ namespace Smx.Yafex.FileFormats.Xex
                     break;
             }
 
-            var sections = ReadPEHeaders();
-            var peFile = BuildFinalPE(sections);
+            var peFile = RebuildPEFile();
 
             var outputName = Path.GetFileNameWithoutExtension(source.Directory) + ".exe";
             var exeArtifact = new MemoryDataSource(peFile)

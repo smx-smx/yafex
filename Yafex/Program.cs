@@ -77,7 +77,7 @@ namespace Smx.Yafex
 		}
 
 		void Run(string[] args) {
-			DebugHelper.Launch();
+			//DebugHelper.Launch();
 			Console.WriteLine("Firmex#");
 
 			var inputFile = args[0];
