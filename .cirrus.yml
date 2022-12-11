@@ -1,8 +1,8 @@
 linux_x64_task:
   container:
-    cpu: 4
-    memory: 4G
+    cpu: 2
+    memory: 2G
     dockerfile: .ci/linux_x64/Dockerfile
 
   build_script:
-    - dotnet msbuild -p:Platform=x64 -p:Configuration=Release -m
+    - dotnet build -p:Configuration=Release -m
