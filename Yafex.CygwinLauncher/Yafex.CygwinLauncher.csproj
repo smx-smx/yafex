@@ -3,81 +3,38 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <UseAppHost>true</UseAppHost>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>false</SelfContained>
+	<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="runtime.win-x64.Microsoft.NETCore.DotNetAppHost" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Yafex.Cygwin\Yafex.Cygwin.csproj" />
     <ProjectReference Include="..\Yafex\Yafex.csproj" />
   </ItemGroup>
 
-<!--
   <ItemGroup>
-    <ContentWithTargetPath Include="external\cygcoreclrhost.dll">
+    <None Update="external\cygcoreclrhost.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>cygcoreclrhost.dll</TargetPath>
-    </ContentWithTargetPath>
-    <None Update="external\cygcoreclrhost.dll" />
-
-    <ContentWithTargetPath Include="external\ezdotnet.exe">
+    </None>
+    <None Update="external\cyggcc_s-seh-1.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>ezdotnet.exe</TargetPath>
-    </ContentWithTargetPath>
-    <None Update="external\ezdotnet.exe" />
-
-    <ContentWithTargetPath Include="external\cygwin1.dll">
+    </None>
+    <None Update="external\cygstdc++-6.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>cygwin1.dll</TargetPath>
-    </ContentWithTargetPath>
-    <None Update="external\cygwin1.dll" />
-
-    <ContentWithTargetPath Include="external\cygstdc++-6.dll">
+    </None>
+    <None Update="external\cygwin1.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>cygstdc++-6.dll</TargetPath>
-    </ContentWithTargetPath>
-    <None Update="external\cygstdc++-6.dll" />
-
-    <ContentWithTargetPath Include="external\cyggcc_s-seh-1.dll">
+    </None>
+    <None Update="external\ezdotnet.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>cyggcc_s-seh-1.dll</TargetPath>
-    </ContentWithTargetPath>
-
-    <PackageReference Include="Microsoft.NETCore.DotNetAppHost" Version="6.0.1" />
-    <None Update="external\cyggcc_s-seh-1.dll" />
+    </None>
   </ItemGroup>
--->
 
- 
-  <!--
-   
- <Target Name="GetPath">
-      <GetFrameworkPath>
-          <Output TaskParameter="Path" PropertyName="FrameworkPath" />
-      </GetFrameworkPath>
-  </Target>
-    
-  <UsingTask TaskName="GetDotnetPath" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll" Runtime="CurrentRuntime">
-        <ParameterGroup>
-          <DotnetRoot Output="true" />
-        </ParameterGroup>
-        <Task>
-          <Using Namespace="System" />
-          <Code Type="Fragment" Language="cs">
-          <![CDATA[
-          DotnetRoot = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
-          //DotnetRoot = Environment.Version.ToString();
-          //Console.WriteLine(DotnetRoot);
-          ]]>
-          </Code>
-        </Task>
-      </UsingTask>
-    
-  <Target AfterTargets="Compile" Name="CopyHostFxr">
-    <GetDotnetPath>
-      <Output TaskParameter="DotnetRoot" PropertyName="DotnetRoot" />
-    </GetDotnetPath>
-    <Message Importance="high" Text="!!!! $(DotnetRoot) !!!" />
-  </Target>
-  -->
+    <Target AfterTargets="Build" Name="CopyHostFxr" Condition="'$(OS)'=='Windows_NT'">
+		<Message Importance="high" Text="Copying nethost.dll" />
+		<Copy SourceFiles="$(OutDir)runtimes\win-x64\native\nethost.dll" DestinationFolder="$(OutDir)" />
+    </Target>
 </Project>

@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	public class CachedEnumerable<T> : IReadOnlyList<T>, IEnumerable<T>, IDisposable
 	{

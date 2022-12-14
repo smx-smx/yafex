@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	[Flags]
     public enum DataSourceType {

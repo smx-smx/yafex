@@ -1,5 +1,5 @@
 ﻿using Smx.SharpIO;
-using Smx.Yafex.Support;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.Xex
+namespace Yafex.FileFormats.Xex
 {
     public class XexExtractor : IFormatExtractor
     {

@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FirmexSharp.Cygwin
+namespace Yafex.Cygwin
 {
 	public enum CygwinPathConversion
 	{

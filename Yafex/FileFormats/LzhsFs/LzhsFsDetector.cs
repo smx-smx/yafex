@@ -1,10 +1,10 @@
-﻿using Smx.Yafex.FileFormats.Lzhs;
-using Smx.Yafex.Support;
+﻿using Yafex.FileFormats.Lzhs;
+using Yafex.Support;
 using System;
 using System.IO;
 using System.Linq;
 
-namespace Smx.Yafex.FileFormats.LzhsFs
+namespace Yafex.FileFormats.LzhsFs
 {
 	internal class LzhsFsDetector : IFormatDetector
 	{

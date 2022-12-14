@@ -1,11 +1,11 @@
-﻿using Smx.Yafex.Util;
+﻿using Yafex.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Epk
+namespace Yafex.FileFormats.Epk
 {
 	public abstract class EpkContext<T> where T : struct
 	{

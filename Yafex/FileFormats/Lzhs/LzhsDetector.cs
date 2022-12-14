@@ -1,12 +1,12 @@
 ﻿using log4net;
-using Smx.Yafex.Support;
+using Yafex.Support;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Smx.Yafex.FileFormats.Lzhs
+namespace Yafex.FileFormats.Lzhs
 {
 	public class LzhsDetector : IFormatDetector
 	{

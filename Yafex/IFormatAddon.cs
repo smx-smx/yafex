@@ -1,10 +1,9 @@
-﻿using FirmexSharp;
-using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	public interface IFormatAddon
 	{

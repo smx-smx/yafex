@@ -1,4 +1,4 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Smx.Yafex.Util
+namespace Yafex.Util
 {
 	public delegate bool ValidatorDelegate(ReadOnlySpan<byte> data);
 

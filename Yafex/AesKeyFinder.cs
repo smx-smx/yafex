@@ -6,7 +6,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	public struct KeyFinderResult
 	{

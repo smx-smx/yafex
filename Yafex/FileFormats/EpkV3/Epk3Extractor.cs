@@ -1,4 +1,4 @@
-﻿namespace Smx.Yafex.FileFormats.EpkV3
+﻿namespace Yafex.FileFormats.EpkV3
 {
 	internal class Epk3Extractor
 	{

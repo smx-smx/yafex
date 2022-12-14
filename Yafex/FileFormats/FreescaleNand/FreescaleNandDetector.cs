@@ -1,7 +1,7 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.FreescaleNand
+namespace Yafex.FileFormats.FreescaleNand
 {
 	public class FreescaleNandDetector : IFormatDetector
 	{

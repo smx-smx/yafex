@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.Support
+namespace Yafex.Support
 {
     public static class ObjectExtensions
     {

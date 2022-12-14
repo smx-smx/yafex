@@ -1,5 +1,5 @@
 ﻿using Smx.SharpIO;
-using Smx.Yafex.Support;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Xex
+namespace Yafex.FileFormats.Xex
 {
     public enum xex2_section_type : byte
     {

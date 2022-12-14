@@ -1,6 +1,6 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 
-namespace Smx.Yafex.FileFormats.EpkV2
+namespace Yafex.FileFormats.EpkV2
 {
 	class Epk2Addon : IFormatAddon
 	{

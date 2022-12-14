@@ -1,8 +1,8 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Smx.Yafex.FileFormats.Lzhs
+namespace Yafex.FileFormats.Lzhs
 {
 	public class HuffmanDecoder
 	{

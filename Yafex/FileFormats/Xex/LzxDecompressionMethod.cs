@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace Smx.Yafex.FileFormats.Xex
+namespace Yafex.FileFormats.Xex
 {
     // https://github.com/kyz/libmspack/blob/6139a0b9e93fcb7fcf423e56aa825bc869e02229/libmspack/mspack/lzxd.c
 

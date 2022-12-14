@@ -1,8 +1,8 @@
-﻿using Smx.Yafex.FileFormats.Epk;
-using Smx.Yafex.Util;
+﻿using Yafex.FileFormats.Epk;
+using Yafex.Util;
 using System;
 
-namespace Smx.Yafex.FileFormats.EpkV2
+namespace Yafex.FileFormats.EpkV2
 {
 	public class Epk2Context : EpkContext<EPK_V2_HEADER>
 	{

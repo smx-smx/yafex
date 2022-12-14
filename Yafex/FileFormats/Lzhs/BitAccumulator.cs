@@ -1,4 +1,4 @@
-﻿namespace Smx.Yafex.FileFormats.Lzhs
+﻿namespace Yafex.FileFormats.Lzhs
 {
 	public class BitAccumulator
 	{

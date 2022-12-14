@@ -1,11 +1,10 @@
-﻿using FirmexSharp.Cygwin;
-using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
-namespace Smx.Yafex.FileFormats.Squashfs
+namespace Yafex.FileFormats.Squashfs
 {
 
 	public class SquashfsDetector : IFormatDetector
@@ -23,7 +22,7 @@ namespace Smx.Yafex.FileFormats.Squashfs
 
 			var squashfs = new SquashfsNative();
 
-			string cygwinPath = Cygwin.ToPosixPath(source.Directory);
+			string cygwinPath = Cygwin.Cygwin.ToPosixPath(source.Directory);
 
 			int confidence = 0;
 

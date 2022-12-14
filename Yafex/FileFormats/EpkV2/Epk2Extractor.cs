@@ -1,12 +1,12 @@
 ﻿using log4net;
-using Smx.Yafex.FileFormats.Epk;
-using Smx.Yafex.Support;
+using Yafex.FileFormats.Epk;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Smx.Yafex.FileFormats.EpkV2
+namespace Yafex.FileFormats.EpkV2
 {
 	public class Epk2Extractor : IFormatExtractor
 	{

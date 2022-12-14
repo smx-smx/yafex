@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Xex
+namespace Yafex.FileFormats.Xex
 {
     public class IMAGE_DOS_HEADER
     {

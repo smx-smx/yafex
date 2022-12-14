@@ -1,11 +1,11 @@
-﻿using Smx.Yafex.FileFormats.Epk;
-using Smx.Yafex.Support;
+﻿using Yafex.FileFormats.Epk;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.EpkV2
+namespace Yafex.FileFormats.EpkV2
 {
 	[StructLayout(LayoutKind.Sequential)]
 	public struct PAK_V2_LOCATION

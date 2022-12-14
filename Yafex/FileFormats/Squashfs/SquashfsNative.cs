@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Smx.Yafex.FileFormats.Squashfs
+namespace Yafex.FileFormats.Squashfs
 {
 	public class SquashfsNative
 	{

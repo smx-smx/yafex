@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
 using System.Text;
 
-namespace Smx.Yafex.Support
+namespace Yafex.Support
 {
 	public unsafe class MemoryMappedSpan<T> : MemoryManager<T>, IDisposable where T : unmanaged
 	{

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Text;
 
-namespace Smx.Yafex.Support
+namespace Yafex.Support
 {
 	public static class IServiceContainerExtensions
 	{

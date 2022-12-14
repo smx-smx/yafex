@@ -1,4 +1,4 @@
-﻿namespace Smx.Yafex
+﻿namespace Yafex
 {
 	public enum FileFormat
 	{

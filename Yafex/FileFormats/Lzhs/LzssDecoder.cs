@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Smx.Yafex.FileFormats.Lzhs
+namespace Yafex.FileFormats.Lzhs
 {
 	public class LzssDecoder {
 		const int N = 4096;

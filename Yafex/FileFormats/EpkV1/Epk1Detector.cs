@@ -1,8 +1,8 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.EpkV1
+namespace Yafex.FileFormats.EpkV1
 {
 	public enum Epk1Type
 	{

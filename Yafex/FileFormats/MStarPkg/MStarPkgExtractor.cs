@@ -1,4 +1,4 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +7,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Smx.Yafex.FileFormats.MStarPkg
+namespace Yafex.FileFormats.MStarPkg
 {
 	class MStarPartition
 	{

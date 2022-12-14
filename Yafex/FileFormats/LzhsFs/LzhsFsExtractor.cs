@@ -1,6 +1,6 @@
 ﻿using log4net;
-using Smx.Yafex.FileFormats.Lzhs;
-using Smx.Yafex.Support;
+using Yafex.FileFormats.Lzhs;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Smx.Yafex.FileFormats.LzhsFs
+namespace Yafex.FileFormats.LzhsFs
 {
 	public class LzhsFsReader
 	{

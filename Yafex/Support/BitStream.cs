@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.Support
+namespace Yafex.Support
 {
 	public class BitStream : IDisposable
 	{

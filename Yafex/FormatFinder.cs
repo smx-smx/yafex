@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Smx.Yafex.Support;
+using Yafex.Support;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	ref struct FinderArg
 	{

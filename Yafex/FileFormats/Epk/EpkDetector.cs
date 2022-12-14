@@ -1,13 +1,13 @@
 ﻿using log4net.Repository.Hierarchy;
-using Smx.Yafex.Support;
-using Smx.Yafex.Util;
+using Yafex.Support;
+using Yafex.Util;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.Epk
+namespace Yafex.FileFormats.Epk
 {
 
 	public abstract class EpkDetector

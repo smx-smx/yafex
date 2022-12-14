@@ -1,5 +1,5 @@
 ﻿using Org.BouncyCastle.Utilities.Encoders;
-using Smx.Yafex.Support;
+using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Lzhs
+namespace Yafex.FileFormats.Lzhs
 {
 	public unsafe struct LzhsHeader {
 		public uint uncompressedSize;

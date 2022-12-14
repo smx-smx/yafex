@@ -1,7 +1,7 @@
-﻿using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.Xex
+namespace Yafex.FileFormats.Xex
 {
     public class XexDetector : IFormatDetector
     {

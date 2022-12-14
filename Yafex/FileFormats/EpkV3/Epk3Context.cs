@@ -1,6 +1,6 @@
-﻿using Smx.Yafex.FileFormats.Epk;
+﻿using Yafex.FileFormats.Epk;
 
-namespace Smx.Yafex.FileFormats.EpkV3
+namespace Yafex.FileFormats.EpkV3
 {
 	public class Epk3Context<T> : EpkContext<T> where T : struct
 	{

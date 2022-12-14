@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Partinfo
+namespace Yafex.FileFormats.Partinfo
 {
 	public enum PartinfoType
 	{

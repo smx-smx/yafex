@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Smx.Yafex;
+using Yafex;
 using System.Linq;
 using System.Text;
 

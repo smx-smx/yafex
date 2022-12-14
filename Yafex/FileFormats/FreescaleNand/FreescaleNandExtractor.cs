@@ -1,10 +1,9 @@
-﻿using Smx.Yafex.Common;
-using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Smx.Yafex.FileFormats.FreescaleNand
+namespace Yafex.FileFormats.FreescaleNand
 {
 	class FreescaleNand
 	{

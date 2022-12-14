@@ -1,5 +1,4 @@
-﻿using FirmexSharp.Cygwin;
-using Smx.Yafex.Support;
+﻿using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.Squashfs
+namespace Yafex.FileFormats.Squashfs
 {
 	public class SquashfsExtractor : IFormatExtractor
 	{
@@ -24,10 +23,10 @@ namespace Smx.Yafex.FileFormats.Squashfs
 
 			var squashfs = new SquashfsNative();
 
-			string cygSource = Cygwin.ToPosixPath(source.Directory);
+			string cygSource = Cygwin.Cygwin.ToPosixPath(source.Directory);
 			string dirName = source.Directory + ".unsquashfs";
 
-			string cygDest = Cygwin.ToPosixPath(Path.Combine(config.DestDir, dirName));
+			string cygDest = Cygwin.Cygwin.ToPosixPath(Path.Combine(config.DestDir, dirName));
 			squashfs.ExtractSquashfs(cygSource, cygDest);
 
 			return Enumerable.Empty<IDataSource>();

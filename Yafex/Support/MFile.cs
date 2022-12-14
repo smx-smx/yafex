@@ -4,7 +4,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Text;
 
-namespace Smx.Yafex.Support
+namespace Yafex.Support
 {
 	public class MFile : IDataSource, IDisposable
 	{

@@ -1,4 +1,4 @@
-﻿using Smx.Yafex.FileFormats.Lzhs;
+﻿using Yafex.FileFormats.Lzhs;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.LzhsFs
+namespace Yafex.FileFormats.LzhsFs
 {
 	public record LzhsChunk(ushort index, int size, int outputOffset, Memory<byte> buf)
 	{

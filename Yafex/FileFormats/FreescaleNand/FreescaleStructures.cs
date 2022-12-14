@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.FileFormats.FreescaleNand
+namespace Yafex.FileFormats.FreescaleNand
 {
 	public struct mx28_nand_timings
 	{

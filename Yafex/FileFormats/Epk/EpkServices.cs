@@ -1,12 +1,12 @@
-﻿using Smx.Yafex.Support;
-using Smx.Yafex.Util;
+﻿using Yafex.Support;
+using Yafex.Util;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.Epk
+namespace Yafex.FileFormats.Epk
 {
 
 	public class EpkDecryptionService

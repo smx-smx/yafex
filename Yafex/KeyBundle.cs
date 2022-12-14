@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Markup;
 
-namespace Smx.Yafex
+namespace Yafex
 {
 	public class KeyEntry
 	{

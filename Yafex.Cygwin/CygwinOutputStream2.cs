@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FirmexSharp.Cygwin
+namespace Yafex.Cygwin
 {
 	public class CygwinOutputStream2 : Stream
 	{

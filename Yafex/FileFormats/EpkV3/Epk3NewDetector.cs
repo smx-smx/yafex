@@ -1,10 +1,10 @@
 ﻿using log4net;
-using Smx.Yafex.FileFormats.Epk;
-using Smx.Yafex.Support;
+using Yafex.FileFormats.Epk;
+using Yafex.Support;
 using System;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.EpkV3
+namespace Yafex.FileFormats.EpkV3
 {
 	public enum Epk3Variant
 	{

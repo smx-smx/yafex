@@ -1,5 +1,5 @@
-﻿using Smx.Yafex.Support;
-using Smx.Yafex.Util;
+﻿using Yafex.Support;
+using Yafex.Util;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,7 +7,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats
+namespace Yafex.FileFormats
 {
 	enum EpkBuildType
 	{

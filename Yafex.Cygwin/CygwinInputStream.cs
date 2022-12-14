@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 
-namespace FirmexSharp.Cygwin
+namespace Yafex.Cygwin
 {
 	public class CygwinInputStream : Stream
 	{

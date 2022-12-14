@@ -2,7 +2,7 @@
 using System.Runtime.Serialization;
 using System.Text;
 
-namespace Smx.Yafex.FileFormats.MStarPkg
+namespace Yafex.FileFormats.MStarPkg
 {
 	public class MStarPkgDetector : IFormatDetector
 	{

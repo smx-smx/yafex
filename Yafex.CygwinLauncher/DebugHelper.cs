@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Smx.Yafex.Common
+namespace Yafex.Common
 {
 	public static class DebugHelper
 	{

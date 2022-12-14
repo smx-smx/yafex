@@ -12,7 +12,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 
-namespace Smx.Yafex
+namespace Yafex
 {
     public class Logger
     {
