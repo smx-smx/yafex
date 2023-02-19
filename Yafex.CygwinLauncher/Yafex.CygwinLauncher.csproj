@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="runtime.win-x64.Microsoft.NETCore.DotNetAppHost" Version="7.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Yafex.Cygwin\Yafex.Cygwin.csproj" />
     <ProjectReference Include="..\Yafex\Yafex.csproj" />
   </ItemGroup>
@@ -33,6 +29,9 @@
     </None>
   </ItemGroup>
 
+	<ItemGroup Condition="'$(OS)'=='Windows_NT'">
+		<PackageReference Include="runtime.win-x64.Microsoft.NETCore.DotNetAppHost" Version="7.0.0" />
+	</ItemGroup>
     <Target AfterTargets="Build" Name="CopyHostFxr" Condition="'$(OS)'=='Windows_NT'">
 		<Message Importance="high" Text="Copying nethost.dll" />
 		<Copy SourceFiles="$(OutDir)runtimes\win-x64\native\nethost.dll" DestinationFolder="$(OutDir)" />

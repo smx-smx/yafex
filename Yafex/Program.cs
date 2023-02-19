@@ -1,3 +1,13 @@
+#region License
+/*
+ * Copyright (c) 2023 Stefano Moioli
+ * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
+ * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+ *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+ *  2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+ *  3. This notice may not be removed or altered from any source distribution.
+ */
+#endregion
 ﻿using Yafex;
 using Yafex.FileFormats;
 using Yafex.FileFormats.EpkV1;
@@ -21,6 +31,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using log4net.Util;
+using Yafex.Fuse;
+using Yafex.FileFormats.LxBoot;
 
 namespace Yafex
 {
@@ -28,7 +41,9 @@ namespace Yafex
 	{
 		Program() {
 			try {
-				Logger.Setup();
+                // needs https://github.com/apache/logging-log4net/pull/91
+                //SystemInfo.EntryAssemblyLocation = Assembly.GetExecutingAssembly().Location;
+                //Logger.Setup();
 			} catch(Exception) {
 				Console.Error.WriteLine("Warning: log4net setup failed");
 			}
@@ -52,8 +67,8 @@ namespace Yafex
 			foreach (var artifact in artifacts)
 			{
                 // save intermediate 
-                if (artifact.Flags.HasFlag(DataSourceType.Output)
-				&& !artifact.Flags.HasFlag(DataSourceType.Temporary
+                if (artifact.Flags.HasFlag(DataSourceFlags.Output)
+				&& !artifact.Flags.HasFlag(DataSourceFlags.Temporary
 				)) {
 					if (artifact.Directory == null) {
 						// if not overridden, use Config
@@ -67,16 +82,35 @@ namespace Yafex
 				}
 
 				// handle matryoshka formats
-				if (artifact.Flags.HasFlag(DataSourceType.ProcessFurther))
+				if (artifact.Flags.HasFlag(DataSourceFlags.ProcessFurther))
 				{
 					Process(artifact);
 				}
 			}
 		}
 
+		void FuseTest(string filePath)
+		{
+            var fi = new FuseInterop();
+			fi.Test(filePath);
+        }
+
 		void Run(string[] args) {
-			//DebugHelper.Launch();
 			Console.WriteLine("Firmex#");
+
+            if (args.Length < 1)
+            {
+				Console.Write("Input filename: ");
+				args = new string[]{
+					Console.ReadLine()
+				};
+            }
+
+            if (args[0] == "fuse")
+			{
+				FuseTest(args[1]);
+				return;
+			}
 
 			var inputFile = args[0];
 
@@ -96,6 +130,7 @@ namespace Yafex
 			repo.RegisterFormat(FileFormat.MStarPkg, new MStarPkgAddon());
 			repo.RegisterFormat(FileFormat.FreescaleNand, new FreescaleNandAddon());
 			repo.RegisterFormat(FileFormat.Xex, new XexAddon());
+			repo.RegisterFormat(FileFormat.LxSecureBoot, new LxSecureBootAddon());
 
 
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || IsRunningInCygwin()) {

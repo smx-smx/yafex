@@ -1,4 +1,16 @@
-﻿using System;
+#region License
+/*
+ * Copyright (c) 2023 Stefano Moioli
+ * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
+ * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+ *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+ *  2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+ *  3. This notice may not be removed or altered from any source distribution.
+ */
+#endregion
+﻿using log4net;
+using log4net.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,6 +30,8 @@ namespace Yafex
 		private readonly FileFormatRepository repo;
 
 		private delegate int GetConfidenceDelegate(FinderArg arg);
+
+		private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
 
 		public FormatFinder(Config config, FileFormatRepository repo) {
 			this.config = config;
@@ -42,12 +56,21 @@ namespace Yafex
 
 			foreach(var fmt in formats) {
 				repo.TryGetAddonForFormat(fmt, out var addon);
-				var result = Detect(fmt, source);
+				DetectionResult? result = null;
+				try
+				{
+					result = Detect(fmt, source);
 
-				if(result.Confidence > bestConfidence) {
-					bestConfidence = result.Confidence;
-					bestAddon = addon;
-					bestResult = result;
+                    if (result.Confidence > bestConfidence)
+                    {
+                        bestConfidence = result.Confidence;
+                        bestAddon = addon;
+                        bestResult = result;
+                    }
+                }
+				catch (DllNotFoundException ex)
+				{
+					log.Error("Detection failed", ex);
 				}
 			}
 

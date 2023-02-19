@@ -1,3 +1,13 @@
+#region License
+/*
+ * Copyright (c) 2023 Stefano Moioli
+ * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
+ * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+ *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+ *  2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+ *  3. This notice may not be removed or altered from any source distribution.
+ */
+#endregion
 ﻿using log4net;
 using Yafex.FileFormats.Epk;
 using Yafex.Support;
@@ -5,10 +15,47 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using Org.BouncyCastle.Crypto.Engines;
+using Smx.SharpIO;
+using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace Yafex.FileFormats.EpkV2
 {
-	public class Epk2Extractor : IFormatExtractor
+    public class Epk2Stream : SpanStream
+    {
+
+        private readonly Epk2Context ctx;
+
+        public Epk2Stream(
+			Epk2Context ctx,
+			Memory<byte> data,
+			Endianness endianness = Endianness.LittleEndian
+		) : base(data, endianness)
+        {
+			this.ctx = ctx;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var AES_BLOCK_SIZE = 16;
+            // aes block size mask
+            var ALIGN_MASK = AES_BLOCK_SIZE - 1;
+
+            var alignedLength = (count + ALIGN_MASK) & ~ALIGN_MASK;
+
+            var blockNum = offset / AES_BLOCK_SIZE;
+            var blockOff = offset % AES_BLOCK_SIZE;
+
+            var blocks = Memory.Slice(blockNum * AES_BLOCK_SIZE, alignedLength);
+            var decryptedBlocks = ctx.Services.Decryptor!.Decrypt(blocks.ToReadOnlySpan());
+
+            var data = decryptedBlocks.Slice(blockOff, count).ToArray();
+			data.CopyTo(buffer, offset);
+			return data.Length;
+        }
+    }
+
+    public class Epk2Extractor : IFormatExtractor
 	{
 		private static ILog log = LogManager.GetLogger(nameof(EpkV2));
 
@@ -37,7 +84,7 @@ namespace Yafex.FileFormats.EpkV2
 
 		private MemoryDataSourceBuffer NewPakBuffer(PAK_V2_HEADER pakHdr)
         {
-			var flags = DataSourceType.Output;
+			var flags = DataSourceFlags.Output;
 			var processFurther = pakHdr.ImageType switch
             {
 				"crc3" => false,
@@ -47,14 +94,21 @@ namespace Yafex.FileFormats.EpkV2
             };
             if (processFurther)
             {
-				flags |= DataSourceType.ProcessFurther;
+				flags |= DataSourceFlags.ProcessFurther;
             }
 
 			var buff = new MemoryDataSourceBuffer($"{pakHdr.ImageType}.pak", flags);
 			return buff;
 		}
 
-		private (string, string, IDataSource) HandlePak(Span<byte> fileData, int offset, string baseDir, out int numberOfSegments) {
+
+		private (string, string, IDataSource) HandlePak(
+			Span<byte> fileData,
+			int offset,
+			/*string baseDir,*/
+			out int numberOfSegments,
+			DataSourceFlags flags
+		) {
 			string? pakName = null;
 
 			MemoryDataSource outputFile;
@@ -109,11 +163,16 @@ namespace Yafex.FileFormats.EpkV2
 				offset += Marshal.SizeOf<PAK_V2_STRUCTURE>() + (int)pakHdr.segmentSize;
 			}
 
-			outputFile.Directory = baseDir;
+			//outputFile.Directory = baseDir;
 			return (pakName!, outputFile.Name, outputFile);
 		}
 
-		public IEnumerable<IDataSource> Extract(IDataSource source) {
+		public IEnumerable<IDataSource> Extract(IDataSource source)
+		{
+			return Extract(source, DataSourceFlags.Output);
+		}
+
+		public IEnumerable<IDataSource> Extract(IDataSource source, DataSourceFlags outputFlags) {
 			var fileData = source.Data;
 
 			var hdr = ctx.Header;
@@ -131,8 +190,8 @@ namespace Yafex.FileFormats.EpkV2
 
 			var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
-			var destDir = Path.Combine(config.DestDir, fwVersion);
-			Directory.CreateDirectory(destDir);
+			//var destDir = Path.Combine(config.DestDir, fwVersion);
+			//Directory.CreateDirectory(destDir);
 
 			int numSignatures = 1; //header signature
 			for(int curPak=0; curPak<hdr.fileNum; curPak++) {
@@ -140,7 +199,12 @@ namespace Yafex.FileFormats.EpkV2
 
 				(string pakName,
 				 string pakOutputPath,
-				 IDataSource pak) = HandlePak(fileData.Span, pakLoc, destDir, out int numberOfSegments);
+				 IDataSource pak) = HandlePak(
+					 fileData.Span,
+					 pakLoc, /*destDir*/
+					 out int numberOfSegments,
+					 outputFlags
+				);
 				numSignatures += numberOfSegments;
 
 				log.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");
