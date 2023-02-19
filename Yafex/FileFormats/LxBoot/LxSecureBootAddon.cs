@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Yafex.Fuse;
 using Yafex.Support;
 
 namespace Yafex.FileFormats.LxBoot
@@ -27,6 +28,11 @@ namespace Yafex.FileFormats.LxBoot
         public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
         {
             return new LxSecureBootExtractor((LxSecureBootContext)result.Context);
+        }
+
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
     }
 }

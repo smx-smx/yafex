@@ -8,7 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Org.BouncyCastle.Crypto.Signers;
+using Org.BouncyCastle.Crypto.Signers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -410,7 +410,7 @@ namespace Yafex.Fuse
             return null;
         }
 
-        public FuseInteropContext Initialize()
+        private FuseInteropContext Initialize()
         {
             var bindir = GetCygwinBinDir();
             if(bindir == null)
@@ -430,9 +430,11 @@ namespace Yafex.Fuse
 
         }
 
-        public void Test(string epkPath)
+        public static void Start(YafexVfs vfs)
         {
-            var ctx = Initialize();
+            var fuse = new FuseInterop();
+
+            var ctx = fuse.Initialize();
             
             var args = fuse_args.Create(new List<string>(){
                 "ezdotnet", // argv0
@@ -449,7 +451,7 @@ namespace Yafex.Fuse
                 throw new Exception("fuse_opt_parse failed");
             }
 
-            var fsb = new FuseFsBase(new EpkVfs(epkPath));
+            var fsb = new FuseFsBase(vfs);
             var ops = fsb.ops;
 
             var ops_size = Marshal.SizeOf<fuse_operations>();

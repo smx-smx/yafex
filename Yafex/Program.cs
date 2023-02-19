@@ -34,6 +34,7 @@ using System.Threading;
 using log4net.Util;
 using Yafex.Fuse;
 using Yafex.FileFormats.LxBoot;
+using System.Runtime.CompilerServices;
 
 namespace Yafex
 {
@@ -55,13 +56,23 @@ namespace Yafex
 		private Config config;
 		private FormatFinder finder;
 
-		private void Process(IDataSource input)
+		private IEnumerable<IDataSource> Process(IVfsNode? root, IDataSource input)
         {
-			var extractor = finder.CreateExtractor(input);
-			if (extractor == null)
+			var (bestAddon, bestResult) = finder.DetectFormatAddon(input);
+			if (bestAddon == null)
             {
-				return;
+				yield break;
             }
+
+			var useVfs = root != null;
+			if (useVfs)
+			{
+				var mountPoint = new YafexDirectory(input.Name, Helpers.OctalLiteral(0755));
+				root.AddNode(mountPoint);
+				root = mountPoint;
+			}
+
+			var extractor = bestAddon.CreateExtractor(config, bestResult);
 
 			var artifacts = extractor.Extract(input);
 			foreach (var artifact in artifacts)
@@ -70,53 +81,89 @@ namespace Yafex
                 if (artifact.Flags.HasFlag(DataSourceFlags.Output)
 				&& !artifact.Flags.HasFlag(DataSourceFlags.Temporary
 				)) {
-					if (artifact.Directory == null) {
-						// if not overridden, use Config
-						artifact.Directory = config.DestDir;
-					}
+					yield return artifact;
+				}
 
-					var path = Path.Combine(artifact.Directory, artifact.Name);
-					
-					// $TODO: use MFile in output mode?
-					File.WriteAllBytes(path, artifact.Data.ToArray());
+				if (useVfs)
+				{
+					IVfsNode? node = null;
+					try
+					{
+                        node = bestAddon.CreateVfsNode(artifact);
+                    } catch(Exception ex) {
+						if (ex is NotImplementedException || ex is NotSupportedException) { }
+						else throw;
+					}
+					if(node != null)
+					{
+						root.AddNode(node);
+					}
 				}
 
 				// handle matryoshka formats
 				if (artifact.Flags.HasFlag(DataSourceFlags.ProcessFurther))
 				{
-					Process(artifact);
+					var subArtifacts = Process(root, artifact);
+					foreach(var sub in subArtifacts)
+					{
+						yield return sub;
+					}
 				}
 			}
 		}
 
-		void FuseTest(string filePath)
+		private YafexVfs? fuseVfs = null;
+
+		private void WriteOutputFile(IDataSource artifact)
 		{
-            var fi = new FuseInterop();
-			fi.Test(filePath);
+            if (artifact.Directory == null)
+            {
+                // if not overridden, use Config
+                artifact.Directory = config.DestDir;
+            }
+
+            var path = Path.Combine(artifact.Directory, artifact.Name);
+
+            // $TODO: use MFile in output mode?
+            File.WriteAllBytes(path, artifact.Data.ToArray());
         }
 
 		void Run(string[] args) {
 			Console.WriteLine("Firmex#");
 
-            if (args.Length < 1)
-            {
-				Console.Write("Input filename: ");
-				args = new string[]{
-					Console.ReadLine()
-				};
-            }
+			var it = args.GetEnumerator();
 
-            if (args[0] == "fuse")
+			string? filename = null;
+            string? arg0 = null;
+            if (it.MoveNext())
 			{
-				FuseTest(args[1]);
-				return;
+				arg0 = it.Current.ToString();
 			}
 
-			var inputFile = args[0];
+			process_arg0:
+
+			if(arg0 == "fuse")
+			{
+                fuseVfs = new YafexVfs();
+				if (it.MoveNext())
+				{
+					filename = it.Current.ToString();
+				}
+            } else if(!string.IsNullOrEmpty(arg0))
+			{
+				filename = arg0;
+			}
+
+            if(filename == null)
+            {
+				Console.Write("Input filename: ");
+				arg0 = Console.ReadLine();
+				goto process_arg0;
+            }
 
 			Config config = new Config() {
 				ConfigDir = Directory.GetCurrentDirectory(),
-				DestDir = Path.GetDirectoryName(inputFile)
+				DestDir = Path.GetDirectoryName(filename)
 			};
 			this.config = config;
 
@@ -140,10 +187,22 @@ namespace Yafex
 			FormatFinder finder = new FormatFinder(config, repo);
 			this.finder = finder;
 
-
-			using (MFile input = new MFile(inputFile))
+			using (MFile input = new MFile(filename))
             {
-				Process(input);
+				var artifacts = Process(fuseVfs?.Root, input);
+				Action<IDataSource> addDelegate = (fuseVfs != null)
+					? (artifacts => { })
+					: WriteOutputFile;
+
+				foreach(var artifact in artifacts)
+				{
+					addDelegate(artifact);
+				}
+
+                if (fuseVfs != null)
+                {
+                    FuseInterop.Start(fuseVfs);
+                }
             }
 		}
 

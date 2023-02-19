@@ -128,7 +128,7 @@ namespace Yafex.Fuse
         }
     }
 
-    internal class EpkVfs : IVfs
+    internal class EpkVfs : YafexVfs
     {
 
         public IVfsNode Root => _root;

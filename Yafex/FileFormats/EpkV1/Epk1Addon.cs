@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV1
 {
@@ -24,5 +25,10 @@ namespace Yafex.FileFormats.EpkV1
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
 			return new Epk1Extractor(config, result);
 		}
-	}
+
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

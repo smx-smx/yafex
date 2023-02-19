@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Yafex.Fuse;
 
 namespace Yafex
 {
@@ -19,5 +20,6 @@ namespace Yafex
 	{
 		IFormatExtractor CreateExtractor(Config config, DetectionResult result);
 		IFormatDetector CreateDetector(Config config);
+		IVfsNode CreateVfsNode(IDataSource ds);
 	}
 }

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Yafex.Fuse;
 using Yafex.Support;
 
 namespace Yafex
@@ -43,23 +44,24 @@ namespace Yafex
 			return addon!.CreateDetector(config).Detect(source);
 		}
 
+		public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)
+		{
+            var formats = repo.GetRegisteredFormats();
+            if (formats.Count() < 1)
+                return (null, null);
 
-		public IFormatExtractor? CreateExtractor(IDataSource source) {
-			var formats = repo.GetRegisteredFormats();
-			if (formats.Count() < 1)
-				return null;
 
+            int bestConfidence = 0;
+            IFormatAddon? bestAddon = null;
+            DetectionResult bestResult = null!;
 
-			int bestConfidence = 0;
-			IFormatAddon? bestAddon = null;
-			DetectionResult bestResult = null!;
-
-			foreach(var fmt in formats) {
-				repo.TryGetAddonForFormat(fmt, out var addon);
-				DetectionResult? result = null;
-				try
-				{
-					result = Detect(fmt, source);
+            foreach (var fmt in formats)
+            {
+                repo.TryGetAddonForFormat(fmt, out var addon);
+                DetectionResult? result = null;
+                try
+                {
+                    result = Detect(fmt, source);
 
                     if (result.Confidence > bestConfidence)
                     {
@@ -68,17 +70,13 @@ namespace Yafex
                         bestResult = result;
                     }
                 }
-				catch (DllNotFoundException ex)
-				{
-					log.Error("Detection failed", ex);
-				}
-			}
+                catch (DllNotFoundException ex)
+                {
+                    log.Error("Detection failed", ex);
+                }
+            }
 
-			if(bestAddon == null) {
-				return null;
-			}
-
-			return bestAddon.CreateExtractor(config, bestResult);
-		}
+            return (bestAddon, bestResult);
+        }
 	}
 }

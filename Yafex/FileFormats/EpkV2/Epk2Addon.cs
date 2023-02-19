@@ -8,7 +8,9 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using System;
+using Yafex.Fuse;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -21,5 +23,9 @@ namespace Yafex.FileFormats.EpkV2
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
 			return new Epk2Extractor(config, result);
 		}
-	}
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

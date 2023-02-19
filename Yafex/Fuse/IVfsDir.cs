@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Yafex.Fuse
 {
-    internal interface IVfsDir
+    public interface IVfsDir
     {
     }
 }

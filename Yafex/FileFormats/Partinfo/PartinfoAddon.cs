@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Partinfo
 {
@@ -26,5 +27,10 @@ namespace Yafex.FileFormats.Partinfo
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
 			return new PartinfoExtractor(config, result);
 		}
-	}
+
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

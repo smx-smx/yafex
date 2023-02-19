@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Squashfs
 {
@@ -24,5 +25,10 @@ namespace Yafex.FileFormats.Squashfs
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
 			return new SquashfsExtractor(config, result);
 		}
-	}
+
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

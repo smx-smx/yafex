@@ -193,7 +193,7 @@ namespace Yafex.Fuse
             os.Flush();
         }
 
-        public FuseFsBase(IVfs vfs)
+        public FuseFsBase(YafexVfs vfs)
         {
             this.Vfs = vfs;
             this.ops = new fuse_operations

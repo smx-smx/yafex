@@ -61,7 +61,6 @@ namespace Yafex.FileFormats.LxBoot
                     Name = "secureboot_1.bin"
                 };
             }
-
         }
     }
 }

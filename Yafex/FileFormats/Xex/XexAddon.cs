@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Xex
 {
@@ -27,6 +28,11 @@ namespace Yafex.FileFormats.Xex
         public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
         {
             return new XexExtractor();
+        }
+
+        public IVfsNode CreateVfsNode(IDataSource ds)
+        {
+            throw new NotImplementedException();
         }
     }
 }
