@@ -52,7 +52,7 @@ namespace Yafex
             console.ActivateOptions();
             hierarchy.Root.AddAppender(console);
 
-            hierarchy.Root.Level = Level.Info;
+            hierarchy.Root.Level = Level.Finest;
             hierarchy.Configured = true;
         }
     }

@@ -88,7 +88,7 @@ namespace Yafex.CygwinLauncher
                 IsRunningInCygwin()
             )
             {
-                //EzDotnetCompat.InstallHooks();
+                EzDotnetCompat.InstallHooks();
                 initializer = (main) => {
                     using (var stdin = new StreamReader(new CygwinInputStream(0)))
                     using (var stdout = new StreamWriter(new CygwinOutputStream(1)))

@@ -44,7 +44,7 @@ namespace Yafex
 			try {
                 // needs https://github.com/apache/logging-log4net/pull/91
                 //SystemInfo.EntryAssemblyLocation = Assembly.GetExecutingAssembly().Location;
-                //Logger.Setup();
+                Logger.Setup();
 			} catch(Exception) {
 				Console.Error.WriteLine("Warning: log4net setup failed");
 			}
@@ -194,12 +194,14 @@ namespace Yafex
 					? (artifacts => { })
 					: WriteOutputFile;
 
+				int artifactsCount = 0;
 				foreach(var artifact in artifacts)
 				{
 					addDelegate(artifact);
+					artifactsCount++;
 				}
 
-                if (fuseVfs != null)
+                if (fuseVfs != null && artifactsCount > 0)
                 {
                     FuseInterop.Start(fuseVfs);
                 }
