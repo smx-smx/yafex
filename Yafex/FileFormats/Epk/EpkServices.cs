@@ -15,6 +15,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using log4net;
+using static Yafex.AesKeyFinder;
+using Org.BouncyCastle.Crypto.Engines;
 
 namespace Yafex.FileFormats.Epk
 {
@@ -27,7 +30,7 @@ namespace Yafex.FileFormats.Epk
 			this.aes = aes;
 		}
 
-		public Span<byte> Decrypt(ReadOnlySpan<byte> data) {
+		public Memory<byte> Decrypt(ReadOnlySpan<byte> data) {
 			ICryptoTransform decryptor = aes.CreateDecryptor();
 
 			MemoryStream outStream = new MemoryStream(data.Length);
@@ -39,7 +42,7 @@ namespace Yafex.FileFormats.Epk
 			if (!outStream.TryGetBuffer(out ArraySegment<byte> buf)) {
 				return null;
 			}
-			return buf.AsSpan();
+			return buf;
 		}
 
 	}
@@ -47,28 +50,45 @@ namespace Yafex.FileFormats.Epk
 	public class EpkServicesFactory
 	{
 		private readonly Config config;
-		private readonly KeyFile KeyFile;
+		private readonly KeyBundle KeyFile;
+
+		private static readonly ILog logger = LogManager.GetLogger(typeof(EpkServicesFactory));
 
 		public EpkServicesFactory(Config config) {
 			this.config = config;
 
 			var keyFilePath = Path.Combine(config.ConfigDir, "AES.key");
+			logger.InfoFormat("Using AES key file: {0}", keyFilePath);
+
 			if (File.Exists(keyFilePath)) {
-				this.KeyFile = new KeyFile(keyFilePath);
+				this.KeyFile = new KeyBundle(keyFilePath);
 			}
 		}
 
-		public EpkDecryptionService? CreateEpkDecryptor(ReadOnlySpan<byte> data, ValidatorDelegate validator) {
+		public EpkDecryptionService? CreateEpkDecryptor(ReadOnlySpan<byte> data, CryptoResultChecker validator) {
 			if (KeyFile == null) {
 				return null;
 			}
 
-			Aes key = KeyFile.FindAesKey(data, validator);
-			if (key == null) {
+			var keyFinder = new AesKeyFinder(this.KeyFile);
+			if(!keyFinder.FindAesKey(data, validator, out var result))
+			{
 				return null;
 			}
 
-			return new EpkDecryptionService(key);
+            var keyEntry = result.Value.Key;
+			
+			var aes = Aes.Create();
+            aes.BlockSize = 128;
+            aes.KeySize = keyEntry.key.Length * 8;
+            aes.Key = keyEntry.key;
+			if (keyEntry.keyMode == CipherMode.CBC)
+			{
+				aes.IV = keyEntry.iv;
+			}
+			aes.Mode = keyEntry.keyMode;
+			aes.Padding = PaddingMode.None;
+            return new EpkDecryptionService(aes);
 		}
 	}
 

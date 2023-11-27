@@ -71,7 +71,7 @@ namespace Yafex.FileFormats.EpkV2
 		public byte[] signature;
 		public PAK_V2_HEADER pakHeader;
 
-		public static ReadOnlySpan<T> GetHeader<T>(Span<T> pak2) where T : unmanaged {
+		public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> pak2) where T : unmanaged {
 			return pak2.GetField<T, PAK_V2_STRUCTURE, PAK_V2_HEADER>(nameof(pakHeader));
 		}
 	}
@@ -79,7 +79,9 @@ namespace Yafex.FileFormats.EpkV2
 	[StructLayout(LayoutKind.Sequential)]
 	public struct EPK_V2_HEADER
 	{
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        public const string EPK2_MAGIC = "EPK2";
+
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 		private byte[] fileType;
 		public UInt32 fileSize;
 		public UInt32 fileNum;

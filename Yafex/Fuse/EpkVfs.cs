@@ -182,7 +182,6 @@ namespace Yafex.Fuse
             }
         }
 
-
         public EpkVfs(string epkPath) {
 
             var a = new Epk2Addon();

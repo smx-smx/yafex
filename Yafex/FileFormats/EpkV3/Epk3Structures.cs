@@ -20,7 +20,9 @@ namespace Yafex.FileFormats.EpkV3
 {
 	public struct EPK_V3_HEADER
 	{
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        public const string EPK3_MAGIC = "EPK3";
+
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 		private byte[] epkMagic;
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 		private byte[] epakVersion;
@@ -38,7 +40,9 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct EPK_V3_NEW_HEADER
 	{
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        public const string EPK3_MAGIC = "EPK3";
+
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 		private byte[] epkMagic;
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
 		private byte[] epakVersion;
@@ -61,7 +65,7 @@ namespace Yafex.FileFormats.EpkV3
 													epakVersion[1], epakVersion[0]);
 		
 		public string EncryptType => encryptType.AsString(Encoding.ASCII);
-		public string UpdaetType => updateType.AsString(Encoding.ASCII);
+		public string UpdateType => updateType.AsString(Encoding.ASCII);
 	}
 
 	public struct PACKAGE_SEGMENT_INFO
@@ -86,7 +90,10 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct PAK_V3_NEW_LISTHEADER
 	{
-		public UInt32 packageInfoListSize;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE)]
+        public byte[] packageInfo_signature;
+
+        public UInt32 packageInfoListSize;
 		public UInt32 packageInfoCount;
 		public UInt32 pakInfoMagic;
 		// packages array follows
@@ -112,7 +119,7 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct PAK3_STRUCTURE
 	{
-		public const int SIGNATURE_SIZE = 0x80;
+		public const int SIGNATURE_SIZE = 128;
 
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
 		public byte[] signature;
@@ -121,7 +128,7 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct EPK_V3_HEAD_STRUCTURE
 	{
-		public const int SIGNATURE_SIZE = 0x80;
+		public const int SIGNATURE_SIZE = 128;
 
 		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
 		public byte[] signature;
@@ -141,9 +148,7 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct EPK_V3_NEW_HEAD_STRUCTURE
 	{
-		public const int SIGNATURE_SIZE = 0x80;
-
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE)]
 		public byte[] signature;
 		
 		public EPK_V3_NEW_HEADER epkHeader;
@@ -160,18 +165,9 @@ namespace Yafex.FileFormats.EpkV3
 
 	public struct EPK_V3_NEW_STRUCTURE
 	{
-		public const int SIGNATURE_SIZE = 0x80;
-
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
-		public byte[] signature;
+		public const int SIGNATURE_SIZE = 256;
 
 		public EPK_V3_NEW_HEAD_STRUCTURE head;
-
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
-		public byte[] packageInfo_signature;
-		[MarshalAs(UnmanagedType.ByValArray, SizeConst = SIGNATURE_SIZE)]
-		public byte[] sig2;
-
 		public PAK_V3_NEW_LISTHEADER packageInfo;
 
 		public static ReadOnlySpan<T> GetHead<T>(ReadOnlySpan<T> data) where T : unmanaged {

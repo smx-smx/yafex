@@ -26,7 +26,7 @@ namespace Yafex.FileFormats.EpkV3
 		}
 
 		private static bool IsPlainHeader(EPK_V3_HEADER hdr) {
-			return hdr.EpkMagic == Epk3Extractor.EPK3_MAGIC;
+			return hdr.EpkMagic == EPK_V3_HEADER.EPK3_MAGIC;
 		}
 
 		private bool IsPlainHeaderData(ReadOnlySpan<byte> data) {
@@ -62,7 +62,7 @@ namespace Yafex.FileFormats.EpkV3
 		}
 
 		public DetectionResult Detect(IDataSource source) {
-			var data = source.Data.ToReadOnlySpan();
+			var data = source.Data.Span;
 
 			int confidence = 0;
 

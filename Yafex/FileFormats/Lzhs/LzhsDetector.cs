@@ -32,7 +32,7 @@ namespace Yafex.FileFormats.Lzhs
 
 			LzhsHeader hdr;
 			try {
-				hdr = new LzhsHeader(data.ToReadOnlySpan());
+				hdr = new LzhsHeader(data.Span);
 			} catch (InvalidDataException) {
 				return new DetectionResult(0, null);
 			}

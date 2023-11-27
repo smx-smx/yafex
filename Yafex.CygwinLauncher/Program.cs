@@ -101,7 +101,19 @@ namespace Yafex.CygwinLauncher
                         Console.SetOut(stdout);
                         Console.SetError(stderr);
 
-                        main(argv);
+                        /**
+                         * catch and print unhandled exceptions
+                         * otherwise, when running in cygwin, unhandled exceptions will not be printed
+                         ***/
+                        try
+                        {
+                            main(argv);
+                        } catch(Exception ex)
+                        {
+                            Console.Error.WriteLine("==== UNHANDLED EXCEPTION");
+                            Console.Error.WriteLine(ex.ToString());
+                            throw;
+                        }
                     }
                 };
             }

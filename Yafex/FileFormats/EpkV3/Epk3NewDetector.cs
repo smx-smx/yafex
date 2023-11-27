@@ -31,7 +31,7 @@ namespace Yafex.FileFormats.EpkV3
 		}
 
 		private static bool IsPlainHeader(EPK_V3_NEW_HEADER hdr) {
-			return hdr.EpkMagic == Epk3Extractor.EPK3_MAGIC;
+			return hdr.EpkMagic == EPK_V3_NEW_HEADER.EPK3_MAGIC;
 		}
 
 		private bool IsPlainHeaderData(ReadOnlySpan<byte> data) {
@@ -41,11 +41,19 @@ namespace Yafex.FileFormats.EpkV3
 
 		private bool ValidateEpk3Header(ReadOnlySpan<byte> data) {
 			var bytes = data.Slice(0, 4).ToArray();
-			return Encoding.ASCII.GetString(bytes) == Epk3Extractor.EPK3_MAGIC;
+			return Encoding.ASCII.GetString(bytes) == EPK_V3_NEW_HEADER.EPK3_MAGIC;
+		}
+
+		private Epk3NewContext CreateContext(EPK_V3_NEW_HEADER? header)
+		{
+			return new Epk3NewContext(
+				serviceFactory,
+				new EpkServices(),
+				header.HasValue ? header.Value : default);
 		}
 
 		public DetectionResult Detect(IDataSource source) {
-			var data = source.Data.ToReadOnlySpan();
+			var data = source.Data.Span;
 
 			int confidence = 0;
 
@@ -53,14 +61,18 @@ namespace Yafex.FileFormats.EpkV3
 			if (IsEpkVersionString(epk3.head.platformVersion)) confidence += 40;
 			if (IsEpkVersionString(epk3.head.sdkVersion)) confidence += 40;
 
+			Epk3NewContext? ctx = null;
+
 			EPK_V3_NEW_HEADER header = epk3.head.epkHeader;
 			if (!IsPlainHeader(header)) {
-				var headBytes = EPK_V3_NEW_STRUCTURE.GetHead(data);
+				var headBytes = EPK_V3_NEW_STRUCTURE.GetHead(data.AsReadonlySpan());
 				var hdrBytes = EPK_V3_NEW_HEAD_STRUCTURE.GetHeader(headBytes);
 				var decryptor = serviceFactory.CreateEpkDecryptor(hdrBytes, ValidateEpk3Header);
 				if(decryptor != null) {
 					var decrypted = decryptor.Decrypt(hdrBytes).ReadStruct<EPK_V3_NEW_HEADER>();
-					decrypted.ToString();
+					confidence = 100;
+					ctx = CreateContext(decrypted);
+					ctx.AddDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC, decryptor);
 				} else {
 					if(confidence > 40) {
 						log.Info("This could be a valid EPK2, but there's no matching AES key");
@@ -68,8 +80,7 @@ namespace Yafex.FileFormats.EpkV3
 					confidence = 0;
 				}
 			}
-
-			return new DetectionResult(confidence, null);
+			return new DetectionResult(confidence, ctx);
 		}
 	}
 }

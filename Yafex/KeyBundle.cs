@@ -37,7 +37,8 @@ namespace Yafex
 
 		private bool disposed = false;
 
-		private const int MAX_KEYSIZE = 32;
+		// aes-256
+		private const int MAX_KEYSIZE = 64;
 
 		private static byte[] ReadPiece(StreamReader sr, out char lastCh) {
 			Memory<byte> bytes = new Memory<byte>(new byte[MAX_KEYSIZE]);
@@ -59,16 +60,25 @@ namespace Yafex
 			return bytes.Slice(0, i).ToArray();
 		}
 
+		private const char COMMENT_LITERAL = '#';
+
 		private IEnumerable<KeyEntry> ReadKeys(StreamReader sr) {
 			while (!sr.EndOfStream) {
 				char lastCh;
 
-				byte[] key;
-				do {
-					key = ReadPiece(sr, out lastCh);
-				} while (key.Length == 0 && !sr.EndOfStream);
+                byte[] key;
+                do
+                {
+                    key = ReadPiece(sr, out lastCh);
+                } while (key.Length == 0 && !sr.EndOfStream && lastCh != COMMENT_LITERAL);
 
-				if (key.Length == 0 && sr.EndOfStream) break;
+				if(lastCh == COMMENT_LITERAL)
+				{
+					sr.ReadLine();
+					continue;
+				}
+
+                if (key.Length == 0 && sr.EndOfStream) break;
 
 				byte[] iv = null;
 				if (lastCh == ',') {

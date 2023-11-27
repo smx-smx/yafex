@@ -72,7 +72,7 @@ namespace Yafex
                 }
                 catch (DllNotFoundException ex)
                 {
-                    log.Error("Detection failed", ex);
+                    log.Error("Failed to load native addon", ex);
                 }
             }
 

@@ -13,6 +13,7 @@ using Yafex.FileFormats.Epk;
 using Yafex.Support;
 using System;
 using System.Buffers;
+using Yafex.FileFormats.EpkV3;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -24,7 +25,7 @@ namespace Yafex.FileFormats.EpkV2
 		}
 
 		private static bool IsPlainHeader(EPK_V2_HEADER hdr) {
-			return hdr.EpkMagic == Epk2Extractor.EPK2_MAGIC;
+			return hdr.EpkMagic == EPK_V2_HEADER.EPK2_MAGIC;
 		}
 
 		protected bool IsPlainHeaderData(ReadOnlySpan<byte> data) {
@@ -40,8 +41,8 @@ namespace Yafex.FileFormats.EpkV2
 			);
 		}
 
-		public DetectionResult Detect(IDataSource source) {
-			var data = source.Data.ToReadOnlySpan();
+        public DetectionResult Detect(IDataSource source) {
+			var data = source.Data.Span;
 
 			EPK_V2_STRUCTURE epk = data.ReadStruct<EPK_V2_STRUCTURE>();
 
@@ -54,12 +55,12 @@ namespace Yafex.FileFormats.EpkV2
 			
 			Epk2Context? ctx = null;
 			if (!IsPlainHeader(header)) {
-				var hdrBytes = EPK_V2_STRUCTURE.GetHeader(data);
+				var hdrBytes = EPK_V2_STRUCTURE.GetHeader(data.AsReadonlySpan());
 				var decryptor = serviceFactory.CreateEpkDecryptor(hdrBytes, ValidateEpkHeader);
 				if (decryptor != null) {
 					header = decryptor.Decrypt(hdrBytes).ReadStruct<EPK_V2_HEADER>();
 					ctx = CreateContext(header);
-					ctx.Services.Decryptor = decryptor;
+					ctx.AddDecryptor(EPK_V2_HEADER.EPK2_MAGIC, decryptor);
 				} else {
 					if (confidence > 40) {
 						log.Info("This could be a valid EPK2, but there's no matching AES key");

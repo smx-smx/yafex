@@ -18,8 +18,8 @@ namespace Yafex.FileFormats.EpkV2
 	{
 		public Epk2Context(EpkServicesFactory servicesFactory,
 			EpkServices services,
-			EPK_V2_HEADER header
-		) : base(servicesFactory, services, header) {
+            EPK_V2_HEADER header            
+        ) : base(servicesFactory, services, header) {
 		}
 	}
 }

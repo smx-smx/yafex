@@ -430,7 +430,7 @@ namespace Yafex.Fuse
 
         }
 
-        public static void Start(YafexVfs vfs)
+        public static void Start(YafexVfs vfs, string mountPoint)
         {
             var fuse = new FuseInterop();
 
@@ -442,7 +442,7 @@ namespace Yafex.Fuse
                 //"-d",
                 "-o", "VolumeSerialNumber=1234",
                 "-o", "umask=000",
-                "T:"
+                mountPoint
             }, out var args_buf);
             var opts = fuse_opt.CreateOptionList(new List<fuse_opt>() { });
 

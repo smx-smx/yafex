@@ -8,13 +8,16 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
+using log4net;
+using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
+using Yafex.Support;
 
 namespace Yafex
 {
@@ -24,19 +27,31 @@ namespace Yafex
 		public Memory<byte> Data;
 	}
 
+    public delegate bool CryptoResultChecker(ReadOnlySpan<byte> data);
+    
 	public class AesKeyFinder
 	{
-		public delegate bool CryptoResultChecker(Span<byte> data);
-
 		private readonly KeyBundle bundle;
+
+		private static readonly ILog logger = LogManager.GetLogger(typeof(AesKeyFinder));
 
 		public AesKeyFinder(KeyBundle bundle) {
 			this.bundle = bundle;
 		}
 
-		private Span<byte> TestAesKey(ReadOnlySpan<byte> data, KeyEntry key, CryptoResultChecker validator) {
+		private Span<byte> TestAesKey(ReadOnlySpan<byte> data, KeyEntry keyEntry, CryptoResultChecker validator) {
 			var aes = Aes.Create();
-			var decryptor = aes.CreateDecryptor();
+            aes.BlockSize = 128;
+            aes.KeySize = keyEntry.key.Length * 8;
+            aes.Key = keyEntry.key;
+            if (keyEntry.keyMode == CipherMode.CBC)
+            {
+                aes.IV = keyEntry.iv;
+            }
+            aes.Mode = keyEntry.keyMode;
+            aes.Padding = PaddingMode.None;
+
+            var decryptor = aes.CreateDecryptor();
 
 			var outStream = new MemoryStream(data.Length);
 
@@ -57,9 +72,15 @@ namespace Yafex
 		}
 
 		public bool FindAesKey(ReadOnlySpan<byte> data, CryptoResultChecker checker, out KeyFinderResult? result) {
-			var keys = bundle.GetKeysEnumerable().Where(k => k.keyAlgo == CipherAlgorithmType.Aes);
+			var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
+
+			var keys = bundle.GetKeysEnumerable().Where(k => algos.Contains(k.keyAlgo));
 			foreach (var k in keys) {
-				var decrypted = TestAesKey(data, k, checker);
+                logger.DebugFormat("Trying {0} ({1})",
+                    k.key.HexDump(printAddress: false, printSpacing: false, printAscii: false),
+                    k.comment
+                );
+                var decrypted = TestAesKey(data, k, checker);
 				if (decrypted != null) {
 					result = new KeyFinderResult {
 						Key = k,

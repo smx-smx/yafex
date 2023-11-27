@@ -25,12 +25,12 @@ namespace Yafex.FileFormats.EpkV3
 		}
 
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
-			throw new NotImplementedException();
+			return new Epk3NewExtractor(config, result);
 		}
 
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
-            throw new NotImplementedException();
+            return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
     }
 }

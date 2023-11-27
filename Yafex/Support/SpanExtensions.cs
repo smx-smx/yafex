@@ -80,9 +80,9 @@ namespace Yafex.Support
 			return data.Span.GetEnumerator();
 		}
 
-		public static ReadOnlySpan<T> ToReadOnlySpan<T>(this Span<T> data) where T : unmanaged => data;
-		public static ReadOnlySpan<T> ToReadOnlySpan<T>(this ReadOnlySpan<T> data) where T : unmanaged => data;
-		public static ReadOnlySpan<T> ToReadOnlySpan<T>(this Memory<T> data) where T : unmanaged => data.Span;
+		public static ReadOnlySpan<T> AsReadonlySpan<T>(this Span<T> data) where T : unmanaged => data;
+		public static ReadOnlySpan<T> AsReadonlySpan<T>(this ReadOnlySpan<T> data) where T : unmanaged => data;
+		public static ReadOnlySpan<T> AsReadonlySpan<T>(this Memory<T> data) where T : unmanaged => data.Span;
 
 		public static IEnumerable<T> ToEnumerable<T>(this ReadOnlyMemory<T> data) where T : unmanaged {
 			return MemoryMarshal.ToEnumerable<T>(data);
@@ -210,7 +210,18 @@ namespace Yafex.Support
 			return ReadStruct<T>(data.Span, offset);
 		}
 
-		public static Span<T> GetField<T, TStruct, TField>(this Span<T> span, string fieldName)
+		public static Memory<T> GetField<T, TStruct, TField>(this Memory<T> memory, string fieldName)
+        where T : unmanaged
+            where TStruct : struct
+            where TField : struct
+        {
+            var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
+            var length = Marshal.SizeOf<TField>();
+
+            return memory.Slice(offset, length);
+        }
+
+        public static Span<T> GetField<T, TStruct, TField>(this Span<T> span, string fieldName)
 			where T : unmanaged
 			where TStruct : struct
 			where TField : struct

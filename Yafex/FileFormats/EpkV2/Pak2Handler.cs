@@ -12,6 +12,7 @@
 using Yafex.Support;
 using System;
 using System.Runtime.InteropServices;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -45,8 +46,12 @@ namespace Yafex.FileFormats.EpkV2
 				return hdr;
 			}
 
-			this.ctx.EnsureDecryptor(data, CheckPak2Magic);
-			data = ctx.Services.Decryptor!.Decrypt(data);
+			var decryptor = ctx.GetOrCreateDecryptor(
+				PAK_V2_HEADER.PAK_MAGIC,
+				data, CheckPak2Magic
+			);
+
+			data = decryptor.Decrypt(data).Span;
 			wasDecrypted = true;
 			return data.ReadStruct<PAK_V2_HEADER>();
 		}
@@ -67,6 +72,6 @@ namespace Yafex.FileFormats.EpkV2
 			return new DetectionResult(confidence, result);
 		}
 
-		public DetectionResult Detect(IDataSource source) => Detect(source.Data.ToReadOnlySpan());
+		public DetectionResult Detect(IDataSource source) => Detect(source.Data.Span);
 	}
 }

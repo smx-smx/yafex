@@ -47,7 +47,7 @@ namespace Yafex.FileFormats.EpkV2
             var blockOff = offset % AES_BLOCK_SIZE;
 
             var blocks = Memory.Slice(blockNum * AES_BLOCK_SIZE, alignedLength);
-            var decryptedBlocks = ctx.Services.Decryptor!.Decrypt(blocks.ToReadOnlySpan());
+            var decryptedBlocks = ctx.Services.Decryptor!.Decrypt(blocks.Span);
 
             var data = decryptedBlocks.Slice(blockOff, count).ToArray();
 			data.CopyTo(buffer, offset);
@@ -57,19 +57,17 @@ namespace Yafex.FileFormats.EpkV2
 
     public class Epk2Extractor : IFormatExtractor
 	{
-		private static ILog log = LogManager.GetLogger(nameof(EpkV2));
+		private static readonly ILog logger = LogManager.GetLogger(nameof(EpkV2));
 
-		public const string EPK2_MAGIC = "EPK2";
-
-		private Config config;
-		private Epk2Context ctx;
+		private readonly Config config;
+		private readonly Epk2Context ctx;
 
 		public Epk2Extractor(Config config, DetectionResult result) {
 			this.config = config;
 			this.ctx = (Epk2Context)result.Context!;
 		}
 
-		private Pak2DetectionResult GetPak2Header(Span<byte> fileData, int offset) {
+		private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset) {
 			var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
 			var pakHeader = PAK_V2_STRUCTURE.GetHeader(pak2);
 			var handler = new Pak2Handler(ctx);
@@ -103,7 +101,7 @@ namespace Yafex.FileFormats.EpkV2
 
 
 		private (string, string, IDataSource) HandlePak(
-			Span<byte> fileData,
+			ReadOnlySpan<byte> fileData,
 			int offset,
 			/*string baseDir,*/
 			out int numberOfSegments,
@@ -123,7 +121,7 @@ namespace Yafex.FileFormats.EpkV2
 				var pakHdr = pak2.Header;
 				uint curSeg = pakHdr.segmentIndex;
 				if (curSeg == 0) {
-					log.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
+					logger.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
 
 					outputBuffer = NewPakBuffer(pakHdr);
 					
@@ -138,7 +136,7 @@ namespace Yafex.FileFormats.EpkV2
 				var pakData = fileData.Slice(offset + Marshal.SizeOf<PAK_V2_STRUCTURE>(), (int)pakHdr.segmentSize);
 				if (needsDecryption)
 				{
-					pakData = ctx.Services.Decryptor!.Decrypt(pakData);
+					pakData = ctx.Services.Decryptor!.Decrypt(pakData).Span;
 				}
 				outputBuffer.Write(pakData);
 
@@ -149,7 +147,7 @@ namespace Yafex.FileFormats.EpkV2
 					_ => $"UNKNOWN 0x{pakHdr.devMode:X}"
 				};
 
-				log.Info($"  segment #{curSeg + 1} (name='{pakHdr.ImageType}'," +
+				logger.Info($"  segment #{curSeg + 1} (name='{pakHdr.ImageType}'," +
 					$" version={pakHdr.SwVersion}," +
 					$" platform='{pakHdr.ModelName}', offset='0x{offset:X}', size='{pakHdr.segmentSize} bytes'," +
 					$" build={build})");
@@ -177,16 +175,16 @@ namespace Yafex.FileFormats.EpkV2
 
 			var hdr = ctx.Header;
 
-			log.Info("Firmware Info");
-			log.Info("-------------");
-			log.Info($"Firmware magic: {hdr.FileType}");
-			log.Info($"Firmware type: {hdr.EpkMagic}");
-			log.Info($"Firmware otaID: {hdr.OtaId}");
-			log.Info($"Firmware version: {hdr.EpkVersion}");
+			logger.Info("Firmware Info");
+			logger.Info("-------------");
+			logger.Info($"Firmware magic: {hdr.FileType}");
+			logger.Info($"Firmware type: {hdr.EpkMagic}");
+			logger.Info($"Firmware otaID: {hdr.OtaId}");
+			logger.Info($"Firmware version: {hdr.EpkVersion}");
 
-			log.Info($"PAK count: {hdr.fileNum}");
-			log.Info($"PAKs total size: {hdr.fileSize}");
-			log.Info($"Header length: 0x{hdr.imageLocations[0].ImageOffset:X}");
+			logger.Info($"PAK count: {hdr.fileNum}");
+			logger.Info($"PAKs total size: {hdr.fileSize}");
+			logger.Info($"Header length: 0x{hdr.imageLocations[0].ImageOffset:X}");
 
 			var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
@@ -207,7 +205,7 @@ namespace Yafex.FileFormats.EpkV2
 				);
 				numSignatures += numberOfSegments;
 
-				log.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");
+				logger.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");
 				yield return pak;
 			}
 		}

@@ -18,6 +18,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using log4net;
 
 namespace Yafex.Util
 {
@@ -33,6 +34,8 @@ namespace Yafex.Util
 
 	public class KeyFile
 	{
+		private static readonly ILog logger = LogManager.GetLogger(typeof(KeyFile));
+
 		private AesKey[] keys;
 
 		const int AES_BLOCK_SIZE = 16;
@@ -96,7 +99,10 @@ namespace Yafex.Util
 			aes.KeySize = AES_BLOCK_SIZE * 8;
 
 			foreach (AesKey key in keys) {
-				Trace.WriteLine($"Trying {key.Key.HexDump(printAddress: false, printSpacing: false, printAscii: false)} {key.Comment}");
+				logger.InfoFormat("Trying {0} ({1})",
+                    key.Key.HexDump(printAddress: false, printSpacing: false, printAscii: false),
+					key.Comment
+                );
 
 				aes.Key = key.Key;
 				if (key.Mode == CipherMode.CBC) {

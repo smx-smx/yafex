@@ -128,38 +128,42 @@ namespace Yafex
             File.WriteAllBytes(path, artifact.Data.ToArray());
         }
 
+		private void FuseUsageError()
+		{
+            Console.Error.WriteLine("Usage: fuse [filename] [mountpoint]");
+            Environment.Exit(1);
+        }
+
 		void Run(string[] args) {
 			Console.WriteLine("Firmex#");
 
 			var it = args.GetEnumerator();
 
 			string? filename = null;
+            string? fuse_mountpoint = null;
             string? arg0 = null;
             if (it.MoveNext())
 			{
 				arg0 = it.Current.ToString();
 			}
 
-			process_arg0:
-
 			if(arg0 == "fuse")
 			{
                 fuseVfs = new YafexVfs();
-				if (it.MoveNext())
+                if (!it.MoveNext())
 				{
-					filename = it.Current.ToString();
-				}
+					FuseUsageError();
+                }
+				filename = it.Current.ToString();
+				if (!it.MoveNext())
+				{
+					FuseUsageError();
+                }
+				fuse_mountpoint = it.Current.ToString();
             } else if(!string.IsNullOrEmpty(arg0))
 			{
 				filename = arg0;
 			}
-
-            if(filename == null)
-            {
-				Console.Write("Input filename: ");
-				arg0 = Console.ReadLine();
-				goto process_arg0;
-            }
 
 			Config config = new Config() {
 				ConfigDir = Directory.GetCurrentDirectory(),
@@ -201,9 +205,9 @@ namespace Yafex
 					artifactsCount++;
 				}
 
-                if (fuseVfs != null && artifactsCount > 0)
+                if (fuseVfs != null && fuse_mountpoint != null && artifactsCount > 0)
                 {
-                    FuseInterop.Start(fuseVfs);
+                    FuseInterop.Start(fuseVfs, fuse_mountpoint);
                 }
             }
 		}

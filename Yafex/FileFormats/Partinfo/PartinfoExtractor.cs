@@ -111,7 +111,7 @@ namespace Yafex.FileFormats.Partinfo
 		}
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {
-			string sOut = DumpPartinfo(source.Data.ToReadOnlySpan());
+			string sOut = DumpPartinfo(source.Data.Span);
 
 			string artifactName = Path.Combine(
 				Path.GetDirectoryName(source.Directory),

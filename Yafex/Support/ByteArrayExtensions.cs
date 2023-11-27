@@ -74,7 +74,14 @@ namespace Yafex.Support
 		}
 
 		public static string AsString(this byte[] arr, Encoding encoding) {
-			return encoding.GetString(arr).TrimEnd((char)0);
+			var str = encoding.GetString(arr);
+			var nullOffset = str.IndexOf('\0');
+			if(nullOffset > -1)
+			{
+				return str.Substring(0, nullOffset);
+			}
+
+			return str;
 		}
 	}
 }
