@@ -8,17 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using DiscUtils;
+using DiscUtils;
 using DiscUtils.SquashFs;
-using DiscUtils.Vfs;
-using Org.BouncyCastle.Crypto.Prng.Drbg;
 using Smx.SharpIO;
+using Smx.SharpIO.Extensions;
 using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using Yafex.FileFormats.EpkV2;
-using Yafex.FileFormats.EpkV3;
 
 namespace Yafex.Fuse
 {

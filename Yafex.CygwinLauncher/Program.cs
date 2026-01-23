@@ -77,6 +77,7 @@ namespace Yafex.CygwinLauncher
 
         public static int Entry(IntPtr args, int sizeBytes)
         {
+            //Debugger.Launch();
             string[] argv = ReadArgv(args, sizeBytes);
 
             string thisDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -88,7 +89,6 @@ namespace Yafex.CygwinLauncher
                 IsRunningInCygwin()
             )
             {
-                EzDotnetCompat.InstallHooks();
                 initializer = (main) => {
                     using (var stdin = new StreamReader(new CygwinInputStream(0)))
                     using (var stdout = new StreamWriter(new CygwinOutputStream(1)))
