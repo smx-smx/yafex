@@ -8,12 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.FileFormats.Epk;
-using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+﻿using Yafex.FileFormats.Epk;
+using Yafex.FileFormats.EpkV1;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -29,6 +30,7 @@ namespace Yafex.FileFormats.EpkV2
 
 		public string ImageType => imageType.AsString(Encoding.ASCII);
 	}
+
 
 	[StructLayout(LayoutKind.Sequential)]
 	public struct PAK_V2_HEADER
@@ -62,6 +64,17 @@ namespace Yafex.FileFormats.EpkV2
 													swVersion[1], swVersion[0]);
 	}
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PAK_V2_BETA_STRUCTURE
+	{
+        public PAK_V2_HEADER pakHeader;
+
+        public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> pak2) where T : unmanaged
+        {
+            return pak2.GetField<T, PAK_V2_BETA_STRUCTURE, PAK_V2_HEADER>(nameof(pakHeader));
+        }
+    }
+
 	[StructLayout(LayoutKind.Sequential)]
 	public struct PAK_V2_STRUCTURE
 	{
@@ -76,9 +89,54 @@ namespace Yafex.FileFormats.EpkV2
 		}
 	}
 
-	[StructLayout(LayoutKind.Sequential)]
-	public struct EPK_V2_HEADER
+	public interface IEpkV2Header
 	{
+		string FileType { get; }
+		string EpkMagic { get; }
+		string OtaId { get; }
+		string EpkVersion { get; }
+		uint FileNum { get; }
+        uint FileSize { get; }
+		uint GetImageOffset(int idx);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct EPK_V2_BETA_HEADER : IEpkV2Header
+    {
+        public const string EPK2_MAGIC = "EPK2";
+
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        private byte[] fileType;
+        public UInt32 fileSize;
+        public UInt32 fileNum;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        private byte[] epkMagic;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        private byte[] epakVersion;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+        private byte[] otaId;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
+        public EpkV1.PakRec[] imageLocations;
+
+        public string FileType => fileType.AsString(Encoding.ASCII);
+        public string EpkMagic => epkMagic.AsString(Encoding.ASCII);
+        public string OtaId => otaId.AsString(Encoding.ASCII);
+        public string EpkVersion => string.Format("{0:X2}.{1:X2}.{2:X2}.{3:X2}",
+                                                    epakVersion[3], epakVersion[2],
+                                                    epakVersion[1], epakVersion[0]);
+		public uint FileNum => fileNum;
+		public uint FileSize => fileSize;
+
+        public uint GetImageOffset(int idx)
+        {
+			return imageLocations[idx].offset;
+        }
+    }
+
+
+    [StructLayout(LayoutKind.Sequential)]
+	public struct EPK_V2_HEADER : IEpkV2Header
+    {
         public const string EPK2_MAGIC = "EPK2";
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
@@ -100,7 +158,14 @@ namespace Yafex.FileFormats.EpkV2
 		public string EpkVersion => string.Format("{0:X2}.{1:X2}.{2:X2}.{3:X2}",
 													epakVersion[3], epakVersion[2],
 													epakVersion[1], epakVersion[0]);
-	}
+        public uint FileNum => fileNum;
+        public uint FileSize => fileSize;
+
+        public uint GetImageOffset(int idx)
+        {
+			return imageLocations[idx].ImageOffset;
+        }
+    }
 
 	[StructLayout(LayoutKind.Sequential, Pack = 0, CharSet = CharSet.Ansi)]
 	public struct EPK_V2_STRUCTURE

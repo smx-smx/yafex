@@ -34,7 +34,7 @@ namespace Yafex.FileFormats.Epk
 		}
 
 
-		const string EPAK_MAGIC = "epak";
+		public const string EPAK_MAGIC = "epak";
 
 		protected static bool ValidateEpkHeader(ReadOnlySpan<byte> fileData) {
 			byte[] magic = fileData.Slice(0, 4).ToArray();

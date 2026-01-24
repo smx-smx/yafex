@@ -22,4 +22,12 @@ namespace Yafex.FileFormats.EpkV2
         ) : base(servicesFactory, services, header) {
 		}
 	}
+
+    public class Epk2BetaContext : EpkContext<EPK_V2_BETA_HEADER>
+    {
+        public Epk2BetaContext(EpkServicesFactory servicesFactory, EpkServices services, EPK_V2_BETA_HEADER header)
+            : base(servicesFactory, services, header)
+        {
+        }
+    }
 }

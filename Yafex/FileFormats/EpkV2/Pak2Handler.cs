@@ -22,11 +22,11 @@ namespace Yafex.FileFormats.EpkV2
 		public PAK_V2_HEADER Header { get; set; }
 	}
 
-	class Pak2Handler : IFormatDetector
+	class Pak2Handler<THeader> : IFormatDetector where THeader : struct
 	{
-		private readonly Epk2Context ctx;
+		private readonly EpkContext<THeader> ctx;
 
-		public Pak2Handler(Epk2Context ctx) {
+		public Pak2Handler(EpkContext<THeader> ctx) {
 			this.ctx = ctx;
 		}
 

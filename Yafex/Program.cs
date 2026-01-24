@@ -174,6 +174,7 @@ namespace Yafex
 			FileFormatRepository repo = new FileFormatRepository();
 			repo.RegisterFormat(FileFormat.EpkV1, new Epk1Addon());
 			repo.RegisterFormat(FileFormat.EpkV2, new Epk2Addon());
+			repo.RegisterFormat(FileFormat.EpkV2Beta, new Epk2BetaAddon());
 			repo.RegisterFormat(FileFormat.EpkV3b, new Epk3NewAddon());
 			repo.RegisterFormat(FileFormat.Partinfo, new PartinfoAddon());
 			repo.RegisterFormat(FileFormat.LZHS, new LzhsAddon());
@@ -185,7 +186,7 @@ namespace Yafex
 
 
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || IsRunningInCygwin()) {
-				repo.RegisterFormat(FileFormat.Squashfs, new SquashfsAddon());
+				//repo.RegisterFormat(FileFormat.Squashfs, new SquashfsAddon());
 			}
 
 			FormatFinder finder = new FormatFinder(config, repo);

@@ -48,7 +48,7 @@ namespace Yafex.FileFormats.EpkV1
 			
 			int confidence = 0;
 			if(hdr.EpakMagic == "epak") {
-				confidence += 100;
+				confidence += 99;
 			}
 
 			var epkType = GetEpkType(hdr);

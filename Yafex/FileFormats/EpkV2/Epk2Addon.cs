@@ -23,6 +23,7 @@ namespace Yafex.FileFormats.EpkV2
 		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
 			return new Epk2Extractor(config, result);
 		}
+
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));

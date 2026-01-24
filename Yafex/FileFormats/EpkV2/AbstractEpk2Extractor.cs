@@ -55,24 +55,38 @@ namespace Yafex.FileFormats.EpkV2
         }
     }
 
-    public class Epk2Extractor : IFormatExtractor
+    public abstract class AbstractEpk2Extractor<THeader> : IFormatExtractor
+		where THeader : struct, IEpkV2Header
 	{
 		private static readonly ILog logger = LogManager.GetLogger(nameof(EpkV2));
 
 		private readonly Config config;
-		private readonly Epk2Context ctx;
+		private readonly EpkContext<THeader> _ctx;
 
-		public Epk2Extractor(Config config, DetectionResult result) {
+		public AbstractEpk2Extractor(Config config, DetectionResult result) {
 			this.config = config;
-			this.ctx = (Epk2Context)result.Context!;
+			if(result.Context == null)
+			{
+				throw new ArgumentNullException(nameof(result.Context));
+			}
+			var ctx = result.Context as EpkContext<THeader>;
+			if(ctx == null)
+			{
+				throw new ArgumentException("invalid context type");
+			}
+			_ctx = ctx;
 		}
 
-		private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset) {
-			var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
-			var pakHeader = PAK_V2_STRUCTURE.GetHeader(pak2);
-			var handler = new Pak2Handler(ctx);
+		protected abstract ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data) where T : unmanaged;
+		protected abstract int PakStructureSize { get; }
 
-			var pakResult = handler.Detect(pakHeader);
+        private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset) {
+			var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
+
+			var pakHeaderBytes = GetPak2HeaderBytes(pak2);
+			var handler = new Pak2Handler<THeader>(_ctx);
+
+			var pakResult = handler.Detect(pakHeaderBytes);
 			if (!pakResult.Succeded()) {
 				throw new Exception("Invalid PAK2 header, or decryption failed");
 			}
@@ -133,10 +147,10 @@ namespace Yafex.FileFormats.EpkV2
 					throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
 				}
 
-				var pakData = fileData.Slice(offset + Marshal.SizeOf<PAK_V2_STRUCTURE>(), (int)pakHdr.segmentSize);
+				var pakData = fileData.Slice(offset + PakStructureSize, (int)pakHdr.segmentSize);
 				if (needsDecryption)
 				{
-					pakData = ctx.Services.Decryptor!.Decrypt(pakData).Span;
+					pakData = _ctx.Services.Decryptor!.Decrypt(pakData).Span;
 				}
 				outputBuffer.Write(pakData);
 
@@ -158,7 +172,7 @@ namespace Yafex.FileFormats.EpkV2
 					break;
 				}
 
-				offset += Marshal.SizeOf<PAK_V2_STRUCTURE>() + (int)pakHdr.segmentSize;
+				offset += PakStructureSize + (int)pakHdr.segmentSize;
 			}
 
 			//outputFile.Directory = baseDir;
@@ -170,10 +184,13 @@ namespace Yafex.FileFormats.EpkV2
 			return Extract(source, DataSourceFlags.Output);
 		}
 
+		protected abstract int SignatureSize { get; }
+
 		public IEnumerable<IDataSource> Extract(IDataSource source, DataSourceFlags outputFlags) {
 			var fileData = source.Data;
 
-			var hdr = ctx.Header;
+			var hdr = _ctx.Header;
+			
 
 			logger.Info("Firmware Info");
 			logger.Info("-------------");
@@ -182,18 +199,22 @@ namespace Yafex.FileFormats.EpkV2
 			logger.Info($"Firmware otaID: {hdr.OtaId}");
 			logger.Info($"Firmware version: {hdr.EpkVersion}");
 
-			logger.Info($"PAK count: {hdr.fileNum}");
-			logger.Info($"PAKs total size: {hdr.fileSize}");
-			logger.Info($"Header length: 0x{hdr.imageLocations[0].ImageOffset:X}");
+			logger.Info($"PAK count: {hdr.FileNum}");
+			logger.Info($"PAKs total size: {hdr.FileSize}");
+			logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
 			var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
+			// $FIXME: specify preferred output directory to the parent extractor
 			//var destDir = Path.Combine(config.DestDir, fwVersion);
 			//Directory.CreateDirectory(destDir);
 
+			//var sigSize = EPK_V2_STRUCTURE.SIGNATURE_SIZE;
+			var sigSize = SignatureSize;
+
 			int numSignatures = 1; //header signature
-			for(int curPak=0; curPak<hdr.fileNum; curPak++) {
-				int pakLoc = (int)hdr.imageLocations[curPak].ImageOffset + (numSignatures * EPK_V2_STRUCTURE.SIGNATURE_SIZE);
+			for(int curPak=0; curPak<hdr.FileNum; curPak++) {
+				int pakLoc = (int)hdr.GetImageOffset(curPak) + (numSignatures * sigSize);
 
 				(string pakName,
 				 string pakOutputPath,
@@ -205,9 +226,41 @@ namespace Yafex.FileFormats.EpkV2
 				);
 				numSignatures += numberOfSegments;
 
-				logger.Info($"#{curPak + 1}/{ctx.Header.fileNum} saved PAK ({pakName}) to file {pakOutputPath}");
+				logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
 				yield return pak;
 			}
 		}
 	}
+
+    public class Epk2Extractor : AbstractEpk2Extractor<EPK_V2_HEADER>
+    {
+        public Epk2Extractor(Config config, DetectionResult result) : base(config, result)
+        {
+        }
+
+		protected override int SignatureSize => EPK_V2_STRUCTURE.SIGNATURE_SIZE;
+
+		protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
+
+        protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
+        {
+            return PAK_V2_STRUCTURE.GetHeader(data);
+        }
+    }
+
+    public class Epk2BetaExtractor : AbstractEpk2Extractor<EPK_V2_BETA_HEADER>
+    {
+        public Epk2BetaExtractor(Config config, DetectionResult result) : base(config, result)
+        {
+        }
+
+        protected override int SignatureSize => 0;
+
+        protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>();
+
+        protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
+        {
+			return PAK_V2_BETA_STRUCTURE.GetHeader(data);
+        }
+    }
 }
