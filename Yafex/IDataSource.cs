@@ -12,6 +12,7 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
+using Yafex.Metadata;
 
 namespace Yafex
 {
@@ -33,5 +34,7 @@ namespace Yafex
 		Memory<byte> Data { get; }
 
 		DataSourceFlags Flags { get; set; }
+
+		IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata;
 	}
 }

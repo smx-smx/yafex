@@ -12,7 +12,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Linq;
 using System.Text;
+using Yafex.Metadata;
 
 namespace Yafex.Support
 {
@@ -118,5 +120,10 @@ namespace Yafex.Support
 			mf.Dispose();
 			fs.Close();
 		}
-	}
+
+        public IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata
+        {
+			return Enumerable.Empty<T>();
+        }
+    }
 }

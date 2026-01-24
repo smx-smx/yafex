@@ -18,6 +18,7 @@ using System.Runtime.InteropServices;
 using Org.BouncyCastle.Crypto.Engines;
 using Smx.SharpIO;
 using Org.BouncyCastle.Asn1.Pkcs;
+using Yafex.Metadata;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -110,6 +111,7 @@ namespace Yafex.FileFormats.EpkV2
             }
 
 			var buff = new MemoryDataSourceBuffer($"{pakHdr.ImageType}.pak", flags);
+			buff.AddMetadata(new OutputFileName($"{pakHdr.ImageType}.pak"));
 			return buff;
 		}
 
@@ -117,7 +119,7 @@ namespace Yafex.FileFormats.EpkV2
 		private (string, string, IDataSource) HandlePak(
 			ReadOnlySpan<byte> fileData,
 			int offset,
-			/*string baseDir,*/
+			string baseDir,
 			out int numberOfSegments,
 			DataSourceFlags flags
 		) {
@@ -138,6 +140,7 @@ namespace Yafex.FileFormats.EpkV2
 					logger.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
 
 					outputBuffer = NewPakBuffer(pakHdr);
+					outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
 					
 					pakName = pakHdr.ImageType;
 					numberOfSegments = (int)pakHdr.segmentCount;
@@ -205,10 +208,6 @@ namespace Yafex.FileFormats.EpkV2
 
 			var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
-			// $FIXME: specify preferred output directory to the parent extractor
-			//var destDir = Path.Combine(config.DestDir, fwVersion);
-			//Directory.CreateDirectory(destDir);
-
 			//var sigSize = EPK_V2_STRUCTURE.SIGNATURE_SIZE;
 			var sigSize = SignatureSize;
 
@@ -220,7 +219,8 @@ namespace Yafex.FileFormats.EpkV2
 				 string pakOutputPath,
 				 IDataSource pak) = HandlePak(
 					 fileData.Span,
-					 pakLoc, /*destDir*/
+					 pakLoc,
+					 baseDir: fwVersion,
 					 out int numberOfSegments,
 					 outputFlags
 				);

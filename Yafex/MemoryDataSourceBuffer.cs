@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 
 namespace Yafex
 {
-    public class MemoryDataSourceBuffer : IDisposable
+    public class MemoryDataSourceBuffer : BaseDataSource, IDisposable
     {
         private readonly MemoryStream mem;
 

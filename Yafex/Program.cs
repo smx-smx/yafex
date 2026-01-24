@@ -35,6 +35,7 @@ using log4net.Util;
 using Yafex.Fuse;
 using Yafex.FileFormats.LxBoot;
 using System.Runtime.CompilerServices;
+using Yafex.Metadata;
 
 namespace Yafex
 {
@@ -98,13 +99,35 @@ namespace Yafex
 					{
 						root.AddNode(node);
 					}
+				} else
+				// $TODO: flag to skip filesystem writing
+				{
+					var filename = artifact.GetMetadata<OutputFileName>().FirstOrDefault();
+					if(filename != null)
+					{
+						var dirname = artifact.GetMetadata<OutputDirectoryName>().FirstOrDefault();
+
+						var path = config.DestDir;
+						if(dirname != null)
+						{
+							path = Path.Combine(path, dirname.DirectoryName);
+							Directory.CreateDirectory(path);
+						}
+						path = Path.Combine(path, filename.FileName);
+
+						using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+						{
+							fs.SetLength(0);
+							fs.Write(artifact.Data.Span);
+						}	
+					}
 				}
 
 				// handle matryoshka formats
 				if (artifact.Flags.HasFlag(DataSourceFlags.ProcessFurther))
 				{
 					var subArtifacts = Process(root, artifact);
-					foreach(var sub in subArtifacts)
+					foreach (var sub in subArtifacts)
 					{
 						yield return sub;
 					}

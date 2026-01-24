@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using Yafex.Metadata;
 
 namespace Yafex.FileFormats.EpkV1
 {
@@ -60,10 +61,9 @@ namespace Yafex.FileFormats.EpkV1
 				fwVerString = $"{hdr.EpakVersion}-{firstPak.Platform}";
 			}
 
-			var basedir = Path.Combine(config.DestDir, fwVerString);
-			Directory.CreateDirectory(basedir);
+            var basedir = Path.Combine(config.DestDir, fwVerString);
 
-			for (int i=0; i<hdr.PakCount; i++) {
+            for (int i=0; i<hdr.PakCount; i++) {
 				var rec = GetPakRec(i);
 				if(rec.offset == 0) {
 					continue;
@@ -82,7 +82,11 @@ namespace Yafex.FileFormats.EpkV1
 					$" offset=0x{rec.offset:X}," +
 					$" size='{rec.size}') to file {filePath}");
 
-				yield return new MemoryDataSource(pakData.ToArray());
+				var artifact = new MemoryDataSource(pakData.ToArray());
+				artifact.AddMetadata(new OutputFileName(fileName));
+				artifact.AddMetadata(new OutputDirectoryName(basedir));
+				artifact.Flags |= DataSourceFlags.ProcessFurther;
+				yield return artifact;
 			}
 		}
 
@@ -90,7 +94,6 @@ namespace Yafex.FileFormats.EpkV1
 			var hdr = fileData.ReadStruct<Epk1Header>();
 
 			var basedir = Path.Combine(config.DestDir, $"{hdr.EpakVersion}-{hdr.OtaID}");
-			Directory.CreateDirectory(basedir);
 
 			for (int i=0; i<hdr.pakCount; i++) {
 				var rec = hdr.pakRecs[i];
@@ -110,7 +113,11 @@ namespace Yafex.FileFormats.EpkV1
 					(int)(pakHdr.imageSize)
 				);
 
-				yield return new MemoryDataSource(pakData.ToArray());
+				var artifact = new MemoryDataSource(pakData.ToArray());
+				artifact.Flags |= DataSourceFlags.ProcessFurther;
+                artifact.AddMetadata(new OutputFileName(fileName));
+                artifact.AddMetadata(new OutputDirectoryName(basedir));
+				yield return artifact;
 			}
 		}
 
