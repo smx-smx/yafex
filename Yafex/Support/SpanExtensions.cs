@@ -9,6 +9,7 @@
  */
 #endregion
 ﻿using Smx.SharpIO;
+using Smx.SharpIO.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -218,7 +219,9 @@ namespace Yafex.Support
             var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
             var length = Marshal.SizeOf<TField>();
 
-            return memory.Slice(offset, length);
+			return memory.Cast<T, byte>()
+				.Slice(offset, length)
+				.Cast<byte, T>();
         }
 
         public static Span<T> GetField<T, TStruct, TField>(this Span<T> span, string fieldName)
@@ -229,7 +232,10 @@ namespace Yafex.Support
 			var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
 			var length = Marshal.SizeOf<TField>();
 
-			return span.Slice(offset, length);
+			return span
+				.Cast<T, byte>()
+				.Slice(offset, length)
+				.Cast<byte, T>();
 		}
 
 		public static ReadOnlySpan<T> GetField<T, TStruct, TField>(this ReadOnlySpan<T> span, string fieldName)
@@ -240,7 +246,10 @@ namespace Yafex.Support
 			var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
 			var length = Marshal.SizeOf<TField>();
 
-			return span.Slice(offset, length);
+			return span
+				.Cast<T, byte>()
+				.Slice(offset, length)
+				.Cast<byte, T>();
 		}
 	}
 }
