@@ -61,7 +61,7 @@ namespace Yafex.FileFormats.EpkV1
 
 		public string PakName => imageType.AsString(Encoding.ASCII);
 
-		public string Platform => modelName.AsString(Encoding.ASCII).TakeUntilChar((char)0);
+		public string Platform => modelName.AsString(Encoding.ASCII);
 
 	}
 
