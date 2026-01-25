@@ -25,6 +25,7 @@
 		MStarPkg,
 		FreescaleNand,
 		Xex,
-        LxSecureBoot
+        LxSecureBoot,
+		Nfwb
     }
 }

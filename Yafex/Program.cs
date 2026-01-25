@@ -20,6 +20,7 @@ using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Partinfo;
 using Yafex.FileFormats.Squashfs;
 using Yafex.FileFormats.Xex;
+using Yafex.FileFormats.Nfwb;
 using Yafex.Support;
 using System;
 using System.Collections;
@@ -194,6 +195,7 @@ namespace Yafex
 			repo.RegisterFormat(FileFormat.FreescaleNand, new FreescaleNandAddon());
 			repo.RegisterFormat(FileFormat.Xex, new XexAddon());
 			repo.RegisterFormat(FileFormat.LxSecureBoot, new LxSecureBootAddon());
+			repo.RegisterFormat(FileFormat.Nfwb, new NfwbAddon());
 
 
 			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || IsRunningInCygwin()) {
