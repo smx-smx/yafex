@@ -8,17 +8,15 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
-using System.Linq;
-using System.Text;
 using Yafex.Metadata;
 
 namespace Yafex.Support
 {
-	public class MFile : IDataSource, IDisposable
+	public class MFile : BaseDataSource, IDataSource, IDisposable
 	{
 		private readonly string filePath;
 		private readonly FileStream fs;
@@ -111,8 +109,14 @@ namespace Yafex.Support
 				CreateMapping((int)fs.Length);
 			}
 
-			_name = System.IO.Path.GetFileNameWithoutExtension(filePath);
+			_name = Path.GetFileNameWithoutExtension(filePath);
 			_flags = (readOnly) ? DataSourceFlags.Input : DataSourceFlags.Input | DataSourceFlags.Output;
+
+			var dirName = Path.GetDirectoryName(filePath);
+			if(dirName != null)
+			{
+                AddMetadata(new BaseDirectoryPath(dirName));
+            }
 		}
 
 		public void Dispose() {
@@ -120,10 +124,5 @@ namespace Yafex.Support
 			mf.Dispose();
 			fs.Close();
 		}
-
-        public IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata
-        {
-			return Enumerable.Empty<T>();
-        }
     }
 }

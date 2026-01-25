@@ -36,7 +36,7 @@ namespace Yafex.FileFormats.Squashfs
 			string cygSource = Cygwin.Cygwin.ToPosixPath(source.Directory);
 			string dirName = source.Directory + ".unsquashfs";
 
-			string cygDest = Cygwin.Cygwin.ToPosixPath(Path.Combine(config.DestDir, dirName));
+			string cygDest = Cygwin.Cygwin.ToPosixPath(Path.Combine(source.RequireBaseDirectory(), dirName));
 			squashfs.ExtractSquashfs(cygSource, cygDest);
 
 			return Enumerable.Empty<IDataSource>();

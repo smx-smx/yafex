@@ -34,8 +34,9 @@ namespace Yafex.FileFormats.EpkV1
 			this.epkType = (Epk1Type)result.Context!;
 		}
 
-		private IEnumerable<IDataSource> ExtractEpk1Be(Memory<byte> fileData) {
-			var hdr = fileData.ReadStruct<Epk1BeHeader>();
+		private IEnumerable<IDataSource> ExtractEpk1Be(IDataSource source) {
+            var fileData = source.Data;
+            var hdr = fileData.ReadStruct<Epk1BeHeader>();
 
 			Func<int, PakRec> GetPakRec = (int i) => {
 				var rec = hdr.pakRecs[i];
@@ -61,7 +62,8 @@ namespace Yafex.FileFormats.EpkV1
 				fwVerString = $"{hdr.EpakVersion}-{firstPak.Platform}";
 			}
 
-            var basedir = Path.Combine(config.DestDir, fwVerString);
+            var basedir = Path.Combine(source.RequireBaseDirectory(), fwVerString);
+			source.AddMetadata(new BaseDirectoryPath(basedir));
 
             for (int i=0; i<hdr.PakCount; i++) {
 				var rec = GetPakRec(i);
@@ -83,19 +85,22 @@ namespace Yafex.FileFormats.EpkV1
 					$" size='{rec.size}') to file {filePath}");
 
 				var artifact = new MemoryDataSource(pakData.ToArray());
-				artifact.AddMetadata(new OutputFileName(fileName));
+				artifact.SetChildOf(source);
+                artifact.AddMetadata(new OutputFileName(fileName));
 				artifact.AddMetadata(new OutputDirectoryName(basedir));
 				artifact.Flags |= DataSourceFlags.ProcessFurther;
 				yield return artifact;
 			}
 		}
 
-		private IEnumerable<IDataSource> ExtractEpk1Old(Memory<byte> fileData) {
-			var hdr = fileData.ReadStruct<Epk1Header>();
+		private IEnumerable<IDataSource> ExtractEpk1Old(IDataSource source) {
+            var fileData = source.Data;
+            var hdr = fileData.ReadStruct<Epk1Header>();
 
-			var basedir = Path.Combine(config.DestDir, $"{hdr.EpakVersion}-{hdr.OtaID}");
+			var basedir = Path.Combine(source.RequireBaseDirectory(), $"{hdr.EpakVersion}-{hdr.OtaID}");
+            source.AddMetadata(new BaseDirectoryPath(basedir));
 
-			for (int i=0; i<hdr.pakCount; i++) {
+            for (int i=0; i<hdr.pakCount; i++) {
 				var rec = hdr.pakRecs[i];
 
 				var pakHdr = fileData.ReadStruct<PakHeader>((int)rec.offset);
@@ -114,25 +119,25 @@ namespace Yafex.FileFormats.EpkV1
 				);
 
 				var artifact = new MemoryDataSource(pakData.ToArray());
-				artifact.Flags |= DataSourceFlags.ProcessFurther;
+				artifact.SetChildOf(source);
+                artifact.Flags |= DataSourceFlags.ProcessFurther;
                 artifact.AddMetadata(new OutputFileName(fileName));
                 artifact.AddMetadata(new OutputDirectoryName(basedir));
 				yield return artifact;
 			}
 		}
 
-		private IEnumerable<IDataSource> ExtractEpk1New(Memory<byte> fileData) {
-			var hdr = fileData.ReadStruct<Epk1HeaderNew>();
+		private IEnumerable<IDataSource> ExtractEpk1New(IDataSource source) {
+            var fileData = source.Data;
+            var hdr = fileData.ReadStruct<Epk1HeaderNew>();
 			throw new NotImplementedException();
 		}
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {
-			var fileData = source.Data;
-
 			var artifacts = epkType switch {
-				Epk1Type.BigEndian => ExtractEpk1Be(fileData),
-				Epk1Type.Old => ExtractEpk1Old(fileData),
-				Epk1Type.New => ExtractEpk1New(fileData)
+				Epk1Type.BigEndian => ExtractEpk1Be(source),
+				Epk1Type.Old => ExtractEpk1Old(source),
+				Epk1Type.New => ExtractEpk1New(source)
 			};
 			return artifacts;
 		}

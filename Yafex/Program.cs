@@ -106,20 +106,22 @@ namespace Yafex
 					if(filename != null)
 					{
 						var dirname = artifact.GetMetadata<OutputDirectoryName>().FirstOrDefault();
-
-						var path = config.DestDir;
-						if(dirname != null)
+						var path = artifact.GetMetadata<BaseDirectoryPath>().FirstOrDefault()?.DirectoryPath;
+						if (path != null)
 						{
-							path = Path.Combine(path, dirname.DirectoryName);
-							Directory.CreateDirectory(path);
+							if (dirname != null)
+							{
+								path = Path.Combine(path, dirname.DirectoryName);
+								Directory.CreateDirectory(path);
+							}
+							path = Path.Combine(path, filename.FileName);
+
+							using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+							{
+								fs.SetLength(0);
+								fs.Write(artifact.Data.Span);
+							}
 						}
-						path = Path.Combine(path, filename.FileName);
-
-						using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
-						{
-							fs.SetLength(0);
-							fs.Write(artifact.Data.Span);
-						}	
 					}
 				}
 
@@ -136,20 +138,6 @@ namespace Yafex
 		}
 
 		private YafexVfs? fuseVfs = null;
-
-		private void WriteOutputFile(IDataSource artifact)
-		{
-            if (artifact.Directory == null)
-            {
-                // if not overridden, use Config
-                artifact.Directory = config.DestDir;
-            }
-
-            var path = Path.Combine(artifact.Directory, artifact.Name);
-
-            // $TODO: use MFile in output mode?
-            File.WriteAllBytes(path, artifact.Data.ToArray());
-        }
 
 		private void FuseUsageError()
 		{
@@ -218,18 +206,13 @@ namespace Yafex
 			using (MFile input = new MFile(filename))
             {
 				var artifacts = Process(fuseVfs?.Root, input);
-				Action<IDataSource> addDelegate = (fuseVfs != null)
-					? (artifacts => { })
-					: WriteOutputFile;
-
-				int artifactsCount = 0;
-				foreach(var artifact in artifacts)
+				var numArtifacts = 0;
+				foreach (var artifact in artifacts)
 				{
-					addDelegate(artifact);
-					artifactsCount++;
+					++numArtifacts;
+					// $FIXME: centralized artifact printing
 				}
-
-                if (fuseVfs != null && fuse_mountpoint != null && artifactsCount > 0)
+                if (fuseVfs != null && fuse_mountpoint != null && numArtifacts > 0)
                 {
                     FuseInterop.Start(fuseVfs, fuse_mountpoint);
                 }

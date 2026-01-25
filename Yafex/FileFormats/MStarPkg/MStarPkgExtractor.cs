@@ -80,7 +80,7 @@ namespace Yafex.FileFormats.MStarPkg
 			);
 			var partitions = ParseMBootScript(mbootScript);
 
-			var baseDir = Path.Combine(config.DestDir, Path.GetFileNameWithoutExtension(source.Directory));
+			var baseDir = Path.Combine(source.RequireBaseDirectory(), Path.GetFileNameWithoutExtension(source.Directory));
 			Directory.CreateDirectory(baseDir);
 
 			foreach(var part in partitions) {

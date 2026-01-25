@@ -8,13 +8,8 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Smx.SharpIO;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Yafex
 {

@@ -8,16 +8,14 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using log4net;
+using log4net;
 using Yafex.FileFormats.Epk;
 using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using Org.BouncyCastle.Crypto.Engines;
 using Smx.SharpIO;
-using Org.BouncyCastle.Asn1.Pkcs;
 using Yafex.Metadata;
 
 namespace Yafex.FileFormats.EpkV2
@@ -224,7 +222,8 @@ namespace Yafex.FileFormats.EpkV2
 					 out int numberOfSegments,
 					 outputFlags
 				);
-				numSignatures += numberOfSegments;
+				pak.SetChildOf(source);
+                numSignatures += numberOfSegments;
 
 				logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
 				yield return pak;

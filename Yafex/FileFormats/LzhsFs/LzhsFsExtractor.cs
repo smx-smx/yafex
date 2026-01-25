@@ -139,7 +139,7 @@ namespace Yafex.FileFormats.LzhsFs
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			string fileName = Path.GetFileNameWithoutExtension(source.Name);
-			string destPath = Path.Combine(config.DestDir, $"{fileName}.ext4");
+			string destPath = Path.Combine(source.RequireBaseDirectory(), $"{fileName}.ext4");
 
 			int activeThreads = 0;
 			ManualResetEvent allFinished = new ManualResetEvent(false);

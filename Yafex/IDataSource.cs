@@ -36,5 +36,6 @@ namespace Yafex
 		DataSourceFlags Flags { get; set; }
 
 		IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata;
-	}
+        void AddMetadata<T>(T metadata) where T : IArtifactMetadata;
+    }
 }
