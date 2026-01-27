@@ -8,14 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
+using System.Linq;
 using System.Security.Authentication;
 using System.Security.Cryptography;
-using System.Text;
-using System.Windows.Markup;
+using System.Text.Json;
 
 namespace Yafex
 {
@@ -23,116 +22,80 @@ namespace Yafex
 	{
 		public CipherAlgorithmType keyAlgo;
 		public CipherMode keyMode;
-		public byte[] key;
-		public byte[] iv;
-		public string comment;
+		public required byte[] key;
+		public required byte[] iv;
+		public required string comment;
 	}
 
-	public class KeyBundle : IDisposable
+	public class KeyBundle
 	{
-		private readonly IEnumerable<KeyEntry> keys;
-		private readonly StreamReader sr;
+		private readonly Dictionary<string, KeySecretDTO> _keySecrets;
 
-		public IEnumerable<KeyEntry> GetKeysEnumerable() => keys;
-
-		private bool disposed = false;
-
-		// aes-256
-		private const int MAX_KEYSIZE = 64;
-
-		private static byte[] ReadPiece(StreamReader sr, out char lastCh) {
-			Memory<byte> bytes = new Memory<byte>(new byte[MAX_KEYSIZE]);
-			lastCh = '\0';
-
-			int i;
-			for (i = 0; !sr.EndOfStream && i < MAX_KEYSIZE; i++) {
-				char nibHigh = (char)sr.Read();
-				lastCh = nibHigh;
-				if (!nibHigh.IsHexDigit()) break;
-
-				char nibLow = (char)sr.Read();
-				lastCh = nibLow;
-				if (!nibLow.IsHexDigit()) break;
-				
-				bytes.Span[i] = (byte)(nibHigh.HexToBin() << 4 | nibLow.HexToBin());
+		private static CipherAlgorithmType ConvertAlgoType(KeyDTO key)
+		{
+			if(key is Aes128Ecb || key is Aes128Ecb)
+			{
+				return CipherAlgorithmType.Aes128;
 			}
-
-			return bytes.Slice(0, i).ToArray();
+			if(key is Aes256Ecb || key is Aes256Cbc)
+			{
+				return CipherAlgorithmType.Aes256;
+			}
+			throw new NotSupportedException(key.ToString());
 		}
 
-		private const char COMMENT_LITERAL = '#';
-
-		private IEnumerable<KeyEntry> ReadKeys(StreamReader sr) {
-			while (!sr.EndOfStream) {
-				char lastCh;
-
-                byte[] key;
-                do
-                {
-                    key = ReadPiece(sr, out lastCh);
-                } while (key.Length == 0 && !sr.EndOfStream && lastCh != COMMENT_LITERAL);
-
-				if(lastCh == COMMENT_LITERAL)
-				{
-					sr.ReadLine();
-					continue;
-				}
-
-                if (key.Length == 0 && sr.EndOfStream) break;
-
-				byte[] iv = null;
-				if (lastCh == ',') {
-					iv = ReadPiece(sr, out _);
-
-					if (iv.Length != key.Length) {
-						throw new InvalidDataException($"IV length {iv.Length} != Key length {key.Length}");
-					}
-				}
-
-				CipherAlgorithmType algo = key.Length switch
-				{
-					16 => CipherAlgorithmType.Aes128,
-					32 => CipherAlgorithmType.Aes256,
-					_ => throw new NotSupportedException($"Key length {key.Length} is not supported")
-				};
-
-				CipherMode mode = iv switch
-				{
-					null => CipherMode.ECB,
-					_ => CipherMode.CBC
-				};
-
-				string comment = sr.ReadLine();
-
-				KeyEntry entry = new KeyEntry() {
-					key = key,
-					iv = iv,
-					comment = comment,
-					keyAlgo = algo,
-					keyMode = mode
-				};
-				yield return entry;
+		private static CipherMode ConvertKeyMode(KeyDTO key)
+		{
+			if(key is Aes128Ecb || key is Aes256Ecb)
+			{
+				return CipherMode.ECB;
 			}
-
-			Dispose();
+			if(key is Aes128Cbc || key is Aes256Cbc)
+			{
+				return CipherMode.CBC;
+			}
+			throw new NotSupportedException(key.ToString());
 		}
 
-		public void Dispose() {
-			if (this.disposed) {
-				return;
-			}
-			sr.Close();
-			disposed = true;
+		private static KeyEntry ConvertKey(KeyDTO key)
+		{
+			var keyAlgo = ConvertAlgoType(key);
+			var keyMode = ConvertKeyMode(key);
+			return new KeyEntry
+			{
+				keyAlgo = keyAlgo,
+				keyMode = keyMode,
+				comment = key.Description ?? string.Empty,
+				key = key is BasicKeyDTO basicKey
+					? Convert.FromHexString(basicKey.KeyMaterial)
+					: [],
+				iv = key is KeyWithIVDTO keyWithIV
+					? Convert.FromHexString(keyWithIV.KeyIV)
+					: []
+			};
 		}
+
+		public IEnumerable<KeyEntry> GetKeyCollection(string id)
+		{
+			if(!_keySecrets.TryGetValue(id, out var item)){
+				throw new InvalidOperationException();
+			}
+			if(item is not KeyCollectionDTO keyList)
+			{
+				throw new InvalidDataException();
+			}
+			return keyList.Keys.Select(ConvertKey);
+		}
+
 
 		public KeyBundle(string filePath) {
-			this.sr = new StreamReader(new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read));
-			this.keys = new CachedEnumerable<KeyEntry>(ReadKeys(sr));
-		}
-
-		public KeyBundle(string content, Encoding encoding) {
-			this.sr = new StreamReader(new MemoryStream(encoding.GetBytes(content)));
-			this.keys = new CachedEnumerable<KeyEntry>(ReadKeys(sr));	
-		}
+			using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+			var keys = JsonSerializer.Deserialize<List<KeySecretDTO>>(fs);
+			if(keys == null)
+			{
+				throw new InvalidDataException($"Failed to read key bundle \"{filePath}\"");
+			}
+            _keySecrets = keys.ToDictionary(x => x.Id, x => x);
+        }
 	}
 }

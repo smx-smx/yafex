@@ -8,16 +8,11 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
-using Yafex.Util;
+using Yafex.Support;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using log4net;
-using static Yafex.AesKeyFinder;
-using Org.BouncyCastle.Crypto.Engines;
 
 namespace Yafex.FileFormats.Epk
 {
@@ -57,7 +52,8 @@ namespace Yafex.FileFormats.Epk
 		public EpkServicesFactory(Config config) {
 			this.config = config;
 
-			var keyFilePath = Path.Combine(config.ConfigDir, "AES.key");
+			// $FIXME: should be made global
+			var keyFilePath = Path.Combine(config.ConfigDir, "secrets.json");
 			logger.InfoFormat("Using AES key file: {0}", keyFilePath);
 
 			if (File.Exists(keyFilePath)) {
@@ -70,7 +66,7 @@ namespace Yafex.FileFormats.Epk
 				return null;
 			}
 
-			var keyFinder = new AesKeyFinder(this.KeyFile);
+			var keyFinder = new AesKeyFinder(this.KeyFile, "lg-epk-keys");
 			if(!keyFinder.FindAesKey(data, validator, out var result))
 			{
 				return null;

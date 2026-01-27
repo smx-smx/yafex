@@ -32,11 +32,13 @@ namespace Yafex
 	public class AesKeyFinder
 	{
 		private readonly KeyBundle bundle;
+		private readonly string _bundleId;
 
 		private static readonly ILog logger = LogManager.GetLogger(typeof(AesKeyFinder));
 
-		public AesKeyFinder(KeyBundle bundle) {
+		public AesKeyFinder(KeyBundle bundle, string bundleId) {
 			this.bundle = bundle;
+			_bundleId = bundleId;
 		}
 
 		private Span<byte> TestAesKey(ReadOnlySpan<byte> data, KeyEntry keyEntry, CryptoResultChecker validator) {
@@ -74,14 +76,14 @@ namespace Yafex
 		public bool FindAesKey(ReadOnlySpan<byte> data, CryptoResultChecker checker, out KeyFinderResult? result) {
 			var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
 
-			var keys = bundle.GetKeysEnumerable().Where(k => algos.Contains(k.keyAlgo));
+			var keys = bundle.GetKeyCollection(_bundleId).Where(k => algos.Contains(k.keyAlgo));
 			foreach (var k in keys) {
                 logger.DebugFormat("Trying {0} ({1})",
                     k.key.HexDump(printAddress: false, printSpacing: false, printAscii: false),
                     k.comment
                 );
                 var decrypted = TestAesKey(data, k, checker);
-				if (decrypted != null) {
+				if (!decrypted.IsEmpty) {
 					result = new KeyFinderResult {
 						Key = k,
 						Data = decrypted.ToArray()

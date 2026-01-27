@@ -149,9 +149,9 @@ namespace Yafex.FileFormats.EpkV2
 				}
 
 				var pakData = fileData.Slice(offset + PakStructureSize, (int)pakHdr.segmentSize);
-				if (needsDecryption)
+				if (needsDecryption && _ctx.Services.Decryptor != null)
 				{
-					pakData = _ctx.Services.Decryptor!.Decrypt(pakData).Span;
+					pakData = _ctx.Services.Decryptor.Decrypt(pakData).Span;
 				}
 				outputBuffer.Write(pakData);
 
