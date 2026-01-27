@@ -30,7 +30,7 @@ namespace Yafex.FileFormats.Epk
 		public readonly EpkServices Services;
 		public readonly T Header;
 
-		private Dictionary<string, EpkDecryptionService> decryptors = new Dictionary<string, EpkDecryptionService>();
+		private Dictionary<string, AesDecryptor> decryptors = new Dictionary<string, AesDecryptor>();
 
 		public EpkContext(
 			EpkServicesFactory servicesFactory,
@@ -42,7 +42,7 @@ namespace Yafex.FileFormats.Epk
 			this.Header = header;
 		}
 
-		public EpkDecryptionService? GetDecryptor(string key)
+		public AesDecryptor? GetDecryptor(string key)
 		{
 			if(!decryptors.TryGetValue(key, out var decryptor))
 			{
@@ -51,12 +51,12 @@ namespace Yafex.FileFormats.Epk
 			return decryptor;
 		}
 
-		public void AddDecryptor(string key, EpkDecryptionService decryptor)
+		public void AddDecryptor(string key, AesDecryptor decryptor)
 		{
 			decryptors[key] = decryptor;
 		}
 
-		public EpkDecryptionService? GetOrCreateDecryptor(string key, ReadOnlySpan<byte> data, CryptoResultChecker checker)
+		public AesDecryptor? GetOrCreateDecryptor(string key, ReadOnlySpan<byte> data, CryptoResultChecker checker)
 		{
 			var decryptor = GetDecryptor(key);
 			if (decryptor == null)

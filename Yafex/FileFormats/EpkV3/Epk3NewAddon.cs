@@ -8,24 +8,27 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Yafex.Support;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV3
 {
-	public class Epk3NewAddon : IFormatAddon
+    public class Epk3NewAddon : IFormatAddon
 	{
-		public IFormatDetector CreateDetector(Config config) {
-			return new Epk3NewDetector(config);
+        public FileFormat FileFormat => FileFormat.EpkV3b;
+
+        private readonly KeysRepository _keysRepo;
+
+        public Epk3NewAddon(KeysRepository keysRepo) {
+            _keysRepo = keysRepo;
+        }
+
+        public IFormatDetector CreateDetector() {
+			return new Epk3NewDetector(_keysRepo);
 		}
 
-		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
-			return new Epk3NewExtractor(config, result);
+		public IFormatExtractor CreateExtractor(DetectionResult result) {
+			return new Epk3NewExtractor(result);
 		}
 
         public IVfsNode CreateVfsNode(IDataSource ds)

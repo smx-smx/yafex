@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Yafex.FileFormats.Epk;
+﻿using Yafex.FileFormats.Epk;
 using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
     public class Epk2BetaDetector : EpkDetector, IFormatDetector
     {
-        public Epk2BetaDetector(Config config) : base(config)
+        public Epk2BetaDetector(KeysRepository keysRepo) : base(keysRepo)
         {
         }
 

@@ -8,12 +8,11 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using log4net;
+using log4net;
 using Yafex.FileFormats.Epk;
 using Yafex.Support;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Yafex.Metadata;
@@ -22,15 +21,13 @@ namespace Yafex.FileFormats.EpkV1
 {
 	internal class Epk1Extractor : IFormatExtractor
 	{
-		private Config config;
 		private DetectionResult result;
 
 		private readonly Epk1Type epkType;
 
 		private static readonly ILog log = LogManager.GetLogger(nameof(Epk1Extractor));
 
-		public Epk1Extractor(Config config, DetectionResult result) {
-			this.config = config;
+		public Epk1Extractor(DetectionResult result) {
 			this.epkType = (Epk1Type)result.Context!;
 		}
 

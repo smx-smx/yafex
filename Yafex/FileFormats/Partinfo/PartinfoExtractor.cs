@@ -20,7 +20,7 @@ namespace Yafex.FileFormats.Partinfo
 	{
 		private PartinfoContext ctx;
 
-		public PartinfoExtractor(Config config, DetectionResult result) {
+		public PartinfoExtractor(DetectionResult result) {
 			this.ctx = (PartinfoContext)result.Context!;
 		}
 

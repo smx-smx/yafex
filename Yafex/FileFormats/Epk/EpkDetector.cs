@@ -24,8 +24,8 @@ namespace Yafex.FileFormats.Epk
 	{
 		protected EpkServicesFactory serviceFactory;
 
-		public EpkDetector(Config config) {
-			serviceFactory = new EpkServicesFactory(config);
+		public EpkDetector(KeysRepository keysRepo) {
+			serviceFactory = new EpkServicesFactory(keysRepo);
 		}
 
 		protected static bool IsEpkVersionString(string verString) {

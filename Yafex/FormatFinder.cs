@@ -27,21 +27,19 @@ namespace Yafex
 
 	public class FormatFinder
 	{
-		private readonly Config config;
 		private readonly FileFormatRepository repo;
 
 		private delegate int GetConfidenceDelegate(FinderArg arg);
 
 		private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
 
-		public FormatFinder(Config config, FileFormatRepository repo) {
-			this.config = config;
+		public FormatFinder(FileFormatRepository repo) {
 			this.repo = repo;
 		}
 
 		private DetectionResult Detect(FileFormat fmt, IDataSource source) {
 			repo.TryGetAddonForFormat(fmt, out var addon);
-			return addon!.CreateDetector(config).Detect(source);
+			return addon!.CreateDetector().Detect(source);
 		}
 
 		public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)

@@ -8,24 +8,22 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using Yafex.Support;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Xex
 {
     public class XexAddon : IFormatAddon
     {
-        public IFormatDetector CreateDetector(Config config)
+        public FileFormat FileFormat => FileFormat.Xex;
+
+        public IFormatDetector CreateDetector()
         {
             return new XexDetector();
         }
 
-        public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
+        public IFormatExtractor CreateExtractor(DetectionResult result)
         {
             return new XexExtractor();
         }

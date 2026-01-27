@@ -20,10 +20,7 @@ namespace Yafex.FileFormats.Squashfs
 {
 	public class SquashfsExtractor : IFormatExtractor
 	{
-		private readonly Config config;
-
-		public SquashfsExtractor(Config config, DetectionResult result) {
-			this.config = config;
+		public SquashfsExtractor(DetectionResult result) {
 		}
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {

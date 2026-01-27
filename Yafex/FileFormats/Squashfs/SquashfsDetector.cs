@@ -19,10 +19,7 @@ namespace Yafex.FileFormats.Squashfs
 
 	public class SquashfsDetector : IFormatDetector
 	{
-		private Config config;
-
-		public SquashfsDetector(Config config) {
-			this.config = config;
+		public SquashfsDetector() {
 		}
 
 		public DetectionResult Detect(IDataSource source) {

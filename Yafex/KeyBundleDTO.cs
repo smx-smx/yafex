@@ -10,8 +10,9 @@ namespace Yafex;
 [JsonDerivedType(typeof(Aes256Cbc), "aes-256-cbc")]
 public class KeyDTO
 {
+    [JsonIgnore]
     [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty;
+    public string? Type { get; set; }
     [JsonPropertyName("description")]
     public string? Description { get; set; }
 }
@@ -45,6 +46,7 @@ public class KeySecretDTO
 {
     [JsonPropertyName("id")]
     public required string Id { get; set; }
+    [JsonIgnore]
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
     [JsonPropertyName("description")]

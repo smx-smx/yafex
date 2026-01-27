@@ -129,11 +129,9 @@ namespace Yafex.FileFormats.LzhsFs
 	{
 		private static readonly ILog log = LogManager.GetLogger(nameof(LzhsFsExtractor));
 
-		private Config config;
 		private DetectionResult result;
 
-		public LzhsFsExtractor(Config config, DetectionResult result) {
-			this.config = config;
+		public LzhsFsExtractor(DetectionResult result) {
 			this.result = result;
 		}
 

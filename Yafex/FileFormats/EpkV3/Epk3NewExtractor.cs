@@ -15,12 +15,10 @@ namespace Yafex.FileFormats.EpkV3
     {
         private static readonly ILog logger = LogManager.GetLogger(typeof(Epk3NewExtractor));
 
-        private readonly Config config;
         private readonly Epk3NewContext ctx;
 
-        public Epk3NewExtractor(Config config, DetectionResult result)
+        public Epk3NewExtractor(DetectionResult result)
         {
-            this.config = config;
             this.ctx = (Epk3NewContext)result.Context!;
 
         }

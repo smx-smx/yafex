@@ -18,10 +18,7 @@ namespace Yafex.FileFormats.LzhsFs
 {
 	internal class LzhsFsDetector : IFormatDetector
 	{
-		private Config config;
-
-		public LzhsFsDetector(Config config) {
-			this.config = config;
+		public LzhsFsDetector() {
 		}
 
 		public DetectionResult Detect(IDataSource source) {

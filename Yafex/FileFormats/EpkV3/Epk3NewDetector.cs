@@ -27,7 +27,7 @@ namespace Yafex.FileFormats.EpkV3
 	{
 		private static readonly ILog log = LogManager.GetLogger(nameof(Epk3NewDetector));
 
-		public Epk3NewDetector(Config config) : base(config) {
+		public Epk3NewDetector(KeysRepository keysRepo) : base(keysRepo) {
 		}
 
 		private static bool IsPlainHeader(EPK_V3_NEW_HEADER hdr) {

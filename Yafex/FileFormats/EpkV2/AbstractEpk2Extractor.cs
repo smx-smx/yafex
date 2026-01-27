@@ -59,11 +59,9 @@ namespace Yafex.FileFormats.EpkV2
 	{
 		private static readonly ILog logger = LogManager.GetLogger(nameof(EpkV2));
 
-		private readonly Config config;
 		private readonly EpkContext<THeader> _ctx;
 
-		public AbstractEpk2Extractor(Config config, DetectionResult result) {
-			this.config = config;
+		public AbstractEpk2Extractor(DetectionResult result) {
 			if(result.Context == null)
 			{
 				throw new ArgumentNullException(nameof(result.Context));
@@ -233,7 +231,7 @@ namespace Yafex.FileFormats.EpkV2
 
     public class Epk2Extractor : AbstractEpk2Extractor<EPK_V2_HEADER>
     {
-        public Epk2Extractor(Config config, DetectionResult result) : base(config, result)
+        public Epk2Extractor(DetectionResult result) : base(result)
         {
         }
 
@@ -249,7 +247,7 @@ namespace Yafex.FileFormats.EpkV2
 
     public class Epk2BetaExtractor : AbstractEpk2Extractor<EPK_V2_BETA_HEADER>
     {
-        public Epk2BetaExtractor(Config config, DetectionResult result) : base(config, result)
+        public Epk2BetaExtractor(DetectionResult result) : base(result)
         {
         }
 

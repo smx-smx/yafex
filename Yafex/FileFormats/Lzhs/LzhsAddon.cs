@@ -8,24 +8,22 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using Yafex.Support;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Lzhs
 {
-	class LzhsAddon : IFormatAddon
+    public class LzhsAddon : IFormatAddon
 	{
-		public IFormatDetector CreateDetector(Config config) {
-			return new LzhsDetector(config);
+        public FileFormat FileFormat => FileFormat.LZHS;
+
+        public IFormatDetector CreateDetector() {
+			return new LzhsDetector();
 		}
 
-		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
-			return new LzhsExtractor(config, result);
+		public IFormatExtractor CreateExtractor(DetectionResult result) {
+			return new LzhsExtractor(result);
 		}
 
         public IVfsNode CreateVfsNode(IDataSource ds)

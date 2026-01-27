@@ -23,10 +23,7 @@ namespace Yafex.FileFormats.EpkV1
 
 	public class Epk1Detector : IFormatDetector
 	{
-		private Config config;
-
-		public Epk1Detector(Config config) {
-			this.config = config;
+		public Epk1Detector() {
 		}
 
 		private Epk1Type GetEpkType(Epk1Header hdr) {

@@ -32,10 +32,7 @@ namespace Yafex.FileFormats.MStarPkg
 
 	public class MStarPkgExtractor : IFormatExtractor
 	{
-		private Config config;
-
-		public MStarPkgExtractor(Config config) {
-			this.config = config;
+		public MStarPkgExtractor() {
 		}
 
 		private IEnumerable<MStarPartition> ParseMBootScript(string mbootScript) {

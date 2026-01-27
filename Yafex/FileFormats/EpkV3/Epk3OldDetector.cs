@@ -21,7 +21,7 @@ namespace Yafex.FileFormats.EpkV3
 
 		private Config config;
 
-		public Epk3OldDetector(Config config) : base(config) {
+		public Epk3OldDetector(KeysRepository keysRepo) : base(keysRepo) {
 			this.config = config;
 		}
 

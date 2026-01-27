@@ -1,23 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Yafex.Fuse;
+﻿using Yafex.Fuse;
 using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
-    class Epk2BetaAddon : IFormatAddon
+    public class Epk2BetaAddon : IFormatAddon
     {
-        public IFormatDetector CreateDetector(Config config)
+        public FileFormat FileFormat => FileFormat.EpkV2Beta;
+
+        private readonly KeysRepository _keysRepo;
+
+        public Epk2BetaAddon(KeysRepository keysRepo)
         {
-            return new Epk2BetaDetector(config);
+            _keysRepo = keysRepo;
         }
 
-        public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
+        public IFormatDetector CreateDetector()
         {
-            return new Epk2BetaExtractor(config, result);
+            return new Epk2BetaDetector(_keysRepo);
+        }
+
+        public IFormatExtractor CreateExtractor(DetectionResult result)
+        {
+            return new Epk2BetaExtractor(result);
         }
 
         public IVfsNode CreateVfsNode(IDataSource ds)

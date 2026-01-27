@@ -8,23 +8,21 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using Yafex.Support;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.FreescaleNand
 {
 	public class FreescaleNandAddon : IFormatAddon
 	{
-		public IFormatDetector CreateDetector(Config config) {
+        public FileFormat FileFormat => FileFormat.FreescaleNand;
+
+        public IFormatDetector CreateDetector() {
 			return new FreescaleNandDetector();
 		}
 
-		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
+		public IFormatExtractor CreateExtractor(DetectionResult result) {
 			return new FreescaleNandExtractor();
 		}
 

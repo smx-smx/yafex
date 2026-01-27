@@ -12,9 +12,6 @@ using log4net;
 using Yafex.FileFormats.Epk;
 using Yafex.Support;
 using System;
-using System.Buffers;
-using Yafex.FileFormats.EpkV3;
-using Org.BouncyCastle.Crypto.Signers;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -22,7 +19,7 @@ namespace Yafex.FileFormats.EpkV2
     {
         private static readonly ILog log = LogManager.GetLogger(nameof(Epk2Detector));
 
-        public Epk2Detector(Config config) : base(config)
+        public Epk2Detector(KeysRepository keysRepo) : base(keysRepo)
         {
         }
 

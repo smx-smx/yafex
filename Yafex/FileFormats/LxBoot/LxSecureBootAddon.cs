@@ -8,11 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 using Yafex.Fuse;
 using Yafex.Support;
 
@@ -20,12 +16,14 @@ namespace Yafex.FileFormats.LxBoot
 {
     public class LxSecureBootAddon : IFormatAddon
     {
-        public IFormatDetector CreateDetector(Config config)
+        public FileFormat FileFormat => FileFormat.LxSecureBoot;
+
+        public IFormatDetector CreateDetector()
         {
             return new LxSecureBootDetector();
         }
 
-        public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
+        public IFormatExtractor CreateExtractor(DetectionResult result)
         {
             return new LxSecureBootExtractor((LxSecureBootContext)result.Context);
         }

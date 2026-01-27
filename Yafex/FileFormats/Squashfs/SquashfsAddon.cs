@@ -8,22 +8,22 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using Yafex.Support;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Squashfs
 {
-	public class SquashfsAddon : IFormatAddon
+    public class SquashfsAddon : IFormatAddon
 	{
-		public IFormatDetector CreateDetector(Config config) {
-			return new SquashfsDetector(config);
+        public FileFormat FileFormat => FileFormat.Squashfs;
+
+        public IFormatDetector CreateDetector() {
+			return new SquashfsDetector();
 		}
 
-		public IFormatExtractor CreateExtractor(Config config, DetectionResult result) {
-			return new SquashfsExtractor(config, result);
+		public IFormatExtractor CreateExtractor(DetectionResult result) {
+			return new SquashfsExtractor(result);
 		}
 
         public IVfsNode CreateVfsNode(IDataSource ds)

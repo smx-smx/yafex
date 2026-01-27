@@ -16,11 +16,9 @@ namespace Yafex.FileFormats.Lzhs
 {
 	internal class LzhsExtractor : IFormatExtractor
 	{
-		private Config config;
 		private DetectionResult result;
 
-		public LzhsExtractor(Config config, DetectionResult result) {
-			this.config = config;
+		public LzhsExtractor(DetectionResult result) {
 			this.result = result;
 		}
 

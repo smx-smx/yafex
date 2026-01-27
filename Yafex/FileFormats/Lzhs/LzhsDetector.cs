@@ -21,10 +21,8 @@ namespace Yafex.FileFormats.Lzhs
 	public class LzhsDetector : IFormatDetector
 	{
 		private static readonly ILog log = LogManager.GetLogger(nameof(LzhsDetector));
-		private Config config;
 
-		public LzhsDetector(Config config) {
-			this.config = config;
+		public LzhsDetector() {
 		}
 
 		public DetectionResult Detect(IDataSource source) {

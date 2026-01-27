@@ -18,8 +18,9 @@ namespace Yafex
 {
 	public interface IFormatAddon
 	{
-		IFormatExtractor CreateExtractor(Config config, DetectionResult result);
-		IFormatDetector CreateDetector(Config config);
+		FileFormat FileFormat { get; }
+		IFormatExtractor CreateExtractor(DetectionResult result);
+		IFormatDetector CreateDetector();
 		IVfsNode CreateVfsNode(IDataSource ds);
 	}
 }

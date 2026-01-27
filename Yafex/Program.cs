@@ -8,40 +8,32 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex;
-using Yafex.FileFormats;
+using log4net;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Yafex.FileFormats.EpkV1;
 using Yafex.FileFormats.EpkV2;
 using Yafex.FileFormats.EpkV3;
 using Yafex.FileFormats.FreescaleNand;
+using Yafex.FileFormats.LxBoot;
 using Yafex.FileFormats.Lzhs;
-using Yafex.FileFormats.LzhsFs;
 using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Partinfo;
-using Yafex.FileFormats.Squashfs;
 using Yafex.FileFormats.Xex;
-using Yafex.Support;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using log4net.Util;
 using Yafex.Fuse;
-using Yafex.FileFormats.LxBoot;
-using System.Runtime.CompilerServices;
-using Yafex.Metadata;
+using Yafex.Support;
 
 namespace Yafex
 {
 	public class Program
 	{
-		Program() {
+        private static readonly ILog log = LogManager.GetLogger(typeof(Program));
+
+        Program() {
 			try {
                 // needs https://github.com/apache/logging-log4net/pull/91
                 //SystemInfo.EntryAssemblyLocation = Assembly.GetExecutingAssembly().Location;
@@ -54,89 +46,6 @@ namespace Yafex
 		[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
 		private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-		private Config config;
-		private FormatFinder finder;
-
-		private IEnumerable<IDataSource> Process(IVfsNode? root, IDataSource input)
-        {
-			var (bestAddon, bestResult) = finder.DetectFormatAddon(input);
-			if (bestAddon == null)
-            {
-				yield break;
-            }
-
-			var useVfs = root != null;
-			if (useVfs)
-			{
-				var mountPoint = new YafexDirectory(input.Name, Helpers.OctalLiteral(0755));
-				root.AddNode(mountPoint);
-				root = mountPoint;
-			}
-
-			var extractor = bestAddon.CreateExtractor(config, bestResult);
-
-			var artifacts = extractor.Extract(input);
-			foreach (var artifact in artifacts)
-			{
-                // save intermediate 
-                if (artifact.Flags.HasFlag(DataSourceFlags.Output)
-				&& !artifact.Flags.HasFlag(DataSourceFlags.Temporary
-				)) {
-					yield return artifact;
-				}
-
-				if (useVfs)
-				{
-					IVfsNode? node = null;
-					try
-					{
-                        node = bestAddon.CreateVfsNode(artifact);
-                    } catch(Exception ex) {
-						if (ex is NotImplementedException || ex is NotSupportedException) { }
-						else throw;
-					}
-					if(node != null)
-					{
-						root.AddNode(node);
-					}
-				} else
-				// $TODO: flag to skip filesystem writing
-				{
-					var filename = artifact.GetMetadata<OutputFileName>().FirstOrDefault();
-					if(filename != null)
-					{
-						var dirname = artifact.GetMetadata<OutputDirectoryName>().FirstOrDefault();
-						var path = artifact.GetMetadata<BaseDirectoryPath>().FirstOrDefault()?.DirectoryPath;
-						if (path != null)
-						{
-							if (dirname != null)
-							{
-								path = Path.Combine(path, dirname.DirectoryName);
-								Directory.CreateDirectory(path);
-							}
-							path = Path.Combine(path, filename.FileName);
-
-							using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
-							{
-								fs.SetLength(0);
-								fs.Write(artifact.Data.Span);
-							}
-						}
-					}
-				}
-
-				// handle matryoshka formats
-				if (artifact.Flags.HasFlag(DataSourceFlags.ProcessFurther))
-				{
-					var subArtifacts = Process(root, artifact);
-					foreach (var sub in subArtifacts)
-					{
-						yield return sub;
-					}
-				}
-			}
-		}
-
 		private YafexVfs? fuseVfs = null;
 
 		private void FuseUsageError()
@@ -145,83 +54,112 @@ namespace Yafex
             Environment.Exit(1);
         }
 
-		void Run(string[] args) {
-			Console.WriteLine("Firmex#");
+		private static void RegisterFileFormats(IServiceCollection services)
+		{
+            services.AddSingleton<Epk1Addon>();
+            services.AddSingleton<Epk2Addon>();
+            services.AddSingleton<Epk2BetaAddon>();
+            services.AddSingleton<Epk3NewAddon>();
+            services.AddSingleton<PartinfoAddon>();
+            services.AddSingleton<LzhsAddon>();
+            services.AddSingleton<MStarPkgAddon>();
+            services.AddSingleton<FreescaleNandAddon>();
+            services.AddSingleton<XexAddon>();
+			services.AddSingleton<LxSecureBootAddon>();
+        }
 
-			var it = args.GetEnumerator();
+        private Config BuildConfig(string fileName)
+        {
+            Config config = new Config()
+            {
+                ConfigDir = Directory.GetCurrentDirectory(),
+                DestDir = Path.GetDirectoryName(fileName)
+            };
+            return config;
+        }
 
-			string? filename = null;
+        IHost BuildHost(Config config)
+        { 
+            var hostBuilder = Host.CreateApplicationBuilder();
+            RegisterFileFormats(hostBuilder.Services);
+
+            var secretsPath = Path.Combine(config.ConfigDir, "secrets.json");
+            if (!File.Exists(secretsPath))
+            {
+                throw new InvalidOperationException($"Secrets file \"{secretsPath}\" does not exist");
+            }
+            var keyFile = new KeyBundle(secretsPath);
+
+            hostBuilder.Services.AddSingleton(config);
+            hostBuilder.Services.AddSingleton(keyFile);
+            hostBuilder.Services.AddSingleton<KeysRepository>();
+            hostBuilder.Services.AddSingleton<FileFormatRepository>();
+            hostBuilder.Services.AddSingleton<FormatFinder>();
+            hostBuilder.Services.AddSingleton<Extractor>();
+
+            var host = hostBuilder.Build();
+            return host;
+        }
+
+		void Run(string[] args)
+		{
+            Console.WriteLine("Firmex#");
+
+            var it = args.GetEnumerator();
+
+            string? filename = null;
             string? fuse_mountpoint = null;
             string? arg0 = null;
             if (it.MoveNext())
-			{
-				arg0 = it.Current.ToString();
-			}
+            {
+                arg0 = it.Current.ToString();
+            }
 
-			if(arg0 == "fuse")
-			{
+            if (arg0 == "fuse")
+            {
                 fuseVfs = new YafexVfs();
                 if (!it.MoveNext())
-				{
-					FuseUsageError();
+                {
+                    FuseUsageError();
                 }
-				filename = it.Current.ToString();
-				if (!it.MoveNext())
-				{
-					FuseUsageError();
+                filename = it.Current.ToString();
+                if (!it.MoveNext())
+                {
+                    FuseUsageError();
                 }
-				fuse_mountpoint = it.Current.ToString();
-            } else if(!string.IsNullOrEmpty(arg0))
-			{
-				filename = arg0;
-			}
-
-			Config config = new Config() {
-				ConfigDir = Directory.GetCurrentDirectory(),
-				DestDir = Path.GetDirectoryName(filename)
-			};
-			this.config = config;
-
-			FileFormatRepository repo = new FileFormatRepository();
-			repo.RegisterFormat(FileFormat.EpkV1, new Epk1Addon());
-			repo.RegisterFormat(FileFormat.EpkV2, new Epk2Addon());
-			repo.RegisterFormat(FileFormat.EpkV2Beta, new Epk2BetaAddon());
-			repo.RegisterFormat(FileFormat.EpkV3b, new Epk3NewAddon());
-			repo.RegisterFormat(FileFormat.Partinfo, new PartinfoAddon());
-			repo.RegisterFormat(FileFormat.LZHS, new LzhsAddon());
-			repo.RegisterFormat(FileFormat.LZHSFS, new LzhsFsAddon());
-			repo.RegisterFormat(FileFormat.MStarPkg, new MStarPkgAddon());
-			repo.RegisterFormat(FileFormat.FreescaleNand, new FreescaleNandAddon());
-			repo.RegisterFormat(FileFormat.Xex, new XexAddon());
-			repo.RegisterFormat(FileFormat.LxSecureBoot, new LxSecureBootAddon());
-
-
-			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || IsRunningInCygwin()) {
-				//repo.RegisterFormat(FileFormat.Squashfs, new SquashfsAddon());
-			}
-
-			FormatFinder finder = new FormatFinder(config, repo);
-			this.finder = finder;
-
-			using (MFile input = new MFile(filename))
+                fuse_mountpoint = it.Current.ToString();
+            } else if (!string.IsNullOrEmpty(arg0))
             {
-				var artifacts = Process(fuseVfs?.Root, input);
-				var numArtifacts = 0;
-				foreach (var artifact in artifacts)
-				{
-					++numArtifacts;
-					// $FIXME: centralized artifact printing
-				}
+                filename = arg0;
+            }
+
+            var cfg = BuildConfig(filename);
+            var host = BuildHost(cfg);
+
+            host.Start();
+            var extractor = host.Services.GetRequiredService<Extractor>();
+
+            using (MFile input = new MFile(filename))
+            {
+                var artifacts = extractor.Extract(fuseVfs?.Root, input);
+                var numArtifacts = 0;
+                foreach (var artifact in artifacts)
+                {
+                    ++numArtifacts;
+                    // $FIXME: centralized artifact printing
+                }
                 if (fuseVfs != null && fuse_mountpoint != null && numArtifacts > 0)
                 {
                     FuseInterop.Start(fuseVfs, fuse_mountpoint);
                 }
             }
-		}
+        }
 
-		public static void Main(string[] args) {
-			new Program().Run(args);
-		}
+		public static void Main(string[] args)
+		{
+            var prg = new Program();
+            prg.Run(args);
+        }
 
 		private static bool IsRunningInCygwin() {
 			return GetModuleHandle("cygwin1") != IntPtr.Zero;

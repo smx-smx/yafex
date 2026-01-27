@@ -13,6 +13,7 @@ using DiscUtils.SquashFs;
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
 using System;
+using System.IO;
 using System.Linq;
 using Yafex.FileFormats.EpkV2;
 
@@ -180,16 +181,20 @@ namespace Yafex.Fuse
 
         public EpkVfs(string epkPath) {
 
-            var a = new Epk2Addon();
             var conf = new Support.Config()
             {
                 ConfigDir = @"C:\TEMP"
             };
-            var detector = a.CreateDetector(conf);
+
+            var keysBundle = new KeyBundle(Path.Combine(conf.ConfigDir, "secrets.json"));
+            var keysRepo = new KeysRepository(conf, keysBundle);
+
+            var a = new Epk2Addon(keysRepo);
+            var detector = a.CreateDetector();
             var mf = new Yafex.Support.MFile(epkPath);
             var res = detector.Detect(mf);
             
-            var extractor = a.CreateExtractor(conf, res);
+            var extractor = a.CreateExtractor(res);
             var output = extractor.Extract(mf);
 
             foreach(var artifact in output){

@@ -13,8 +13,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using Yafex.Cygwin;
 using Yafex.CygwinLauncher;
 
@@ -126,6 +128,14 @@ namespace Yafex.CygwinLauncher
 
 
             initializer(Yafex.Program.Main);
+
+#if false
+            initializer((argv) =>
+            {
+                var task = Yafex.Program.MainAsync(argv);
+                task.Wait();
+            });
+#endif
             return 0;
         }
 
