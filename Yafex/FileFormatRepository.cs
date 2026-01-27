@@ -8,7 +8,12 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System;
 using System.Collections.Generic;
+
+using log4net;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Yafex.FileFormats.EpkV1;
 using Yafex.FileFormats.EpkV2;
@@ -25,30 +30,19 @@ namespace Yafex
 {
     public class FileFormatRepository
     {
+        private static readonly ILog log = LogManager.GetLogger(typeof(FileFormatRepository));
+
+        public const string SERVICES_KEY = "Yafex.FileFormats";
+
         private readonly Dictionary<FileFormat, IFormatAddon> addons = new Dictionary<FileFormat, IFormatAddon>();
 
-        public FileFormatRepository(
-            Epk1Addon epk1,
-            Epk2Addon epk2,
-            Epk2BetaAddon epk2_beta,
-            Epk3NewAddon epk3_new,
-            PartinfoAddon partinfo,
-            LzhsAddon lzhs,
-            MStarPkgAddon mstar_pkg,
-            FreescaleNandAddon freescale_nand,
-            XexAddon xex,
-            LxSecureBootAddon lx_secureBoot,
-            NfwbAddon nfwb
-        )
+        public FileFormatRepository(IServiceProvider services)
         {
-            foreach (var fmt in (IEnumerable<IFormatAddon>)[
-                epk1, epk2, epk2_beta,
-                epk3_new, partinfo, lzhs,
-                mstar_pkg, freescale_nand,
-                xex, lx_secureBoot, nfwb
-            ])
+            var addons = services.GetKeyedServices<IFormatAddon>(SERVICES_KEY);
+            foreach (var addon in addons)
             {
-                RegisterFormat(fmt);
+                log.DebugFormat("Registering format {0}", Enum.GetName(addon.FileFormat));
+                RegisterFormat(addon);
             }
         }
 
@@ -73,5 +67,21 @@ namespace Yafex
         }
 
         public Dictionary<FileFormat, IFormatAddon> GetAddons() => addons;
+
+        public static void RegisterFileFormats(IServiceCollection services)
+        {
+            var key = SERVICES_KEY;
+            services.AddKeyedSingleton<IFormatAddon, Epk1Addon>(key);
+            services.AddKeyedSingleton<IFormatAddon, Epk2Addon>(key);
+            services.AddKeyedSingleton<IFormatAddon, Epk2BetaAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, Epk3NewAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, PartinfoAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, LzhsAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, MStarPkgAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, FreescaleNandAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, XexAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, LxSecureBootAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, NfwbAddon>(key);
+        }
     }
 }

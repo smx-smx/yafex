@@ -17,16 +17,6 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-using Yafex.FileFormats.EpkV1;
-using Yafex.FileFormats.EpkV2;
-using Yafex.FileFormats.EpkV3;
-using Yafex.FileFormats.FreescaleNand;
-using Yafex.FileFormats.LxBoot;
-using Yafex.FileFormats.Lzhs;
-using Yafex.FileFormats.MStarPkg;
-using Yafex.FileFormats.Partinfo;
-using Yafex.FileFormats.Xex;
-using Yafex.FileFormats.Nfwb;
 using Yafex.Fuse;
 using Yafex.Support;
 
@@ -61,21 +51,6 @@ namespace Yafex
             Environment.Exit(1);
         }
 
-        private static void RegisterFileFormats(IServiceCollection services)
-        {
-            services.AddSingleton<Epk1Addon>();
-            services.AddSingleton<Epk2Addon>();
-            services.AddSingleton<Epk2BetaAddon>();
-            services.AddSingleton<Epk3NewAddon>();
-            services.AddSingleton<PartinfoAddon>();
-            services.AddSingleton<LzhsAddon>();
-            services.AddSingleton<MStarPkgAddon>();
-            services.AddSingleton<FreescaleNandAddon>();
-            services.AddSingleton<XexAddon>();
-            services.AddSingleton<LxSecureBootAddon>();
-            services.AddSingleton<NfwbAddon>();
-        }
-
         private Config BuildConfig(string fileName)
         {
             Config config = new Config()
@@ -89,7 +64,7 @@ namespace Yafex
         IHost BuildHost(Config config)
         {
             var hostBuilder = Host.CreateApplicationBuilder();
-            RegisterFileFormats(hostBuilder.Services);
+            FileFormatRepository.RegisterFileFormats(hostBuilder.Services);
 
             var secretsPath = Path.Combine(config.ConfigDir, "secrets.json");
             if (!File.Exists(secretsPath))
