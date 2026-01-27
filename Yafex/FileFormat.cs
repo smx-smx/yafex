@@ -25,6 +25,7 @@ namespace Yafex
         MStarPkg,
         FreescaleNand,
         Xex,
-        LxSecureBoot
+        LxSecureBoot,
+        Nfwb
     }
 }

@@ -26,6 +26,7 @@ using Yafex.FileFormats.Lzhs;
 using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Partinfo;
 using Yafex.FileFormats.Xex;
+using Yafex.FileFormats.Nfwb;
 using Yafex.Fuse;
 using Yafex.Support;
 
@@ -72,6 +73,7 @@ namespace Yafex
             services.AddSingleton<FreescaleNandAddon>();
             services.AddSingleton<XexAddon>();
             services.AddSingleton<LxSecureBootAddon>();
+            services.AddSingleton<NfwbAddon>();
         }
 
         private Config BuildConfig(string fileName)
