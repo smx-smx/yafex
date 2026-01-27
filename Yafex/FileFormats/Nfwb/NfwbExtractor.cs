@@ -9,12 +9,10 @@ namespace Yafex.FileFormats.Nfwb
 {
 	internal class NfwbExtractor : IFormatExtractor
 	{
-		private Config config;
 		private DetectionResult result;
         private static readonly ILog log = LogManager.GetLogger(nameof(NfwbExtractor));
 
-		public NfwbExtractor(Config config, DetectionResult result) {
-			this.config = config;
+		public NfwbExtractor(DetectionResult result) {
 			this.result = result;
 		}
 

@@ -5,11 +5,6 @@ namespace Yafex.FileFormats.Nfwb
 {
     public class NfwbDetector : IFormatDetector
     {
-        private Config config;
-		public NfwbDetector(Config config) {
-			this.config = config;
-		}
-
         public DetectionResult Detect(IDataSource source)
         {
             if(source.Data.Length > 192 &&

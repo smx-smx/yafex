@@ -1,4 +1,3 @@
-using Yafex.Support;
 using System;
 using Yafex.Fuse;
 
@@ -6,14 +5,16 @@ namespace Yafex.FileFormats.Nfwb
 {
     public class NfwbAddon : IFormatAddon
     {
-        public IFormatDetector CreateDetector(Config config)
+        public FileFormat FileFormat => FileFormat.Nfwb;
+
+        public IFormatDetector CreateDetector()
         {
-            return new NfwbDetector(config);
+            return new NfwbDetector();
         }
 
-        public IFormatExtractor CreateExtractor(Config config, DetectionResult result)
+        public IFormatExtractor CreateExtractor(DetectionResult result)
         {
-            return new NfwbExtractor(config, result);
+            return new NfwbExtractor(result);
         }
 
         public IVfsNode CreateVfsNode(IDataSource ds)
