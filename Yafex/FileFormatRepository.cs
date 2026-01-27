@@ -17,6 +17,7 @@ using Yafex.FileFormats.FreescaleNand;
 using Yafex.FileFormats.LxBoot;
 using Yafex.FileFormats.Lzhs;
 using Yafex.FileFormats.MStarPkg;
+using Yafex.FileFormats.Nfwb;
 using Yafex.FileFormats.Partinfo;
 using Yafex.FileFormats.Xex;
 
@@ -36,14 +37,15 @@ namespace Yafex
             MStarPkgAddon mstar_pkg,
             FreescaleNandAddon freescale_nand,
             XexAddon xex,
-            LxSecureBootAddon lx_secureBoot
+            LxSecureBootAddon lx_secureBoot,
+            NfwbAddon nfwb
         )
         {
             foreach (var fmt in (IEnumerable<IFormatAddon>)[
                 epk1, epk2, epk2_beta,
                 epk3_new, partinfo, lzhs,
                 mstar_pkg, freescale_nand,
-                xex, lx_secureBoot
+                xex, lx_secureBoot, nfwb
             ])
             {
                 RegisterFormat(fmt);
