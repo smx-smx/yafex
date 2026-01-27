@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,180 +8,208 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
+using Yafex.Support;
+
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Yafex.FileFormats.Lzhs
 {
-	public class HuffmanDecoder
-	{
-		private IEnumerator<byte> it;
-		private BitStream reader;
+    public class HuffmanDecoder
+    {
+        private IEnumerator<byte> it;
+        private BitStream reader;
 
-		public HuffmanDecoder(IEnumerable<byte> data) {
-			it = data.GetEnumerator();
-			reader = new BitStream(it);
-		}
+        public HuffmanDecoder(IEnumerable<byte> data)
+        {
+            it = data.GetEnumerator();
+            reader = new BitStream(it);
+        }
 
-		private int GetSymbol(HuffmanSymbol sym, HuffmanSymbol[] table, HuffmanCacheBase cache) {
-			int idx;
-			// O(1)
-			if(!cache.TryGetValue(sym, out idx)) {
-				// O(n)
-				var q = table
-					.Select((sym, i) => (sym, i))
-					.Where(it => it.sym == sym);
+        private int GetSymbol(HuffmanSymbol sym, HuffmanSymbol[] table, HuffmanCacheBase cache)
+        {
+            int idx;
+            // O(1)
+            if (!cache.TryGetValue(sym, out idx))
+            {
+                // O(n)
+                var q = table
+                    .Select((sym, i) => (sym, i))
+                    .Where(it => it.sym == sym);
 
-				idx = q.Any() ? q.First().i : -1;
-				cache.Insert(sym, idx);
-			}
-			return idx;
-		}
+                idx = q.Any() ? q.First().i : -1;
+                cache.Insert(sym, idx);
+            }
+            return idx;
+        }
 
-		private bool TryReadLZSSPos(out int pos) {
-			var acc = new BitAccumulator(32);
+        private bool TryReadLZSSPos(out int pos)
+        {
+            var acc = new BitAccumulator(32);
 
-			bool TryReadBit() {
-				if (!reader.TryReadBit(out byte bit)) return false;
-				acc.PushBit(bit);
-				return true;
-			}
+            bool TryReadBit()
+            {
+                if (!reader.TryReadBit(out byte bit)) return false;
+                acc.PushBit(bit);
+                return true;
+            }
 
-			pos = default;
+            pos = default;
 
-			// min symbol length is 2
-			if (!TryReadBit() || !TryReadBit()) return false;
-			
-			while(acc.CurrentLength < 32) {
-				var code = (uint)acc.GetValue();
-				var sym = new HuffmanSymbol(code, acc.CurrentLength);
-				var idx = GetSymbol(sym, LzhsTables.TblCharpos, LzhsCache.CharposCache);
-				if(idx != -1) {
-					pos = idx;
-					return true;
-				}
+            // min symbol length is 2
+            if (!TryReadBit() || !TryReadBit()) return false;
 
-				if (!TryReadBit()) return false;
-			}
+            while (acc.CurrentLength < 32)
+            {
+                var code = (uint)acc.GetValue();
+                var sym = new HuffmanSymbol(code, acc.CurrentLength);
+                var idx = GetSymbol(sym, LzhsTables.TblCharpos, LzhsCache.CharposCache);
+                if (idx != -1)
+                {
+                    pos = idx;
+                    return true;
+                }
 
-			pos = 0;
-			return false;
-		}
+                if (!TryReadBit()) return false;
+            }
 
-		public bool TryReadLZSSLength(out int lzssLength) {
-			var acc = new BitAccumulator(32);
+            pos = 0;
+            return false;
+        }
 
-			bool TryReadBit() {
-				if (!reader.TryReadBit(out byte bit)) return false;
-				acc.PushBit(bit);
-				return true;
-			}
+        public bool TryReadLZSSLength(out int lzssLength)
+        {
+            var acc = new BitAccumulator(32);
 
-			lzssLength = default;
+            bool TryReadBit()
+            {
+                if (!reader.TryReadBit(out byte bit)) return false;
+                acc.PushBit(bit);
+                return true;
+            }
 
-			// min symbol length is 4
-			if (!TryReadBit() || !TryReadBit() 
-			 || !TryReadBit() || !TryReadBit()
-			) {
-				return false;
-			}
+            lzssLength = default;
 
-			while(acc.CurrentLength < 32) {
-				var code = (uint)acc.GetValue();
-				var sym = new HuffmanSymbol(code, acc.CurrentLength);
-				var idx = GetSymbol(sym, LzhsTables.TblCharlen, LzhsCache.CharLenCache);
-				if(idx != -1) {
-					lzssLength = idx;
-					return true;
-				}
+            // min symbol length is 4
+            if (!TryReadBit() || !TryReadBit()
+             || !TryReadBit() || !TryReadBit()
+            )
+            {
+                return false;
+            }
 
-				if (!TryReadBit()) return false;
-			}
-			
-			lzssLength = 0;
-			return false;
-		}
+            while (acc.CurrentLength < 32)
+            {
+                var code = (uint)acc.GetValue();
+                var sym = new HuffmanSymbol(code, acc.CurrentLength);
+                var idx = GetSymbol(sym, LzhsTables.TblCharlen, LzhsCache.CharLenCache);
+                if (idx != -1)
+                {
+                    lzssLength = idx;
+                    return true;
+                }
 
-		byte MakeFlags(LzssSequenceType[] sequence) {
-			byte flag = 0;
-			for(int i=0; i<sequence.Length; i++) {
-				int bit = sequence[i] switch {
-					LzssSequenceType.POINTER => 0,
-					LzssSequenceType.RAW => 1
-				};
-				flag |= (byte)(bit << i);
-			}
-			return flag;
-		}
+                if (!TryReadBit()) return false;
+            }
 
-		public IEnumerable<byte> Decode() {
-			// worst case: 8 sequences of pointers (3 bytes each)
-			// flag is excluded (written separately)
-			List<byte> buf = new List<byte>(24);
+            lzssLength = 0;
+            return false;
+        }
 
-			bool TryGetNextItem(out LzssSequenceType item) {
-				item = default;
+        byte MakeFlags(LzssSequenceType[] sequence)
+        {
+            byte flag = 0;
+            for (int i = 0; i < sequence.Length; i++)
+            {
+                int bit = sequence[i] switch
+                {
+                    LzssSequenceType.POINTER => 0,
+                    LzssSequenceType.RAW => 1
+                };
+                flag |= (byte)(bit << i);
+            }
+            return flag;
+        }
 
-				if (!TryReadLZSSLength(out int codePoint)) {
-					return false;
-				}
-				// if the codepoint lies within a byte range, it's raw data
-				// if it lies outside, it's an lzss length element
-				if (codePoint > 255) {
-					// write length of LZSS item
-					var lzssLength = codePoint - 256;
-					buf.Add((byte)lzssLength);
+        public IEnumerable<byte> Decode()
+        {
+            // worst case: 8 sequences of pointers (3 bytes each)
+            // flag is excluded (written separately)
+            List<byte> buf = new List<byte>(24);
 
-					// read huffman encoded byte1 position
-					if (!TryReadLZSSPos(out int lzssPos1)) {
-						return false;
-					}
-					buf.Add((byte)(lzssPos1 >> 1));
+            bool TryGetNextItem(out LzssSequenceType item)
+            {
+                item = default;
 
-					var acc = new BitAccumulator(7);
-					for(int i=0; i<acc.MaxLength; i++) {
-						if(!reader.TryReadBit(out byte bit)) {
-							return false;
-						}
-						acc.PushBit(bit);
-					}
-					int lzssPos0 = (int)(
-						(uint)acc.GetValue()
-						| ((uint)lzssPos1 << 7)
-					);
+                if (!TryReadLZSSLength(out int codePoint))
+                {
+                    return false;
+                }
+                // if the codepoint lies within a byte range, it's raw data
+                // if it lies outside, it's an lzss length element
+                if (codePoint > 255)
+                {
+                    // write length of LZSS item
+                    var lzssLength = codePoint - 256;
+                    buf.Add((byte)lzssLength);
 
-					buf.Add((byte)(
-						(lzssPos1 << 7) | lzssPos0
-					));
+                    // read huffman encoded byte1 position
+                    if (!TryReadLZSSPos(out int lzssPos1))
+                    {
+                        return false;
+                    }
+                    buf.Add((byte)(lzssPos1 >> 1));
 
-					item = LzssSequenceType.POINTER;
-				} else {
-					// raw data
-					buf.Add((byte)codePoint);
-					item = LzssSequenceType.RAW;
-				}
-				return true;
-			}
-	
-			bool stop = false;
-			while (!stop) {
-				byte flags = 0;
-				for (int i = 0; i < 8; i++) {
-					if (!TryGetNextItem(out var item)) {
-						stop = true;
-						break;
-					}
-					flags |= (byte)((byte)item << i);
-				}
+                    var acc = new BitAccumulator(7);
+                    for (int i = 0; i < acc.MaxLength; i++)
+                    {
+                        if (!reader.TryReadBit(out byte bit))
+                        {
+                            return false;
+                        }
+                        acc.PushBit(bit);
+                    }
+                    int lzssPos0 = (int)(
+                        (uint)acc.GetValue()
+                        | ((uint)lzssPos1 << 7)
+                    );
 
-				/** flush buffer **/
-				// write flag
-				yield return flags;
-				// write data
-				foreach (var b in buf) yield return b;
-				buf.Clear();
-			}
-		}
-	}
+                    buf.Add((byte)(
+                        (lzssPos1 << 7) | lzssPos0
+                    ));
+
+                    item = LzssSequenceType.POINTER;
+                }
+                else
+                {
+                    // raw data
+                    buf.Add((byte)codePoint);
+                    item = LzssSequenceType.RAW;
+                }
+                return true;
+            }
+
+            bool stop = false;
+            while (!stop)
+            {
+                byte flags = 0;
+                for (int i = 0; i < 8; i++)
+                {
+                    if (!TryGetNextItem(out var item))
+                    {
+                        stop = true;
+                        break;
+                    }
+                    flags |= (byte)((byte)item << i);
+                }
+
+                /** flush buffer **/
+                // write flag
+                yield return flags;
+                // write data
+                foreach (var b in buf) yield return b;
+                buf.Clear();
+            }
+        }
+    }
 }

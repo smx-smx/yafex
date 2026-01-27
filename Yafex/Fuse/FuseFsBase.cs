@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,19 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+using System;
 using System.IO;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Yafex.Fuse
 {
-    public enum PosixError : int 
+    public enum PosixError : int
     {
         EPERM = 1,      /* Not owner */
         ENOENT = 2, /* No such file or directory */
@@ -151,7 +145,8 @@ namespace Yafex.Fuse
         EWOULDBLOCK = EAGAIN,	/* Operation would block */
     }
 
-    public enum StatMode : int {
+    public enum StatMode : int
+    {
         _IFMT = 0xF000,    /* type of file */
         _IFDIR = 0x4000,   /* directory */
         _IFCHR = 0x2000,   /* character special */
@@ -236,7 +231,7 @@ namespace Yafex.Fuse
             }
 
             var data = file.Read(off, size);
-            if(data == null)
+            if (data == null)
             {
                 return -(int)PosixError.EIO;
             }
@@ -249,8 +244,8 @@ namespace Yafex.Fuse
         {
             Trace($"open: {path}");
             var node = Vfs.LookupPath(path);
-            if(node == null) return -(int)PosixError.ENOENT;
-            if(node.Type != VfsNodeType.File)
+            if (node == null) return -(int)PosixError.ENOENT;
+            if (node.Type != VfsNodeType.File)
             {
                 return -(int)PosixError.EISDIR;
             }
@@ -262,7 +257,7 @@ namespace Yafex.Fuse
             Trace($"getattr: {path}");
 
             var node = Vfs.LookupPath(path);
-            if(node == null)
+            if (node == null)
             {
                 return -(int)PosixError.ENOENT;
 
@@ -322,7 +317,7 @@ namespace Yafex.Fuse
             Trace($"readdir: {path}");
 
             var node = Vfs.LookupPath(path);
-            if(node == null)
+            if (node == null)
             {
                 return -(int)PosixError.ENOENT;
             }
@@ -330,7 +325,7 @@ namespace Yafex.Fuse
             filler(buf, ".", 0, 0, 0);
             filler(buf, "..", 0, 0, 0);
 
-            foreach(var itm in node.Tree)
+            foreach (var itm in node.Tree)
             {
                 Trace($"child: {itm.Key}");
                 filler(buf, itm.Key, 0, 0, 0);

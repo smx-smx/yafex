@@ -15,7 +15,7 @@ namespace Yafex.FileFormats.EpkV2
             var hdr = data.ReadStruct<EPK_V2_BETA_HEADER>();
             var confidence = 0;
             object? ctx = default;
-            if(hdr.FileType == EpkDetector.EPAK_MAGIC && hdr.EpkMagic == EPK_V2_HEADER.EPK2_MAGIC)
+            if (hdr.FileType == EpkDetector.EPAK_MAGIC && hdr.EpkMagic == EPK_V2_HEADER.EPK2_MAGIC)
             {
                 confidence += 100;
                 ctx = new Epk2BetaContext(serviceFactory, new EpkServices(), hdr);

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Yafex.FileFormats.Epk;
+﻿using Yafex.FileFormats.Epk;
 
 namespace Yafex.FileFormats.EpkV3
 {

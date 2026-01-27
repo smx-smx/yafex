@@ -28,7 +28,7 @@ public class BasicKeyDTO : KeyDTO
     public required string KeyMaterial { get; set; }
 }
 
-public class KeyWithIVDTO: BasicKeyDTO
+public class KeyWithIVDTO : BasicKeyDTO
 {
     [JsonPropertyName("iv")]
     public required string KeyIV { get; set; }

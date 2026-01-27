@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,12 +8,15 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using log4net;
+using log4net;
+
 using Smx.SharpIO;
+
 using System;
 using System.Buffers.Binary;
 using System.Linq;
 using System.Text;
+
 using Yafex.Support;
 
 namespace Yafex.FileFormats.LxBoot
@@ -62,11 +65,11 @@ namespace Yafex.FileFormats.LxBoot
         private int FindSecondStage(Memory<byte> data, uint startOffset)
         {
             var mask = 15;
-            startOffset = (uint)((startOffset + mask) & ~mask);          
+            startOffset = (uint)((startOffset + mask) & ~mask);
 
             var words = data.Slice((int)startOffset).Cast<uint>();
             var wordIndex = words.IndexOfAny(BLL_MAGIC, LLB_MAGIC);
-            if(wordIndex > -1)
+            if (wordIndex > -1)
             {
                 return (int)((wordIndex * sizeof(uint)) + startOffset - 4);
             }
@@ -110,10 +113,12 @@ namespace Yafex.FileFormats.LxBoot
             if (readU4string(0xD0) == SIC_MAGIC)
             {
                 variant = SpbcVariant.Old;
-            } else if(readU4string(0x240) == SIC_MAGIC)
+            }
+            else if (readU4string(0x240) == SIC_MAGIC)
             {
                 variant = SpbcVariant.New;
-            } else
+            }
+            else
             {
                 return new DetectionResult(0, null);
             }

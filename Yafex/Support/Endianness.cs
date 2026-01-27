@@ -10,20 +10,21 @@ using System;
 
 namespace Smx.Yafex.Support
 {
-	/* http://stackoverflow.com/a/2624377 */
-	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Struct, Inherited = true)]
-	public class EndianAttribute : Attribute
-	{
-		public Endianness Endianness { get; private set; }
+    /* http://stackoverflow.com/a/2624377 */
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Struct, Inherited = true)]
+    public class EndianAttribute : Attribute
+    {
+        public Endianness Endianness { get; private set; }
 
-		public EndianAttribute(Endianness endianness) {
-			this.Endianness = endianness;
-		}
-	}
+        public EndianAttribute(Endianness endianness)
+        {
+            this.Endianness = endianness;
+        }
+    }
 
-	public enum Endianness
-	{
-		BigEndian,
-		LittleEndian
-	}
+    public enum Endianness
+    {
+        BigEndian,
+        LittleEndian
+    }
 }

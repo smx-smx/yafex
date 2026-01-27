@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,12 +8,10 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Smx.SharpIO;
+using Smx.SharpIO;
+
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Yafex.FileFormats.Xex
 {
@@ -21,24 +19,24 @@ namespace Yafex.FileFormats.Xex
     {
         public const ushort IMAGE_DOS_SIGNATURE = 0x5A4D;
 
-        public ushort  e_magic;                     /* Magic number */
-        public ushort  e_cblp;                      /* Bytes on last page of file */
-        public ushort  e_cp;                        /* Pages in file */
-        public ushort  e_crlc;                      /* Relocations */
-        public ushort  e_cparhdr;                   /* Size of header in paragraphs */
-        public ushort  e_minalloc;                  /* Minimum extra paragraphs needed */
-        public ushort  e_maxalloc;                  /* Maximum extra paragraphs needed */
-        public ushort  e_ss;                        /* Initial (relative) SS value */
-        public ushort  e_sp;                        /* Initial SP value */
-        public ushort  e_csum;                      /* Checksum */
-        public ushort  e_ip;                        /* Initial IP value */
-        public ushort  e_cs;                        /* Initial (relative) CS value */
-        public ushort  e_lfarlc;                    /* File address of relocation table */
-        public ushort  e_ovno;                      /* Overlay number */
-        public ushort[]  e_res;                    /* Reserved words */
-        public ushort  e_oemid;                     /* OEM identifier (for e_oeminfo) */
-        public ushort  e_oeminfo;                   /* OEM information; e_oemid specific */
-        public ushort[]  e_res2;                  /* Reserved words */
+        public ushort e_magic;                     /* Magic number */
+        public ushort e_cblp;                      /* Bytes on last page of file */
+        public ushort e_cp;                        /* Pages in file */
+        public ushort e_crlc;                      /* Relocations */
+        public ushort e_cparhdr;                   /* Size of header in paragraphs */
+        public ushort e_minalloc;                  /* Minimum extra paragraphs needed */
+        public ushort e_maxalloc;                  /* Maximum extra paragraphs needed */
+        public ushort e_ss;                        /* Initial (relative) SS value */
+        public ushort e_sp;                        /* Initial SP value */
+        public ushort e_csum;                      /* Checksum */
+        public ushort e_ip;                        /* Initial IP value */
+        public ushort e_cs;                        /* Initial (relative) CS value */
+        public ushort e_lfarlc;                    /* File address of relocation table */
+        public ushort e_ovno;                      /* Overlay number */
+        public ushort[] e_res;                    /* Reserved words */
+        public ushort e_oemid;                     /* OEM identifier (for e_oeminfo) */
+        public ushort e_oeminfo;                   /* OEM information; e_oemid specific */
+        public ushort[] e_res2;                  /* Reserved words */
         public int e_lfanew;                    /* File address of new exe header */
 
         public readonly int SIZEOF;
@@ -87,7 +85,7 @@ namespace Yafex.FileFormats.Xex
         public IMAGE_FILE_HEADER(SpanStream r)
         {
             Machine = r.ReadUInt16();
-            NumberOfSections = r.ReadUInt16(); 
+            NumberOfSections = r.ReadUInt16();
             TimeDateStamp = r.ReadUInt32();
             PointerToSymbolTable = r.ReadUInt32();
             NumberOfSymbols = r.ReadUInt32();
@@ -198,20 +196,20 @@ namespace Yafex.FileFormats.Xex
         public const ushort IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
         public const ushort IMAGE_SUBSYSTEM_XBOX = 14;
 
-        public const int IMAGE_DIRECTORY_ENTRY_EXPORT         =  0;   // Export Directory
-        public const int IMAGE_DIRECTORY_ENTRY_IMPORT         =  1;   // Import Directory
-        public const int IMAGE_DIRECTORY_ENTRY_RESOURCE       =  2;   // Resource Directory
-        public const int IMAGE_DIRECTORY_ENTRY_EXCEPTION      =  3;   // Exception Directory
-        public const int IMAGE_DIRECTORY_ENTRY_SECURITY       =  4;   // Security Directory
-        public const int IMAGE_DIRECTORY_ENTRY_BASERELOC      =  5;   // Base Relocation Table
-        public const int IMAGE_DIRECTORY_ENTRY_DEBUG          =  6;   // Debug Directory
-        public const int IMAGE_DIRECTORY_ENTRY_ARCHITECTURE   =  7;   // Architecture Specific Data
-        public const int IMAGE_DIRECTORY_ENTRY_GLOBALPTR      =  8;   // RVA of GP
-        public const int IMAGE_DIRECTORY_ENTRY_TLS            =  9;   // TLS Directory
-        public const int IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    = 10;   // Load Configuration Directory
-        public const int IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   = 11;   // Bound Import Directory in headers
-        public const int IMAGE_DIRECTORY_ENTRY_IAT            = 12;   // Import Address Table
-        public const int IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 13;   // Delay Load Import Descriptors
+        public const int IMAGE_DIRECTORY_ENTRY_EXPORT = 0;   // Export Directory
+        public const int IMAGE_DIRECTORY_ENTRY_IMPORT = 1;   // Import Directory
+        public const int IMAGE_DIRECTORY_ENTRY_RESOURCE = 2;   // Resource Directory
+        public const int IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3;   // Exception Directory
+        public const int IMAGE_DIRECTORY_ENTRY_SECURITY = 4;   // Security Directory
+        public const int IMAGE_DIRECTORY_ENTRY_BASERELOC = 5;   // Base Relocation Table
+        public const int IMAGE_DIRECTORY_ENTRY_DEBUG = 6;   // Debug Directory
+        public const int IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 7;   // Architecture Specific Data
+        public const int IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8;   // RVA of GP
+        public const int IMAGE_DIRECTORY_ENTRY_TLS = 9;   // TLS Directory
+        public const int IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10;   // Load Configuration Directory
+        public const int IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 11;   // Bound Import Directory in headers
+        public const int IMAGE_DIRECTORY_ENTRY_IAT = 12;   // Import Address Table
+        public const int IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13;   // Delay Load Import Descriptors
         public const int IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14;   // COM Runtime descriptor
 
         public IMAGE_OPTIONAL_HEADER(SpanStream r)
@@ -330,7 +328,7 @@ namespace Yafex.FileFormats.Xex
 
 
         public IMAGE_THUNK_DATA32()
-        {}
+        { }
 
         public void Write(Memory<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
         public void Write(SpanStream r)

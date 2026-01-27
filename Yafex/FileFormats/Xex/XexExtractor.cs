@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -61,8 +61,8 @@ namespace Yafex.FileFormats.Xex
                     throw new InvalidDataException("Invalid XEX magic");
             }
         }
-        
-        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key) 
+
+        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key)
         {
             return GetOptHeader<T>(key, out var _);
         }
@@ -118,7 +118,7 @@ namespace Yafex.FileFormats.Xex
             if (opt_image_base.HasValue) return opt_image_base.Value;
             return security_info.load_address;
         }
-        
+
         private bool IsPatch()
         {
             var flags = header.module_flags;
@@ -175,7 +175,7 @@ namespace Yafex.FileFormats.Xex
                     }
                     data.CopyTo(out_ptr);
                     break;
-                    
+
             }
             aes.Dispose();
         }
@@ -190,7 +190,7 @@ namespace Yafex.FileFormats.Xex
         {
             int exe_length = mem.Length - (int)header.header_size;
             int block_count = (int)(opt_file_format_info.info_size - 8) / 8;
-            
+
             var comp_info = opt_file_format_info.basic_compression_info();
             var blocks = comp_info.blocks(block_count);
 
@@ -226,7 +226,7 @@ namespace Yafex.FileFormats.Xex
                         int data_size = (int)block.data_size;
                         var data = mem.Slice(p, data_size).ToArray();
                         // in place decrypt
-                        for(int i=0; i<block.data_size; i += 16)
+                        for (int i = 0; i < block.data_size; i += 16)
                         {
                             aes.TransformBlock(data, i, 16, data, i);
                         }
@@ -283,7 +283,7 @@ namespace Yafex.FileFormats.Xex
             var off_entries = 0;
 
 
-            foreach(var lib in xex_implibs.import_libraries)
+            foreach (var lib in xex_implibs.import_libraries)
             {
                 var name = xex_implibs.string_table.table[lib.name_index];
                 var id = new IMAGE_IMPORT_DESCRIPTOR()
@@ -307,7 +307,7 @@ namespace Yafex.FileFormats.Xex
                     {
                         value = imp
                     });
-                    foreach(var t in thunks)
+                    foreach (var t in thunks)
                     {
                         t.Write(iat);
                     }
@@ -335,24 +335,24 @@ namespace Yafex.FileFormats.Xex
             }
 
             var filehdr = nthdr.FileHeader;
-            if(filehdr.Machine != IMAGE_FILE_HEADER.IMAGE_FILE_MACHINE_POWERPCBE
+            if (filehdr.Machine != IMAGE_FILE_HEADER.IMAGE_FILE_MACHINE_POWERPCBE
                 || (filehdr.Characteristics & IMAGE_FILE_HEADER.IMAGE_FILE_32BIT_MACHINE) != IMAGE_FILE_HEADER.IMAGE_FILE_32BIT_MACHINE)
             {
                 throw new InvalidDataException("Unexpected PE Machine/Characteristics");
             }
 
-            if(filehdr.SizeOfOptionalHeader != IMAGE_FILE_HEADER.IMAGE_SIZEOF_NT_OPTIONAL_HEADER)
+            if (filehdr.SizeOfOptionalHeader != IMAGE_FILE_HEADER.IMAGE_SIZEOF_NT_OPTIONAL_HEADER)
             {
                 throw new InvalidDataException("Unexpected SizeOfOptionalHeader");
             }
 
             var opthdr = nthdr.OptionalHeader;
-            if(opthdr.Magic != IMAGE_OPTIONAL_HEADER.IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+            if (opthdr.Magic != IMAGE_OPTIONAL_HEADER.IMAGE_NT_OPTIONAL_HDR32_MAGIC)
             {
                 throw new InvalidDataException("Optional Header signature mismatch");
             }
 
-            if(opthdr.Subsystem != IMAGE_OPTIONAL_HEADER.IMAGE_SUBSYSTEM_XBOX)
+            if (opthdr.Subsystem != IMAGE_OPTIONAL_HEADER.IMAGE_SUBSYSTEM_XBOX)
             {
                 throw new InvalidDataException("Unexpected Subsystem");
             }
@@ -382,7 +382,7 @@ namespace Yafex.FileFormats.Xex
             peMem.Slice(0, minSection)
                 .CopyTo(peFile);
 
-            foreach(var s in sections)
+            foreach (var s in sections)
             {
                 var source = (int)s.VirtualAddress;
                 var target = peFile.Slice((int)s.PointerToRawData);
@@ -394,7 +394,7 @@ namespace Yafex.FileFormats.Xex
             // copy IAT
             if (iat != null)
             {
-                
+
                 var iat_data = peFile.Slice((int)iat_file_offset);
                 //iat.Value.CopyTo(iat_data);
             }
@@ -444,12 +444,12 @@ namespace Yafex.FileFormats.Xex
 
             int in_offset = 0;
             int out_offset = 0;
-            while(cur_block.block_size > 0)
+            while (cur_block.block_size > 0)
             {
                 var block_data = input_buffer.Slice(in_offset, (int)cur_block.block_size).ToArray();
 
                 var digest = SHA1.HashData(block_data);
-                if(!Enumerable.SequenceEqual(digest, cur_block.block_hash))
+                if (!Enumerable.SequenceEqual(digest, cur_block.block_hash))
                 {
                     throw new InvalidDataException("block digest mismatch");
                 }
@@ -472,7 +472,7 @@ namespace Yafex.FileFormats.Xex
                 }
 
                 var next_slice = input_buffer.Slice((int)cur_block.block_size);
-                if(next_slice.Length == 0)
+                if (next_slice.Length == 0)
                 {
                     break;
                 }
@@ -488,7 +488,7 @@ namespace Yafex.FileFormats.Xex
             var compressed_data = compress_buffer
                 // d - compress_buffer
                 .Slice(0, out_offset).ToArray();
-            
+
             var window_bits = (int)Math.Log2(compression_info.window_size);
 
             var decoder = new LzxDecompressionMethod();
@@ -530,12 +530,14 @@ namespace Yafex.FileFormats.Xex
             // $FIXME: xenia logic is to try both keys and see if the decryption is valid
             // we instead use RexDex logic to look at the title_id
             byte[] keyToUse;
-            if(header.magic.AsString(Encoding.ASCII) == kXEX1Signature
+            if (header.magic.AsString(Encoding.ASCII) == kXEX1Signature
                 || exec_info == null
                 || exec_info.title_id == 0
-            ){
+            )
+            {
                 keyToUse = xe_xex2_devkit_key;
-            } else
+            }
+            else
             {
                 keyToUse = xe_xex2_retail_key;
             }
@@ -548,7 +550,7 @@ namespace Yafex.FileFormats.Xex
                     {
                         return new xex2_opt_file_format_info(it);
                     });
-                if(opt_file_format_info == null)
+                if (opt_file_format_info == null)
                 {
                     throw new InvalidDataException("Missing FILE_FORMAT_INFO");
                 }

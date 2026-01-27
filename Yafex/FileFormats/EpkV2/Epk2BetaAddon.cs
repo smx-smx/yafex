@@ -1,5 +1,4 @@
 ﻿using Yafex.Fuse;
-using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {

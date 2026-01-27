@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
 using Yafex.Fuse;
 using Yafex.Metadata;
 using Yafex.Support;
@@ -60,7 +61,8 @@ namespace Yafex
                     try
                     {
                         node = bestAddon.CreateVfsNode(artifact);
-                    } catch (Exception ex)
+                    }
+                    catch (Exception ex)
                     {
                         if (ex is NotImplementedException || ex is NotSupportedException) { } else throw;
                     }
@@ -68,7 +70,8 @@ namespace Yafex
                     {
                         root.AddNode(node);
                     }
-                } else
+                }
+                else
                 // $TODO: flag to skip filesystem writing
                 {
                     var filename = artifact.GetMetadata<OutputFileName>().FirstOrDefault();

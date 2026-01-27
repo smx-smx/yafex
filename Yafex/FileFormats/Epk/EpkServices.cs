@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -13,24 +13,25 @@ using System;
 namespace Yafex.FileFormats.Epk
 {
 
-	public class EpkServicesFactory
-	{
-		private const string KEYS_ID = "lg-epk-keys";
+    public class EpkServicesFactory
+    {
+        private const string KEYS_ID = "lg-epk-keys";
 
-		private readonly KeysRepository _keyRepo;
+        private readonly KeysRepository _keyRepo;
 
         public EpkServicesFactory(KeysRepository keyRepo)
-		{
-			_keyRepo = keyRepo;
-		}
+        {
+            _keyRepo = keyRepo;
+        }
 
-		public AesDecryptor? CreateEpkDecryptor(ReadOnlySpan<byte> data, CryptoResultChecker validator) {
-			return _keyRepo.CreateAesDecryptor(KEYS_ID, data, validator);
-		}
-	}
+        public AesDecryptor? CreateEpkDecryptor(ReadOnlySpan<byte> data, CryptoResultChecker validator)
+        {
+            return _keyRepo.CreateAesDecryptor(KEYS_ID, data, validator);
+        }
+    }
 
-	public class EpkServices
-	{
-		public AesDecryptor? Decryptor { get; set; }
-	}
+    public class EpkServices
+    {
+        public AesDecryptor? Decryptor { get; set; }
+    }
 }

@@ -1,12 +1,12 @@
 ﻿using log4net;
-using Org.BouncyCastle.Crypto.Prng.Drbg;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using Yafex.FileFormats.EpkV2;
+
 using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
@@ -27,7 +27,7 @@ namespace Yafex.FileFormats.EpkV3
         {
             var listOffset = Marshal.SizeOf<PAK_V3_NEW_LISTHEADER>();
             var sizeOfPak = Marshal.SizeOf<PAK_V3_HEADER>();
-            for(int i=0; i<packageInfoCount; i++)
+            for (int i = 0; i < packageInfoCount; i++)
             {
                 var pak = packageInfo.ReadStruct<PAK_V3_HEADER>(listOffset);
                 yield return pak;
@@ -110,13 +110,13 @@ namespace Yafex.FileFormats.EpkV3
                 var buff = new MemoryDataSourceBuffer($"{pak.Key}.pak", DataSourceFlags.Output);
 
                 var segmentIndex = pak.Value.First().segmentInfo.segmentIndex;
-                foreach(var chunk in pak.Value)
+                foreach (var chunk in pak.Value)
                 {
                     if (segmentIndex++ >= chunk.segmentInfo.segmentCount) break;
 
                     dataOffset += EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE;
 
-                    if(chunk.packageName.AsString(Encoding.ASCII) == "intmicom")
+                    if (chunk.packageName.AsString(Encoding.ASCII) == "intmicom")
                     {
                         chunk.ToString(); // $DEBUG
                     }
@@ -135,7 +135,7 @@ namespace Yafex.FileFormats.EpkV3
                     var decrypted = decryptor.Decrypt(chunkData);
 
                     var decryptedSegmentIndex = decrypted.Cast<uint>().Slice(0, 1)[0];
-                    if(decryptedSegmentIndex != i)
+                    if (decryptedSegmentIndex != i)
                     {
                         logger.WarnFormat("Warning: Decrypted segment doesn't match expected index! (index: {0}, expected: {1})",
                             decryptedSegmentIndex, i);

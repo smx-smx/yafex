@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,15 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Smx.SharpIO;
-using Yafex.Support;
+using Smx.SharpIO;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Yafex.FileFormats.Xex
 {
@@ -140,7 +138,7 @@ namespace Yafex.FileFormats.Xex
         SKELETAL_TRACKING_SUPPORTED          = 0x0,*/
     }
 
-    public enum xex2_header_keys: uint
+    public enum xex2_header_keys : uint
     {
         RESOURCE_INFO = 0x000002FF,
         FILE_FORMAT_INFO = 0x000003FF,
@@ -200,7 +198,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_file_basic_compression_block(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
     public class xex2_file_basic_compression_info
@@ -217,7 +215,7 @@ namespace Yafex.FileFormats.Xex
         public IEnumerable<xex2_file_basic_compression_block> blocks(int num)
         {
             if (_blocks != null) return _blocks;
-            
+
 
             var cursor = r.SliceHere();
             var ienum = Enumerable.Range(0, num)
@@ -240,7 +238,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_compressed_block_info(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
     public class xex2_file_normal_compression_info
@@ -255,7 +253,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_file_normal_compression_info(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
     public class xex2_opt_file_format_info
@@ -310,7 +308,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_opt_static_library(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
     public class xex2_opt_static_libraries
@@ -325,13 +323,14 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_opt_static_libraries(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
-    public class xex2_opt_original_pe_name {
+    public class xex2_opt_original_pe_name
+    {
         public uint size;
         public sbyte first_char;
-        
+
         public xex2_opt_original_pe_name(Memory<byte> bytes)
         {
             var r = new SpanStream(bytes, Endianness.BigEndian);
@@ -364,13 +363,13 @@ namespace Yafex.FileFormats.Xex
         {
             var r = new SpanStream(bytes, Endianness.BigEndian);
             slot_count = r.ReadUInt32();
-            raw_data_address = r.ReadUInt32(); 
+            raw_data_address = r.ReadUInt32();
             data_size = r.ReadUInt32();
             raw_data_size = r.ReadUInt32();
         }
     }
 
-    public class xex2_resource 
+    public class xex2_resource
     {
         public string name;
         public uint address;
@@ -384,7 +383,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_resource(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
 
     }
 
@@ -392,7 +391,7 @@ namespace Yafex.FileFormats.Xex
     {
         public uint size;
         public xex2_resource first_resource;
-        
+
         public xex2_opt_resource_info(Memory<byte> bytes)
         {
             var r = new SpanStream(bytes, Endianness.BigEndian);
@@ -419,31 +418,32 @@ namespace Yafex.FileFormats.Xex
         public uint source_version_value;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x14)]
         public byte[] digest_source;
-        [MarshalAs (UnmanagedType.ByValArray, SizeConst = 0x10)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x10)]
         public byte[] image_key_source;
-        public uint size_of_target_headers;     
+        public uint size_of_target_headers;
         public uint delta_headers_source_offset;
-        public uint delta_headers_source_size;  
+        public uint delta_headers_source_size;
         public uint delta_headers_target_offset;
-        public uint delta_image_source_offset;  
-        public uint delta_image_source_size;    
-        public uint delta_image_target_offset;  
-        public xex2_delta_patch info;           
+        public uint delta_image_source_offset;
+        public uint delta_image_source_size;
+        public uint delta_image_target_offset;
+        public xex2_delta_patch info;
     }
 
     public class xex2_opt_execution_info
     {
-        public uint media_id;            
-        public uint version_value;       
-        public uint base_version_value;  
-        public uint title_id;            
-        public byte platform;            
-        public byte executable_table;    
-        public byte disc_number;         
-        public byte disc_count;          
+        public uint media_id;
+        public uint version_value;
+        public uint base_version_value;
+        public uint title_id;
+        public byte platform;
+        public byte executable_table;
+        public byte disc_number;
+        public byte disc_count;
         public uint savegame_id;
 
-        public xex2_opt_execution_info(SpanStream r) {
+        public xex2_opt_execution_info(SpanStream r)
+        {
             media_id = r.ReadUInt32();
             version_value = r.ReadUInt32();
             base_version_value = r.ReadUInt32();
@@ -460,7 +460,8 @@ namespace Yafex.FileFormats.Xex
 
     public class xex2_opt_import_libraries
     {
-        public class _string_table {
+        public class _string_table
+        {
             public uint size;
             public uint count;
             public string[] table;
@@ -473,11 +474,12 @@ namespace Yafex.FileFormats.Xex
                 count = r.ReadUInt32();
 
                 table = Enumerable.Range(0, (int)count)
-                    .Select(_ => {
+                    .Select(_ =>
+                    {
                         var str = r.ReadCString();
                         r.AlignStream(sizeof(uint));
                         return str;
-                     })
+                    })
                     .ToArray();
 
                 SIZEOF = 8 + (int)size;
@@ -527,14 +529,14 @@ namespace Yafex.FileFormats.Xex
 
     public class xex2_import_library
     {
-        public uint size;   
-        public byte[] next_import_digest;  
-        public uint id;                
-        public uint version_value;     
-        public uint version_min_value; 
-        public ushort name_index;      
-        public ushort count;           
-        
+        public uint size;
+        public byte[] next_import_digest;
+        public uint id;
+        public uint version_value;
+        public uint version_min_value;
+        public ushort name_index;
+        public ushort count;
+
         public uint[] import_table;
 
         public xex2_import_library(SpanStream r)
@@ -591,7 +593,7 @@ namespace Yafex.FileFormats.Xex
         public uint reserved;
         public uint security_offset;
         public uint header_count;
-        
+
         public xex2_security_info security_info;
         public xex2_opt_header[] opt_headers;
 
@@ -630,7 +632,7 @@ namespace Yafex.FileFormats.Xex
             public uint page_count => value >> 4;
         }
         public _section section;
-        
+
 
         public xex2_page_descriptor(SpanStream r)
         {
@@ -641,31 +643,31 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_page_descriptor(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
     }
 
     public class xex2_security_info
     {
-        public uint header_size;            
-        public uint image_size;             
-        public byte[] rsa_signature;      
-        public uint unk_108;              
-        public uint image_flags;          
-        public uint load_address;         
+        public uint header_size;
+        public uint image_size;
+        public byte[] rsa_signature;
+        public uint unk_108;
+        public uint image_flags;
+        public uint load_address;
         public byte[] section_digest;
-        public uint import_table_count;       
-        public byte[] import_table_digest;           
-        public byte[] xgd2_media_id;                  
-        public byte[] aes_key;                       
+        public uint import_table_count;
+        public byte[] import_table_digest;
+        public byte[] xgd2_media_id;
+        public byte[] aes_key;
 
-        public uint export_table;            
-        public byte[] header_digest;          
-        public uint region;                   
-        public uint allowed_media_types;      
+        public uint export_table;
+        public byte[] header_digest;
+        public uint region;
+        public uint allowed_media_types;
         public uint page_descriptor_count;
 
         public xex2_page_descriptor[] page_descriptors;
-        
+
         public xex2_security_info(SpanStream r)
         {
             header_size = r.ReadUInt32();
@@ -690,7 +692,7 @@ namespace Yafex.FileFormats.Xex
 
         private IEnumerable<xex2_page_descriptor> read_page_descriptors(SpanStream r)
         {
-            for(int i=0; i<page_descriptor_count; i++)
+            for (int i = 0; i < page_descriptor_count; i++)
             {
                 var descr = new xex2_page_descriptor(r);
                 yield return descr;
@@ -698,7 +700,7 @@ namespace Yafex.FileFormats.Xex
         }
 
         public xex2_security_info(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.BigEndian))
-        {}
+        { }
 
         private static readonly int _array_offset = (
             Marshal.OffsetOf<xex2_security_info>("page_descriptor_count").ToInt32() + sizeof(uint)

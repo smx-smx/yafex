@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,27 +8,24 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using log4net;
+using log4net;
 using log4net.Appender;
-using log4net.Config;
 using log4net.Core;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
-using System;
-using System.Collections.Generic;
+
 using System.Configuration;
-using System.Diagnostics;
-using System.IO;
 using System.Reflection;
-using System.Text;
 
 namespace Yafex
 {
     public class Logger
     {
-        private static void ReloadConfig() {
+        private static void ReloadConfig()
+        {
             string filePath = Assembly.GetExecutingAssembly().Location + ".config";
-            ExeConfigurationFileMap fileMap = new ExeConfigurationFileMap() {
+            ExeConfigurationFileMap fileMap = new ExeConfigurationFileMap()
+            {
                 ExeConfigFilename = filePath
             };
             ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
@@ -36,7 +33,8 @@ namespace Yafex
             ConfigurationManager.RefreshSection("log4net");
         }
 
-        public static void Setup() {
+        public static void Setup()
+        {
             // required when running under EzDotNet, as the appconfig won't be initialized
             ReloadConfig();
 

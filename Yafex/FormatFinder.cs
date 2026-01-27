@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,42 +8,40 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using log4net;
-using log4net.Core;
+using log4net;
+
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using Yafex.Fuse;
-using Yafex.Support;
 
 namespace Yafex
 {
-	ref struct FinderArg
-	{
-		public FileFormat fmt;
-		public Span<byte> data;
-	}
+    ref struct FinderArg
+    {
+        public FileFormat fmt;
+        public Span<byte> data;
+    }
 
-	public class FormatFinder
-	{
-		private readonly FileFormatRepository repo;
+    public class FormatFinder
+    {
+        private readonly FileFormatRepository repo;
 
-		private delegate int GetConfidenceDelegate(FinderArg arg);
+        private delegate int GetConfidenceDelegate(FinderArg arg);
 
-		private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
+        private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
 
-		public FormatFinder(FileFormatRepository repo) {
-			this.repo = repo;
-		}
+        public FormatFinder(FileFormatRepository repo)
+        {
+            this.repo = repo;
+        }
 
-		private DetectionResult Detect(FileFormat fmt, IDataSource source) {
-			repo.TryGetAddonForFormat(fmt, out var addon);
-			return addon!.CreateDetector().Detect(source);
-		}
+        private DetectionResult Detect(FileFormat fmt, IDataSource source)
+        {
+            repo.TryGetAddonForFormat(fmt, out var addon);
+            return addon!.CreateDetector().Detect(source);
+        }
 
-		public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)
-		{
+        public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)
+        {
             var formats = repo.GetRegisteredFormats();
             if (formats.Count() < 1)
                 return (null, null);
@@ -76,5 +74,5 @@ namespace Yafex
 
             return (bestAddon, bestResult);
         }
-	}
+    }
 }

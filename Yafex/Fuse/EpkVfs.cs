@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -10,11 +10,14 @@
 #endregion
 using DiscUtils;
 using DiscUtils.SquashFs;
+
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
+
 using System;
 using System.IO;
 using System.Linq;
+
 using Yafex.FileFormats.EpkV2;
 
 namespace Yafex.Fuse
@@ -68,7 +71,7 @@ namespace Yafex.Fuse
 
     public class SquashfsDirNode : VfsNode, IVfsDir
     {
-        public SquashfsDirNode(string name, int mode, long size=0) : base(name, mode, size)
+        public SquashfsDirNode(string name, int mode, long size = 0) : base(name, mode, size)
         {
         }
 
@@ -132,11 +135,11 @@ namespace Yafex.Fuse
         private readonly EpkDirectory _root = new EpkDirectory(
             "", Helpers.OctalLiteral(0755));
 
-        
+
         private void BuildSquashfsTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode)
         {
             var dirs = dirNode.GetDirectories();
-            foreach(var d in dirs)
+            foreach (var d in dirs)
             {
                 // $FIXME: disregarding original permissions
                 var subdir = new SquashfsDirNode(d.Name,
@@ -147,7 +150,7 @@ namespace Yafex.Fuse
             }
 
             var files = dirNode.GetFiles();
-            foreach(var f in files)
+            foreach (var f in files)
             {
                 // $FIXME: disregarding original permissions
                 var subfile = new SquashfsFileNode(f, Helpers.OctalLiteral(0666));
@@ -167,19 +170,22 @@ namespace Yafex.Fuse
             {
                 try
                 {
-                    var mountPoint = new EpkDirectory(ds.Name, Helpers.OctalLiteral(0755));                    
+                    var mountPoint = new EpkDirectory(ds.Name, Helpers.OctalLiteral(0755));
                     parent.AddNode(mountPoint);
 
                     // $FIXME: leaking resource
                     var rdr = new SquashFileSystemReader(new SpanStream(ds.Data));
                     BuildSquashfsTree(mountPoint, rdr.Root);
-                } catch(Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     Console.WriteLine("FAIL: " + ds.Name);
                 }
             }
         }
 
-        public EpkVfs(string epkPath) {
+        public EpkVfs(string epkPath)
+        {
 
             var conf = new Support.Config()
             {
@@ -193,11 +199,12 @@ namespace Yafex.Fuse
             var detector = a.CreateDetector();
             var mf = new Yafex.Support.MFile(epkPath);
             var res = detector.Detect(mf);
-            
+
             var extractor = a.CreateExtractor(res);
             var output = extractor.Extract(mf);
 
-            foreach(var artifact in output){
+            foreach (var artifact in output)
+            {
                 if (artifact.Name == null) continue;
                 HandlePak(_root, artifact);
             }

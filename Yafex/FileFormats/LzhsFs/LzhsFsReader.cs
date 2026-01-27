@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,20 +8,15 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.FileFormats.Lzhs;
+using Yafex.FileFormats.Lzhs;
+
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Yafex.FileFormats.LzhsFs
 {
-	public record LzhsChunk(ushort index, int size, int outputOffset, Memory<byte> buf)
-	{
-		public readonly LzhsHeader Header = new LzhsHeader(buf.Span);
-		public LzhsDecoder NewDecoder() => new LzhsDecoder(buf);
-	}
+    public record LzhsChunk(ushort index, int size, int outputOffset, Memory<byte> buf)
+    {
+        public readonly LzhsHeader Header = new LzhsHeader(buf.Span);
+        public LzhsDecoder NewDecoder() => new LzhsDecoder(buf);
+    }
 }

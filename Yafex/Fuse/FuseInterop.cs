@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,17 +8,12 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using Org.BouncyCastle.Crypto.Signers;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Transactions;
-using Yafex.Cygwin;
 
 namespace Yafex.Fuse
 {
@@ -201,7 +196,7 @@ namespace Yafex.Fuse
             int res = 0;
 
             int tmp = octal;
-            for(int i=1; tmp > 0; i*= 8)
+            for (int i = 1; tmp > 0; i *= 8)
             {
                 int digit = tmp % 10;
                 tmp /= 10;
@@ -249,8 +244,8 @@ namespace Yafex.Fuse
             var ptr_base = buf;
             var str_base = buf + pointers_size;
 
-            foreach(var arg in argv)
-            { 
+            foreach (var arg in argv)
+            {
                 // write string data
                 var nBytes = Helpers.CopyString(str_base, arg);
                 // write pointer to string
@@ -283,7 +278,7 @@ namespace Yafex.Fuse
         {
             var st_size = Marshal.SizeOf(typeof(fuse_opt)) * (opts.Count + 1);
             var data_size = opts.Sum(s => s.templ.Length + 1);
-            
+
             var buf = Marshal.AllocHGlobal(st_size + data_size);
 
             var st_base = buf;
@@ -295,7 +290,8 @@ namespace Yafex.Fuse
                 {
                     var nBytes = Helpers.CopyString(str_base, opt.templ);
                     Marshal.WriteIntPtr(st_base, str_base);
-                } else
+                }
+                else
                 {
                     Marshal.WriteIntPtr(st_base, IntPtr.Zero);
                 }
@@ -308,7 +304,7 @@ namespace Yafex.Fuse
                 st_base += sizeof(int);
             }
 
-            foreach(var opt in opts)
+            foreach (var opt in opts)
             {
                 WriteOptionDescriptor(opt);
             }
@@ -381,7 +377,7 @@ namespace Yafex.Fuse
 
         public FuseInteropContext(nint libHandle)
         {
-            if(libHandle == 0)
+            if (libHandle == 0)
             {
                 throw new ArgumentException("Invalid handle");
             }
@@ -413,7 +409,7 @@ namespace Yafex.Fuse
         private FuseInteropContext Initialize()
         {
             var bindir = GetCygwinBinDir();
-            if(bindir == null)
+            if (bindir == null)
             {
                 throw new Exception("Couldn't locate cygwin bin dir");
             }
@@ -435,7 +431,7 @@ namespace Yafex.Fuse
             var fuse = new FuseInterop();
 
             var ctx = fuse.Initialize();
-            
+
             var args = fuse_args.Create(new List<string>(){
                 "ezdotnet", // argv0
                 "-f", // important
@@ -446,7 +442,7 @@ namespace Yafex.Fuse
             }, out var args_buf);
             var opts = fuse_opt.CreateOptionList(new List<fuse_opt>() { });
 
-            if(ctx.fuse_opt_parse(ref args, 0, opts, 0) < 0)
+            if (ctx.fuse_opt_parse(ref args, 0, opts, 0) < 0)
             {
                 throw new Exception("fuse_opt_parse failed");
             }

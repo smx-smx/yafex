@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -9,12 +9,14 @@
  */
 #endregion
 using log4net;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
+
 using Yafex.FileFormats.EpkV1;
 using Yafex.FileFormats.EpkV2;
 using Yafex.FileFormats.EpkV3;
@@ -29,33 +31,37 @@ using Yafex.Support;
 
 namespace Yafex
 {
-	public class Program
-	{
+    public class Program
+    {
         private static readonly ILog log = LogManager.GetLogger(typeof(Program));
 
-        Program() {
-			try {
+        Program()
+        {
+            try
+            {
                 // needs https://github.com/apache/logging-log4net/pull/91
                 //SystemInfo.EntryAssemblyLocation = Assembly.GetExecutingAssembly().Location;
                 Logger.Setup();
-			} catch(Exception) {
-				Console.Error.WriteLine("Warning: log4net setup failed");
-			}
-		}
+            }
+            catch (Exception)
+            {
+                Console.Error.WriteLine("Warning: log4net setup failed");
+            }
+        }
 
-		[DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-		private static extern IntPtr GetModuleHandle(string lpModuleName);
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-		private YafexVfs? fuseVfs = null;
+        private YafexVfs? fuseVfs = null;
 
-		private void FuseUsageError()
-		{
+        private void FuseUsageError()
+        {
             Console.Error.WriteLine("Usage: fuse [filename] [mountpoint]");
             Environment.Exit(1);
         }
 
-		private static void RegisterFileFormats(IServiceCollection services)
-		{
+        private static void RegisterFileFormats(IServiceCollection services)
+        {
             services.AddSingleton<Epk1Addon>();
             services.AddSingleton<Epk2Addon>();
             services.AddSingleton<Epk2BetaAddon>();
@@ -65,7 +71,7 @@ namespace Yafex
             services.AddSingleton<MStarPkgAddon>();
             services.AddSingleton<FreescaleNandAddon>();
             services.AddSingleton<XexAddon>();
-			services.AddSingleton<LxSecureBootAddon>();
+            services.AddSingleton<LxSecureBootAddon>();
         }
 
         private Config BuildConfig(string fileName)
@@ -79,7 +85,7 @@ namespace Yafex
         }
 
         IHost BuildHost(Config config)
-        { 
+        {
             var hostBuilder = Host.CreateApplicationBuilder();
             RegisterFileFormats(hostBuilder.Services);
 
@@ -101,8 +107,8 @@ namespace Yafex
             return host;
         }
 
-		void Run(string[] args)
-		{
+        void Run(string[] args)
+        {
             Console.WriteLine("Firmex#");
 
             var it = args.GetEnumerator();
@@ -128,7 +134,8 @@ namespace Yafex
                     FuseUsageError();
                 }
                 fuse_mountpoint = it.Current.ToString();
-            } else if (!string.IsNullOrEmpty(arg0))
+            }
+            else if (!string.IsNullOrEmpty(arg0))
             {
                 filename = arg0;
             }
@@ -155,14 +162,15 @@ namespace Yafex
             }
         }
 
-		public static void Main(string[] args)
-		{
+        public static void Main(string[] args)
+        {
             var prg = new Program();
             prg.Run(args);
         }
 
-		private static bool IsRunningInCygwin() {
-			return GetModuleHandle("cygwin1") != IntPtr.Zero;
-		}
-	}
+        private static bool IsRunningInCygwin()
+        {
+            return GetModuleHandle("cygwin1") != IntPtr.Zero;
+        }
+    }
 }

@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
 using Yafex.Metadata;
 using Yafex.Support;
 
@@ -25,7 +26,7 @@ namespace Yafex
             ArgumentNullException.ThrowIfNull(path);
             return path;
         }
-        
+
         public static string? GetDestinationPath(this IDataSource ds)
         {
             var baseDir = ds.GetMetadata<BaseDirectoryPath>().FirstOrDefault()?.DirectoryPath;
@@ -35,7 +36,7 @@ namespace Yafex
             if (baseDir == null || destFile == null) return null;
 
             var path = baseDir;
-            if(destDir != null)
+            if (destDir != null)
             {
                 path = Path.Combine(path, destDir);
             }
@@ -95,7 +96,7 @@ namespace Yafex
 
         public IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata
         {
-            if(_metadata.TryGetValue(typeof(T), out var bucket))
+            if (_metadata.TryGetValue(typeof(T), out var bucket))
             {
                 return bucket.Cast<T>();
             }

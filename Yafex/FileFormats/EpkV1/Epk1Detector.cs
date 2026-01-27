@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,48 +8,52 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using Yafex.Support;
-using System;
-using System.Text;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV1
 {
-	public enum Epk1Type
-	{
-		BigEndian,
-		Old,
-		New
-	}
+    public enum Epk1Type
+    {
+        BigEndian,
+        Old,
+        New
+    }
 
-	public class Epk1Detector : IFormatDetector
-	{
-		public Epk1Detector() {
-		}
+    public class Epk1Detector : IFormatDetector
+    {
+        public Epk1Detector()
+        {
+        }
 
-		private Epk1Type GetEpkType(Epk1Header hdr) {
-			// pakCount is always at the same offset for all 3 structures
-			if(hdr.pakCount >> 8 != 0) {
-				return Epk1Type.BigEndian;
-			}
+        private Epk1Type GetEpkType(Epk1Header hdr)
+        {
+            // pakCount is always at the same offset for all 3 structures
+            if (hdr.pakCount >> 8 != 0)
+            {
+                return Epk1Type.BigEndian;
+            }
 
-			if(hdr.pakCount < 21) {
-				return Epk1Type.Old;
-			}
+            if (hdr.pakCount < 21)
+            {
+                return Epk1Type.Old;
+            }
 
-			return Epk1Type.New;
-		}
+            return Epk1Type.New;
+        }
 
-		public DetectionResult Detect(IDataSource source) {
-			var data = source.Data;
-			var hdr = data.ReadStruct<Epk1Header>();
-			
-			int confidence = 0;
-			if(hdr.EpakMagic == "epak") {
-				confidence += 99;
-			}
+        public DetectionResult Detect(IDataSource source)
+        {
+            var data = source.Data;
+            var hdr = data.ReadStruct<Epk1Header>();
 
-			var epkType = GetEpkType(hdr);
-			return new DetectionResult(confidence, epkType);
-		}
-	}
+            int confidence = 0;
+            if (hdr.EpakMagic == "epak")
+            {
+                confidence += 99;
+            }
+
+            var epkType = GetEpkType(hdr);
+            return new DetectionResult(confidence, epkType);
+        }
+    }
 }

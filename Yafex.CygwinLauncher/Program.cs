@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -8,7 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,22 +17,25 @@ using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+
 using Yafex.Cygwin;
 using Yafex.CygwinLauncher;
 
 namespace Yafex.CygwinLauncher
 {
     class ProgramOptions
-	{
+    {
         public string CygwinPath;
-		internal string RunnerPath;
-		internal string RunnerImpl;
-	}
+        internal string RunnerPath;
+        internal string RunnerImpl;
+    }
 
-	class Program
-	{
-        static bool TryTake(IEnumerator<string> it, out string? arg) {
-            if (!it.MoveNext()) {
+    class Program
+    {
+        static bool TryTake(IEnumerator<string> it, out string? arg)
+        {
+            if (!it.MoveNext())
+            {
                 arg = null;
                 return false;
             }
@@ -41,7 +44,8 @@ namespace Yafex.CygwinLauncher
             return true;
         }
 
-        static void Usage() {
+        static void Usage()
+        {
             Console.Write("");
         }
 
@@ -49,7 +53,8 @@ namespace Yafex.CygwinLauncher
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-        static string ToCygwinPath(string str) {
+        static string ToCygwinPath(string str)
+        {
             var f = new FileInfo(str);
             var sb = new StringBuilder("/cygdrive/");
             sb.Append(f.FullName.Substring(0, 1).ToLowerInvariant());
@@ -91,7 +96,8 @@ namespace Yafex.CygwinLauncher
                 IsRunningInCygwin()
             )
             {
-                initializer = (main) => {
+                initializer = (main) =>
+                {
                     using (var stdin = new StreamReader(new CygwinInputStream(0)))
                     using (var stdout = new StreamWriter(new CygwinOutputStream(1)))
                     using (var stderr = new StreamWriter(new CygwinOutputStream(2)))
@@ -110,7 +116,8 @@ namespace Yafex.CygwinLauncher
                         try
                         {
                             main(argv);
-                        } catch(Exception ex)
+                        }
+                        catch (Exception ex)
                         {
                             Console.Error.WriteLine("==== UNHANDLED EXCEPTION");
                             Console.Error.WriteLine(ex.ToString());
@@ -121,7 +128,8 @@ namespace Yafex.CygwinLauncher
             }
             else
             {
-                initializer = (main) => {
+                initializer = (main) =>
+                {
                     main(argv);
                 };
             }
@@ -139,7 +147,8 @@ namespace Yafex.CygwinLauncher
             return 0;
         }
 
-        static void Launch(IEnumerator<string> args) {
+        static void Launch(IEnumerator<string> args)
+        {
             var thisPath = Assembly.GetExecutingAssembly().Location;
             var thisDir = Path.GetDirectoryName(thisPath);
 
@@ -150,22 +159,25 @@ namespace Yafex.CygwinLauncher
 
             var basedir = "external";
 
-            var pi = new ProcessStartInfo() {
+            var pi = new ProcessStartInfo()
+            {
                 FileName = Path.Combine(basedir, "ezdotnet.exe"),
             };
             pi.ArgumentList.Add(Path.Combine(basedir, "cygcoreclrhost.dll"));
             pi.ArgumentList.Add($"{targetAsmName}.dll");
             pi.ArgumentList.Add(klass.FullName);
             pi.ArgumentList.Add(x.Name);
-			while (args.MoveNext()) {
+            while (args.MoveNext())
+            {
                 pi.ArgumentList.Add(args.Current);
-			}
+            }
             Process.Start(pi);
-		}
+        }
 
-        static void Main(string[] args) {
+        static void Main(string[] args)
+        {
             var it = ((IEnumerable<string>)args).GetEnumerator();
             Launch(it);
         }
-	}
+    }
 }

@@ -1,6 +1,6 @@
 #region License
 /*
- * Copyright (c) 2023 Stefano Moioli
+ * Copyright (c) 2026 Stefano Moioli
  * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
  * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
  *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
@@ -10,7 +10,6 @@
 #endregion
 using log4net;
 using Yafex.FileFormats.Epk;
-using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,12 +25,12 @@ namespace Yafex.FileFormats.EpkV2
         private readonly Epk2Context ctx;
 
         public Epk2Stream(
-			Epk2Context ctx,
-			Memory<byte> data,
-			Endianness endianness = Endianness.LittleEndian
-		) : base(data, endianness)
+            Epk2Context ctx,
+            Memory<byte> data,
+            Endianness endianness = Endianness.LittleEndian
+        ) : base(data, endianness)
         {
-			this.ctx = ctx;
+            this.ctx = ctx;
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -49,185 +48,196 @@ namespace Yafex.FileFormats.EpkV2
             var decryptedBlocks = ctx.Services.Decryptor!.Decrypt(blocks.Span);
 
             var data = decryptedBlocks.Slice(blockOff, count).ToArray();
-			data.CopyTo(buffer, offset);
-			return data.Length;
+            data.CopyTo(buffer, offset);
+            return data.Length;
         }
     }
 
     public abstract class AbstractEpk2Extractor<THeader> : IFormatExtractor
-		where THeader : struct, IEpkV2Header
-	{
-		private static readonly ILog logger = LogManager.GetLogger(nameof(EpkV2));
+        where THeader : struct, IEpkV2Header
+    {
+        private static readonly ILog logger = LogManager.GetLogger(nameof(EpkV2));
 
-		private readonly EpkContext<THeader> _ctx;
+        private readonly EpkContext<THeader> _ctx;
 
-		public AbstractEpk2Extractor(DetectionResult result) {
-			if(result.Context == null)
-			{
-				throw new ArgumentNullException(nameof(result.Context));
-			}
-			var ctx = result.Context as EpkContext<THeader>;
-			if(ctx == null)
-			{
-				throw new ArgumentException("invalid context type");
-			}
-			_ctx = ctx;
-		}
-
-		protected abstract ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data) where T : unmanaged;
-		protected abstract int PakStructureSize { get; }
-
-        private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset) {
-			var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
-
-			var pakHeaderBytes = GetPak2HeaderBytes(pak2);
-			var handler = new Pak2Handler<THeader>(_ctx);
-
-			var pakResult = handler.Detect(pakHeaderBytes);
-			if (!pakResult.Succeded()) {
-				throw new Exception("Invalid PAK2 header, or decryption failed");
-			}
-
-			return (Pak2DetectionResult)pakResult.Context!;
-		}
-
-		private MemoryDataSourceBuffer NewPakBuffer(PAK_V2_HEADER pakHdr)
+        public AbstractEpk2Extractor(DetectionResult result)
         {
-			var flags = DataSourceFlags.Output;
-			var processFurther = pakHdr.ImageType switch
+            if (result.Context == null)
             {
-				"crc3" => false,
-				"logo" => false,
-				"mico" => false,
-				_ => true
+                throw new ArgumentNullException(nameof(result.Context));
+            }
+            var ctx = result.Context as EpkContext<THeader>;
+            if (ctx == null)
+            {
+                throw new ArgumentException("invalid context type");
+            }
+            _ctx = ctx;
+        }
+
+        protected abstract ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data) where T : unmanaged;
+        protected abstract int PakStructureSize { get; }
+
+        private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset)
+        {
+            var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
+
+            var pakHeaderBytes = GetPak2HeaderBytes(pak2);
+            var handler = new Pak2Handler<THeader>(_ctx);
+
+            var pakResult = handler.Detect(pakHeaderBytes);
+            if (!pakResult.Succeded())
+            {
+                throw new Exception("Invalid PAK2 header, or decryption failed");
+            }
+
+            return (Pak2DetectionResult)pakResult.Context!;
+        }
+
+        private MemoryDataSourceBuffer NewPakBuffer(PAK_V2_HEADER pakHdr)
+        {
+            var flags = DataSourceFlags.Output;
+            var processFurther = pakHdr.ImageType switch
+            {
+                "crc3" => false,
+                "logo" => false,
+                "mico" => false,
+                _ => true
             };
             if (processFurther)
             {
-				flags |= DataSourceFlags.ProcessFurther;
+                flags |= DataSourceFlags.ProcessFurther;
             }
 
-			var buff = new MemoryDataSourceBuffer($"{pakHdr.ImageType}.pak", flags);
-			buff.AddMetadata(new OutputFileName($"{pakHdr.ImageType}.pak"));
-			return buff;
-		}
+            var buff = new MemoryDataSourceBuffer($"{pakHdr.ImageType}.pak", flags);
+            buff.AddMetadata(new OutputFileName($"{pakHdr.ImageType}.pak"));
+            return buff;
+        }
 
 
-		private (string, string, IDataSource) HandlePak(
-			ReadOnlySpan<byte> fileData,
-			int offset,
-			string baseDir,
-			out int numberOfSegments,
-			DataSourceFlags flags
-		) {
-			string? pakName = null;
+        private (string, string, IDataSource) HandlePak(
+            ReadOnlySpan<byte> fileData,
+            int offset,
+            string baseDir,
+            out int numberOfSegments,
+            DataSourceFlags flags
+        )
+        {
+            string? pakName = null;
 
-			MemoryDataSource outputFile;
-			MemoryDataSourceBuffer outputBuffer = null;
+            MemoryDataSource outputFile;
+            MemoryDataSourceBuffer outputBuffer = null;
 
-			numberOfSegments = 0;
+            numberOfSegments = 0;
 
-			while (true) { 
-				var pak2 = GetPak2Header(fileData, offset);
-				bool needsDecryption = pak2.WasDecrypted;
+            while (true)
+            {
+                var pak2 = GetPak2Header(fileData, offset);
+                bool needsDecryption = pak2.WasDecrypted;
 
-				var pakHdr = pak2.Header;
-				uint curSeg = pakHdr.segmentIndex;
-				if (curSeg == 0) {
-					logger.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
+                var pakHdr = pak2.Header;
+                uint curSeg = pakHdr.segmentIndex;
+                if (curSeg == 0)
+                {
+                    logger.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
 
-					outputBuffer = NewPakBuffer(pakHdr);
-					outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
-					
-					pakName = pakHdr.ImageType;
-					numberOfSegments = (int)pakHdr.segmentCount;
-				}
+                    outputBuffer = NewPakBuffer(pakHdr);
+                    outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
 
-				if (outputBuffer == null) {
-					throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
-				}
+                    pakName = pakHdr.ImageType;
+                    numberOfSegments = (int)pakHdr.segmentCount;
+                }
 
-				var pakData = fileData.Slice(offset + PakStructureSize, (int)pakHdr.segmentSize);
-				if (needsDecryption && _ctx.Services.Decryptor != null)
-				{
-					pakData = _ctx.Services.Decryptor.Decrypt(pakData).Span;
-				}
-				outputBuffer.Write(pakData);
+                if (outputBuffer == null)
+                {
+                    throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
+                }
 
-				var build = pakHdr.devMode switch {
-					PakBuildMode.DEBUG => "DEBUG",
-					PakBuildMode.RELEASE => "RELEASE",
-					PakBuildMode.TEST => "TEST",
-					_ => $"UNKNOWN 0x{pakHdr.devMode:X}"
-				};
+                var pakData = fileData.Slice(offset + PakStructureSize, (int)pakHdr.segmentSize);
+                if (needsDecryption && _ctx.Services.Decryptor != null)
+                {
+                    pakData = _ctx.Services.Decryptor.Decrypt(pakData).Span;
+                }
+                outputBuffer.Write(pakData);
 
-				logger.Info($"  segment #{curSeg + 1} (name='{pakHdr.ImageType}'," +
-					$" version={pakHdr.SwVersion}," +
-					$" platform='{pakHdr.ModelName}', offset='0x{offset:X}', size='{pakHdr.segmentSize} bytes'," +
-					$" build={build})");
+                var build = pakHdr.devMode switch
+                {
+                    PakBuildMode.DEBUG => "DEBUG",
+                    PakBuildMode.RELEASE => "RELEASE",
+                    PakBuildMode.TEST => "TEST",
+                    _ => $"UNKNOWN 0x{pakHdr.devMode:X}"
+                };
 
-				if (curSeg + 1 == pakHdr.segmentCount) {
-					outputFile = outputBuffer.ToDataSource();
-					outputBuffer.Dispose();
-					break;
-				}
+                logger.Info($"  segment #{curSeg + 1} (name='{pakHdr.ImageType}'," +
+                    $" version={pakHdr.SwVersion}," +
+                    $" platform='{pakHdr.ModelName}', offset='0x{offset:X}', size='{pakHdr.segmentSize} bytes'," +
+                    $" build={build})");
 
-				offset += PakStructureSize + (int)pakHdr.segmentSize;
-			}
+                if (curSeg + 1 == pakHdr.segmentCount)
+                {
+                    outputFile = outputBuffer.ToDataSource();
+                    outputBuffer.Dispose();
+                    break;
+                }
 
-			//outputFile.Directory = baseDir;
-			return (pakName!, outputFile.Name, outputFile);
-		}
+                offset += PakStructureSize + (int)pakHdr.segmentSize;
+            }
 
-		public IEnumerable<IDataSource> Extract(IDataSource source)
-		{
-			return Extract(source, DataSourceFlags.Output);
-		}
+            //outputFile.Directory = baseDir;
+            return (pakName!, outputFile.Name, outputFile);
+        }
 
-		protected abstract int SignatureSize { get; }
+        public IEnumerable<IDataSource> Extract(IDataSource source)
+        {
+            return Extract(source, DataSourceFlags.Output);
+        }
 
-		public IEnumerable<IDataSource> Extract(IDataSource source, DataSourceFlags outputFlags) {
-			var fileData = source.Data;
+        protected abstract int SignatureSize { get; }
 
-			var hdr = _ctx.Header;
-			
+        public IEnumerable<IDataSource> Extract(IDataSource source, DataSourceFlags outputFlags)
+        {
+            var fileData = source.Data;
 
-			logger.Info("Firmware Info");
-			logger.Info("-------------");
-			logger.Info($"Firmware magic: {hdr.FileType}");
-			logger.Info($"Firmware type: {hdr.EpkMagic}");
-			logger.Info($"Firmware otaID: {hdr.OtaId}");
-			logger.Info($"Firmware version: {hdr.EpkVersion}");
+            var hdr = _ctx.Header;
 
-			logger.Info($"PAK count: {hdr.FileNum}");
-			logger.Info($"PAKs total size: {hdr.FileSize}");
-			logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
-			var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
+            logger.Info("Firmware Info");
+            logger.Info("-------------");
+            logger.Info($"Firmware magic: {hdr.FileType}");
+            logger.Info($"Firmware type: {hdr.EpkMagic}");
+            logger.Info($"Firmware otaID: {hdr.OtaId}");
+            logger.Info($"Firmware version: {hdr.EpkVersion}");
 
-			//var sigSize = EPK_V2_STRUCTURE.SIGNATURE_SIZE;
-			var sigSize = SignatureSize;
+            logger.Info($"PAK count: {hdr.FileNum}");
+            logger.Info($"PAKs total size: {hdr.FileSize}");
+            logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
-			int numSignatures = 1; //header signature
-			for(int curPak=0; curPak<hdr.FileNum; curPak++) {
-				int pakLoc = (int)hdr.GetImageOffset(curPak) + (numSignatures * sigSize);
+            var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
-				(string pakName,
-				 string pakOutputPath,
-				 IDataSource pak) = HandlePak(
-					 fileData.Span,
-					 pakLoc,
-					 baseDir: fwVersion,
-					 out int numberOfSegments,
-					 outputFlags
-				);
-				pak.SetChildOf(source);
+            //var sigSize = EPK_V2_STRUCTURE.SIGNATURE_SIZE;
+            var sigSize = SignatureSize;
+
+            int numSignatures = 1; //header signature
+            for (int curPak = 0; curPak < hdr.FileNum; curPak++)
+            {
+                int pakLoc = (int)hdr.GetImageOffset(curPak) + (numSignatures * sigSize);
+
+                (string pakName,
+                 string pakOutputPath,
+                 IDataSource pak) = HandlePak(
+                     fileData.Span,
+                     pakLoc,
+                     baseDir: fwVersion,
+                     out int numberOfSegments,
+                     outputFlags
+                );
+                pak.SetChildOf(source);
                 numSignatures += numberOfSegments;
 
-				logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
-				yield return pak;
-			}
-		}
-	}
+                logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
+                yield return pak;
+            }
+        }
+    }
 
     public class Epk2Extractor : AbstractEpk2Extractor<EPK_V2_HEADER>
     {
@@ -235,9 +245,9 @@ namespace Yafex.FileFormats.EpkV2
         {
         }
 
-		protected override int SignatureSize => EPK_V2_STRUCTURE.SIGNATURE_SIZE;
+        protected override int SignatureSize => EPK_V2_STRUCTURE.SIGNATURE_SIZE;
 
-		protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
+        protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
 
         protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
         {
@@ -257,7 +267,7 @@ namespace Yafex.FileFormats.EpkV2
 
         protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
         {
-			return PAK_V2_BETA_STRUCTURE.GetHeader(data);
+            return PAK_V2_BETA_STRUCTURE.GetHeader(data);
         }
     }
 }
