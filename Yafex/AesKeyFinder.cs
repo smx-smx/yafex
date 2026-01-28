@@ -84,7 +84,7 @@ namespace Yafex
             var keys = bundle.GetKeyCollection(_bundleId).Where(k => algos.Contains(k.keyAlgo));
             foreach (var k in keys)
             {
-                logger.DebugFormat("Trying {0} ({1})",
+                logger.FineFormat("Trying {0} ({1})",
                     k.key.HexDump(printAddress: false, printSpacing: false, printAscii: false),
                     k.comment
                 );

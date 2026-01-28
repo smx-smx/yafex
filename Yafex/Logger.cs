@@ -10,12 +10,15 @@
 #endregion
 using log4net;
 using log4net.Appender;
+using log4net.Config;
 using log4net.Core;
 using log4net.Layout;
 using log4net.Repository.Hierarchy;
+using log4net.Util;
 
-using System.Configuration;
-using System.Reflection;
+using System;
+using System.IO;
+using System.Linq;
 
 namespace Yafex
 {
@@ -23,23 +26,22 @@ namespace Yafex
     {
         private static void ReloadConfig()
         {
-            string filePath = Assembly.GetExecutingAssembly().Location + ".config";
-            ExeConfigurationFileMap fileMap = new ExeConfigurationFileMap()
+            var asmPath = typeof(Logger).Assembly.Location;
+            var asmDir = Path.GetDirectoryName(asmPath);
+            if(asmDir == null)
             {
-                ExeConfigFilename = filePath
-            };
-            ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
-            // will invoke the hooked GetEntryAssembly
-            ConfigurationManager.RefreshSection("log4net");
+                throw new InvalidOperationException("Failed to get assembly directory name");
+            }
+
+            // required when running under EzDotNet, as the appconfig won't be initialized
+            SystemInfo.EntryAssemblyLocation = asmPath;
+            var configPath = Path.Combine(asmDir, "log4net.config");
+
+            XmlConfigurator.Configure(new FileInfo(configPath));
         }
 
-        public static void Setup()
+        private static void ConfigureDefault(Hierarchy hierarchy)
         {
-            // required when running under EzDotNet, as the appconfig won't be initialized
-            ReloadConfig();
-
-            Hierarchy hierarchy = (Hierarchy)LogManager.GetRepository();
-
             PatternLayout patternLayout = new PatternLayout();
             //patternLayout.ConversionPattern = "%date [%thread] %-5level %logger - %message%newline";
             patternLayout.ConversionPattern = "%logger - %message%newline";
@@ -50,8 +52,28 @@ namespace Yafex
             console.ActivateOptions();
             hierarchy.Root.AddAppender(console);
 
-            hierarchy.Root.Level = Level.Finest;
+            hierarchy.Root.Level = Level.Info;
             hierarchy.Configured = true;
+        }
+
+        public static void Setup(bool enableDebug)
+        {
+            ReloadConfig();
+
+            Hierarchy hierarchy = (Hierarchy)LogManager.GetRepository();
+
+            var appenders = hierarchy.GetAppenders();
+            var existingConsole = appenders.FirstOrDefault(x => x is ConsoleAppender);
+
+            if (existingConsole == null)
+            {
+                ConfigureDefault(hierarchy);
+            }
+
+            if (enableDebug)
+            {
+                hierarchy.Root.Level = Level.Finest;
+            }
         }
     }
 }

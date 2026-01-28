@@ -14,7 +14,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using Yafex.Fuse;
@@ -30,13 +33,14 @@ namespace Yafex
         {
             try
             {
-                // needs https://github.com/apache/logging-log4net/pull/91
-                //SystemInfo.EntryAssemblyLocation = Assembly.GetExecutingAssembly().Location;
-                Logger.Setup();
+                IEnumerable<string> trueStrings = ["1", "true"];
+                var isDebug = trueStrings.Contains((Environment.GetEnvironmentVariable("YAFEX_DEBUG") ?? "0").ToLowerInvariant());
+                Logger.Setup(enableDebug: isDebug);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 Console.Error.WriteLine("Warning: log4net setup failed");
+                Console.Error.WriteLine(ex);
             }
         }
 
