@@ -3,20 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace Yafex;
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(Aes128Ecb), "aes-128-ecb")]
-[JsonDerivedType(typeof(Aes256Ecb), "aes-256-ecb")]
-[JsonDerivedType(typeof(Aes128Cbc), "aes-128-cbc")]
-[JsonDerivedType(typeof(Aes256Cbc), "aes-256-cbc")]
-public class KeyDTO
-{
-    [JsonIgnore]
-    [JsonPropertyName("type")]
-    public string? Type { get; set; }
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
-}
-
 public class Aes128Ecb : BasicKeyDTO { }
 public class Aes256Ecb : BasicKeyDTO { }
 public class Aes128Cbc : KeyWithIVDTO { }
@@ -34,7 +20,7 @@ public class KeyWithIVDTO : BasicKeyDTO
     public required string KeyIV { get; set; }
 }
 
-public class KeyCollectionDTO : KeySecretDTO
+public class KeyCollectionDTO : KeyDTO
 {
     [JsonPropertyName("keys")]
     public List<KeyDTO> Keys { get; set; } = new List<KeyDTO>();
@@ -42,10 +28,14 @@ public class KeyCollectionDTO : KeySecretDTO
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(KeyCollectionDTO), "collection")]
-public class KeySecretDTO
+[JsonDerivedType(typeof(Aes128Ecb), "aes-128-ecb")]
+[JsonDerivedType(typeof(Aes256Ecb), "aes-256-ecb")]
+[JsonDerivedType(typeof(Aes128Cbc), "aes-128-cbc")]
+[JsonDerivedType(typeof(Aes256Cbc), "aes-256-cbc")]
+public class KeyDTO
 {
     [JsonPropertyName("id")]
-    public required string Id { get; set; }
+    public string? Id { get; set; }
     [JsonIgnore]
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;

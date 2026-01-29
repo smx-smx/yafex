@@ -12,6 +12,7 @@ using log4net;
 
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Authentication;
@@ -77,7 +78,11 @@ namespace Yafex
             return null;
         }
 
-        public bool FindAesKey(ReadOnlySpan<byte> data, CryptoResultChecker checker, out KeyFinderResult? result)
+        public bool FindAesKey(
+            ReadOnlySpan<byte> data,
+            CryptoResultChecker checker,
+            [MaybeNullWhen(false)]
+            out KeyFinderResult? result)
         {
             var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
 

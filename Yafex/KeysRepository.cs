@@ -19,6 +19,16 @@ public class KeysRepository
         _config = config;
         _keyBundle = keyBundle;
     }
+    
+    public KeyEntry GetKey(string id)
+    {
+        return _keyBundle.GetKey(id);
+    }
+
+    public T GetItem<T>(string id)
+    {
+        return _keyBundle.GetItem<T>(id);
+    }
 
     public IEnumerable<KeyEntry> GetKeyCollection(string id)
     {
@@ -42,20 +52,7 @@ public class KeysRepository
         }
 
         var keyEntry = result.Value.Key;
-
-        var blockSize = keyEntry.key.Length * 8;
-
-        var aes = Aes.Create();
-        aes.BlockSize = blockSize;
-        aes.KeySize = blockSize;
-        aes.Key = keyEntry.key;
-        if (keyEntry.keyMode == CipherMode.CBC)
-        {
-            aes.IV = keyEntry.iv;
-        }
-        aes.Mode = keyEntry.keyMode;
-        // $FIXME: expose in JSON, if/when needed
-        aes.Padding = PaddingMode.None;
+        var aes = keyEntry.GetAes();
         return new AesDecryptor(aes);
     }
 }

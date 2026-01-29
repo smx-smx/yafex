@@ -8,18 +8,46 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using Smx.SharpIO;
-using Smx.SharpIO.Extensions;
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Xml.Linq;
+
+using Smx.SharpIO;
+using Smx.SharpIO.Extensions;
 
 namespace Yafex.Support
 {
     public static class SpanExtensions
     {
+        public static string AsString<TBuffer>(
+            this TBuffer buffer,
+            Encoding encoding
+        )
+            where TBuffer : struct
+        {
+            int length = Unsafe.SizeOf<TBuffer>();
+            ref var bufferRef = ref Unsafe.AsRef(in buffer);
+            ref var start = ref Unsafe.As<TBuffer, byte>(ref bufferRef);
+            var span = MemoryMarshal.CreateReadOnlySpan(ref start, length);
+            return span.AsString(encoding);
+        }
+
+        public static string AsString(this ReadOnlySpan<byte> data, Encoding encoding)
+        {
+            var bytes = data.ToArray();
+            return encoding.GetString(bytes).TrimEnd('\0');
+        }
+
+        public static string AsString(this Span<byte> data, Encoding encoding)
+        {
+            var bytes = data.ToArray();
+            return encoding.GetString(bytes).TrimEnd('\0');
+        }
+
         public unsafe static T Read<T>(this ReadOnlySpan<byte> data, int offset) where T : unmanaged
         {
             int length = sizeof(T);

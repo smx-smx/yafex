@@ -57,7 +57,18 @@ namespace Yafex
                 DetectionResult? result = null;
                 try
                 {
-                    result = Detect(fmt, source);
+                    try
+                    {
+                        result = Detect(fmt, source);
+                    } catch(Exception ex)
+                    {
+                        log.Error($"Detector for {Enum.GetName(fmt)} failed", ex);
+                    }
+
+                    if (result == null)
+                    {
+                        continue;
+                    }
 
                     if (result.Confidence > bestConfidence)
                     {

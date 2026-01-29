@@ -26,6 +26,7 @@ namespace Yafex
         FreescaleNand,
         Xex,
         LxSecureBoot,
-        Nfwb
+        Nfwb,
+        MediatekPkg
     }
 }

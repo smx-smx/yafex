@@ -25,15 +25,33 @@ namespace Yafex
         public required byte[] key;
         public required byte[] iv;
         public required string comment;
+
+        public Aes GetAes()
+        {
+            var blockSize = key.Length * 8;
+
+            var aes = Aes.Create();
+            aes.BlockSize = blockSize;
+            aes.KeySize = blockSize;
+            aes.Key = key;
+            if (keyMode == CipherMode.CBC)
+            {
+                aes.IV = iv;
+            }
+            aes.Mode = keyMode;
+            // $FIXME: expose in JSON, if/when needed
+            aes.Padding = PaddingMode.None;
+            return aes;
+        }
     }
 
     public class KeyBundle
     {
-        private readonly Dictionary<string, KeySecretDTO> _keySecrets;
+        private readonly Dictionary<string, KeyDTO> _keySecrets;
 
         private static CipherAlgorithmType ConvertAlgoType(KeyDTO key)
         {
-            if (key is Aes128Ecb || key is Aes128Ecb)
+            if (key is Aes128Ecb || key is Aes128Cbc)
             {
                 return CipherAlgorithmType.Aes128;
             }
@@ -75,6 +93,25 @@ namespace Yafex
             };
         }
 
+        public KeyEntry GetKey(string id)
+        {
+            var key = GetItem<KeyDTO>(id);
+            return ConvertKey(key);
+        }
+
+        public T GetItem<T>(string id)
+        {
+            if(!_keySecrets.TryGetValue(id, out var item))
+            {
+                throw new InvalidOperationException();
+            }
+            if(item is not T typedItem)
+            {
+                throw new InvalidOperationException();
+            }
+            return typedItem;
+        }
+
         public IEnumerable<KeyEntry> GetKeyCollection(string id)
         {
             if (!_keySecrets.TryGetValue(id, out var item))
@@ -92,7 +129,7 @@ namespace Yafex
         public KeyBundle(string filePath)
         {
             using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var keys = JsonSerializer.Deserialize<List<KeySecretDTO>>(fs);
+            var keys = JsonSerializer.Deserialize<List<KeyDTO>>(fs);
             if (keys == null)
             {
                 throw new InvalidDataException($"Failed to read key bundle \"{filePath}\"");
