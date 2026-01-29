@@ -19,7 +19,8 @@ public enum MtkPkgVariant
     Unknown,
     // $FIXME: find better names
     Old,
-    Standard
+    Standard,
+    New
 }
 
 public class MediatekPkgAddon : IFormatAddon
