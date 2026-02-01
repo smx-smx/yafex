@@ -167,7 +167,7 @@ public class MediatekPkgExtractor : IFormatExtractor
         var iPart = 0;
         while (st.Position < st.Length)
         {
-            if (_ctx.Flags.HasFlag(MtkPkgQuirks.Philips) & (st.Position == st.Length - MediatekPkgDetector.PHILIPS_FOOTER_SIGNATURE_SIZE))
+            if (_ctx.Flags.HasFlag(MtkPkgQuirks.Philips) && (st.Position == st.Length - MediatekPkgDetector.PHILIPS_FOOTER_SIGNATURE_SIZE))
             {
                 break;
             }
