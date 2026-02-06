@@ -125,8 +125,14 @@ namespace Yafex.FileFormats.Partinfo
         {
             string sOut = DumpPartinfo(source.Data.Span);
 
+            var dirName = Path.GetDirectoryName(source.Directory);
+            if(dirName == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             string artifactName = Path.Combine(
-                Path.GetDirectoryName(source.Directory),
+                dirName,
                 Path.GetFileNameWithoutExtension(source.Directory) + ".txt"
             );
 

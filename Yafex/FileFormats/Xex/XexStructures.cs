@@ -571,7 +571,7 @@ namespace Yafex.FileFormats.Xex
         public uint value;
         public uint offset => value;
 
-        public readonly int SIZEOF;
+        public readonly long SIZEOF;
 
         public xex2_opt_header(SpanStream r)
         {
@@ -599,7 +599,7 @@ namespace Yafex.FileFormats.Xex
 
         private SpanStream r;
 
-        public readonly int SIZEOF;
+        public readonly long SIZEOF;
 
         public xex2_header(Memory<byte> bytes)
         {

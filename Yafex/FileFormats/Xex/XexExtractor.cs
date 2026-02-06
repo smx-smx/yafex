@@ -67,7 +67,7 @@ namespace Yafex.FileFormats.Xex
             return GetOptHeader<T>(key, out var _);
         }
 
-        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key, out int header_offset)
+        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key, out long header_offset)
         {
             var offset = GetOptHeader(key, out header_offset);
             if (!offset.HasValue) return null;
@@ -79,7 +79,7 @@ namespace Yafex.FileFormats.Xex
             return GetOptHeader(key, out var _);
         }
 
-        private uint? GetOptHeader(xex2_header_keys key, out int header_offset)
+        private uint? GetOptHeader(xex2_header_keys key, out long header_offset)
         {
             header_offset = 0;
 
@@ -555,7 +555,7 @@ namespace Yafex.FileFormats.Xex
                     throw new InvalidDataException("Missing FILE_FORMAT_INFO");
                 }
 
-                xex2_opt_header opt_header = new xex2_opt_header(mem.Slice(opt_file_format_info_offset));
+                xex2_opt_header opt_header = new xex2_opt_header(mem.Slice((int)opt_file_format_info_offset));
                 this.opt_file_format_info = opt_file_format_info;
             }
 
