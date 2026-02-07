@@ -124,7 +124,7 @@ namespace Yafex.Support
 
             if (this.fs.Length > 0)
             {
-                CreateMapping((int)fs.Length);
+                CreateMapping(fs.Length);
             }
 
             _name = Path.GetFileNameWithoutExtension(filePath);
