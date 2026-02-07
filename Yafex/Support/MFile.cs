@@ -50,7 +50,7 @@ namespace Yafex.Support
             set => throw new NotImplementedException();
         }
 
-        public Span<T> GetData<T>(int offset = 0) where T : unmanaged
+        public Span64<T> GetData<T>(int offset = 0) where T : unmanaged
         {
             return span.GetSpan()
                        .Slice(offset)
@@ -90,7 +90,7 @@ namespace Yafex.Support
             CreateMapping(length);
         }
 
-        private void CreateMapping(int length)
+        private void CreateMapping(long length)
         {
             CloseMapping();
 
@@ -103,11 +103,6 @@ namespace Yafex.Support
             {
                 this.mf = MemoryMappedFile.CreateFromFile(this.fs, null, 0,
                     MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable, true);
-            }
-
-            if (this.fs.Length >= int.MaxValue)
-            {
-                throw new NotSupportedException("Files bigger than 4GB are currently not supported");
             }
 
             this.span = new MemoryMappedSpan<byte>(this.mf, length, readOnly: this.isReadOnly);

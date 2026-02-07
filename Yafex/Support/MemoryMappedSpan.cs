@@ -12,9 +12,11 @@ using System;
 using System.Buffers;
 using System.IO.MemoryMappedFiles;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.Support
 {
-    public unsafe class MemoryMappedSpan<T> : MemoryManager<T>, IDisposable where T : unmanaged
+    public unsafe class MemoryMappedSpan<T> : MemoryManager64<T>, IDisposable where T : unmanaged
     {
         public readonly long Length;
 
@@ -35,12 +37,12 @@ namespace Yafex.Support
             this.acc.SafeMemoryMappedViewHandle.AcquirePointer(ref dptr);
         }
 
-        public override Span<T> GetSpan()
+        public override Span64<T> GetSpan()
         {
-            return new Span<T>((void*)dptr, (int)Length);
+            return new Span64<T>((void*)dptr, (int)Length);
         }
 
-        public override MemoryHandle Pin(int elementIndex = 0)
+        public override MemoryHandle Pin(long elementIndex = 0)
         {
             if (elementIndex < 0 || elementIndex >= Length)
             {
