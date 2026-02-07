@@ -39,7 +39,7 @@ namespace Yafex.Support
 
         public override Span64<T> GetSpan()
         {
-            return new Span64<T>((void*)dptr, (int)Length);
+            return new Span64<T>((void*)dptr, Length);
         }
 
         public override MemoryHandle Pin(long elementIndex = 0)
