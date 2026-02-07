@@ -34,12 +34,6 @@ public struct ProductName
     private byte _element0;
 }
 
-[InlineArray(32)]
-public struct Digest
-{
-    private byte _element0;
-}
-
 public struct PkgHeader
 {
     public const string MTK_MAGIC = "#DH@FiRm";
@@ -50,8 +44,11 @@ public struct PkgHeader
     public uint FileSize;
     public uint Flags;
     private ProductName _productName;
-    public Digest Digest;
 
+    public const int STANDARD_DIGEST_SIZE = 0x20;
+    public const int NEW_DIGEST_SIZE = 0x100;
+
+    public string VendorMagic => VendorMagicBytes.AsString(Encoding.ASCII);
     public string MtkMagic => _mtkMagic.AsString(Encoding.ASCII);
     public string Version => _version.AsString(Encoding.ASCII);
     public string ProductName => _productName.AsString(Encoding.ASCII);

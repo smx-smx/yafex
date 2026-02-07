@@ -14,6 +14,8 @@ using Smx.SharpIO.Memory.Buffers;
 using Yafex.Metadata;
 using Yafex.Support;
 
+using log4net;
+
 namespace Yafex.FileFormats.MediatekPkg;
 
 public class MediatekPkgExtractor : IFormatExtractor
@@ -21,6 +23,7 @@ public class MediatekPkgExtractor : IFormatExtractor
     private readonly MediatekPkgContext _ctx;
     private readonly KeysRepository _keys;
 
+    private static readonly ILog log = LogManager.GetLogger(nameof(MediatekPkgExtractor));
     private AesDecryptor? _decryptor;
     private bool _keySearchAttempted = false;
 
@@ -58,7 +61,6 @@ public class MediatekPkgExtractor : IFormatExtractor
         }
 
         _keySearchAttempted = true;
-
 
         var decryptor = _keys.CreateAesDecryptor("mtkpkg-keys", data.Span, IsDecryptedHeader);
         if(decryptor == null) 
@@ -131,15 +133,30 @@ public class MediatekPkgExtractor : IFormatExtractor
 
     public IEnumerable<IDataSource> Extract(IDataSource source)
     {
-        var data = source.Data;
-        
+        var data = source.Data;       
         var st = new SpanStream(data);
+
+        log.Info("Firmware Info");
+        log.Info("-------------");
+        log.Info($"Vendor magic: {Header.VendorMagic}");
+        log.Info($"Version: {Header.Version}");
+        log.Info($"Product name: {Header.ProductName}");
+        log.Info($"File size: {Header.FileSize}");
+
+        st.Position = Unsafe.SizeOf<PkgHeader>();
+        if (_ctx.Variant == MtkPkgVariant.Standard)
+        {
+            st.Position += PkgHeader.STANDARD_DIGEST_SIZE;
+        }
+        if (_ctx.Variant == MtkPkgVariant.New)
+        {
+            st.Position += PkgHeader.NEW_DIGEST_SIZE;
+        }
         if (_ctx.Flags.HasFlag(MtkPkgQuirks.Philips))
         {
-            st.Position += MediatekPkgDetector.PHILIPS_DIGEST_SIZE;
+            st.Position += MediatekPkgDetector.PHILIPS_EXTRA_HEADER_SIZE;
         }
-        st.Position = Unsafe.SizeOf<PkgHeader>();
-
+        
         var dataHeaderSize = _ctx.Variant == MtkPkgVariant.Standard
             ? Unsafe.SizeOf<DataHeader>()
             : 0;
@@ -147,8 +164,14 @@ public class MediatekPkgExtractor : IFormatExtractor
         var basedir = Path.Combine(source.RequireBaseDirectory(), Header.ProductName);
         source.AddMetadata(new BaseDirectoryPath(basedir));
 
+        var iPart = 0;
         while (st.Position < st.Length)
         {
+            if (_ctx.Flags.HasFlag(MtkPkgQuirks.Philips) && (st.Position == st.Length - MediatekPkgDetector.PHILIPS_FOOTER_SIGNATURE_SIZE))
+            {
+                break;
+            }
+
             var part = st.ReadStruct<PartEntry>();
             
             var dataOffset = st.Position;
@@ -165,16 +188,24 @@ public class MediatekPkgExtractor : IFormatExtractor
             dataSlice = dataSlice.Slice(Unsafe.SizeOf<DataHeader>());
             dataSlice = ReadMtkMetadata(dataSlice, out var otaId);
 
-            if(otaId != null)
-            {
-                // $TODO: print
-            }
-
             st.Position += dataSize;
+            iPart++;
+
+            var fileName = $"{part.PartName}.pak";
+			var filePath = Path.Combine(basedir, fileName);
+
+            log.Info($"#{iPart}" +
+                    $"{(part.Flags.HasFlag(PartFlags.Encrypted) ? " [ENCRYPTED]" : "")}" + 
+                    $"{(part.Flags.HasFlag(PartFlags.Compressed) ? " [COMPRESSED]" : "")}" + 
+                    $" saving Part (name='{part.PartName}'," +
+					$" offset=0x{dataOffset:X}," +
+					$" size='{part.Size}'" +
+                    $"{(otaId != null ? $", version='{otaId}'" : "")}" +
+                    $") to file {filePath}");
 
             var artifact = new MemoryDataSource(dataSlice);
             artifact.SetChildOf(source);
-            artifact.AddMetadata(new OutputFileName($"{part.PartName}.pak"));
+            artifact.AddMetadata(new OutputFileName(fileName));
             artifact.AddMetadata(new OutputDirectoryName(basedir));
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
