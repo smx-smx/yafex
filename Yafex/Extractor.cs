@@ -91,7 +91,10 @@ namespace Yafex
                             using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
                             {
                                 fs.SetLength(0);
-                                fs.Write(artifact.Data.Span);
+                                foreach(var chunk in artifact.Data.Span.GetChunks())
+                                {
+                                    fs.Write(chunk);
+                                }
                             }
                         }
                     }

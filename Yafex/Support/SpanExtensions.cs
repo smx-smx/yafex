@@ -18,6 +18,7 @@ using System.Xml.Linq;
 
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.Support
 {
@@ -49,6 +50,12 @@ namespace Yafex.Support
         }
 
         public unsafe static T Read<T>(this ReadOnlySpan<byte> data, int offset) where T : unmanaged
+        {
+            int length = sizeof(T);
+            return Cast<byte, T>(data.Slice(offset, length))[0];
+        }
+
+        public unsafe static T Read<T>(this ReadOnlySpan64<byte> data, int offset) where T : unmanaged
         {
             int length = sizeof(T);
             return Cast<byte, T>(data.Slice(offset, length))[0];
@@ -96,9 +103,21 @@ namespace Yafex.Support
             return MemoryMarshal.Cast<Tfrom, Tto>(data);
         }
 
+        public static ReadOnlySpan64<Tto> Cast<Tfrom, Tto>(this ReadOnlySpan64<Tfrom> data)
+            where Tto : struct
+            where Tfrom : struct
+        {
+            return MemoryMarshal64.Cast<Tfrom, Tto>(data);
+        }
+
         public static ReadOnlySpan<T> Cast<T>(this ReadOnlySpan<byte> data) where T : unmanaged
         {
             return MemoryMarshal.Cast<byte, T>(data);
+        }
+
+        public static ReadOnlySpan64<T> Cast<T>(this ReadOnlySpan64<byte> data) where T : unmanaged
+        {
+            return MemoryMarshal64.Cast<byte, T>(data);
         }
 
         public static Span<T> Cast<T>(this Span<byte> data) where T : unmanaged
@@ -106,7 +125,17 @@ namespace Yafex.Support
             return MemoryMarshal.Cast<byte, T>(data);
         }
 
+        public static Span64<T> Cast<T>(this Span64<byte> data) where T : unmanaged
+        {
+            return MemoryMarshal64.Cast<byte, T>(data);
+        }
+
         public static Span<T> Cast<T>(this Memory<byte> data) where T : unmanaged
+        {
+            return Cast<T>(data.Span);
+        }
+
+        public static Span64<T> Cast<T>(this Memory64<byte> data) where T : unmanaged
         {
             return Cast<T>(data.Span);
         }
@@ -117,16 +146,27 @@ namespace Yafex.Support
         }
 
         public static ReadOnlySpan<T> AsReadonlySpan<T>(this Span<T> data) where T : unmanaged => data;
+        public static ReadOnlySpan64<T> AsReadonlySpan<T>(this Span64<T> data) where T : unmanaged => data;
         public static ReadOnlySpan<T> AsReadonlySpan<T>(this ReadOnlySpan<T> data) where T : unmanaged => data;
+        public static ReadOnlySpan64<T> AsReadonlySpan<T>(this ReadOnlySpan64<T> data) where T : unmanaged => data;
         public static ReadOnlySpan<T> AsReadonlySpan<T>(this Memory<T> data) where T : unmanaged => data.Span;
+        public static ReadOnlySpan64<T> AsReadonlySpan<T>(this Memory64<T> data) where T : unmanaged => data.Span;
 
         public static IEnumerable<T> ToEnumerable<T>(this ReadOnlyMemory<T> data) where T : unmanaged
         {
             return MemoryMarshal.ToEnumerable<T>(data);
         }
+        public static IEnumerable<T> ToEnumerable<T>(this ReadOnlyMemory64<T> data) where T : unmanaged
+        {
+            return MemoryMarshal64.ToEnumerable<T>(data);
+        }
         public static IEnumerable<T> ToEnumerable<T>(this Memory<T> data) where T : unmanaged
         {
             return MemoryMarshal.ToEnumerable<T>(data);
+        }
+        public static IEnumerable<T> ToEnumerable<T>(this Memory64<T> data) where T : unmanaged
+        {
+            return MemoryMarshal64.ToEnumerable<T>(data);
         }
 
         private static int FieldSize(FieldInfo field)
@@ -233,6 +273,14 @@ namespace Yafex.Support
             return data;
         }
 
+        public static unsafe T ReadStruct<T>(this Span64<byte> data, long offset = 0) where T : struct
+        {
+            fixed(byte *dptr = data)
+            {
+                return RespectEndianness(Marshal.PtrToStructure<T>(new IntPtr(dptr + offset)));
+            }
+        }
+
         public static unsafe T ReadStruct<T>(this Span<byte> data, int offset = 0) where T : struct
         {
             fixed (byte* dptr = data)
@@ -249,12 +297,38 @@ namespace Yafex.Support
             }
         }
 
+        public static unsafe T ReadStruct<T>(this ReadOnlySpan64<byte> data, long offset = 0) where T : struct
+        {
+            fixed (byte* dptr = data)
+            {
+                return RespectEndianness(Marshal.PtrToStructure<T>(new IntPtr(dptr + offset)));
+            }
+        }
+
         public static unsafe T ReadStruct<T>(this Memory<byte> data, int offset = 0) where T : struct
         {
             return ReadStruct<T>(data.Span, offset);
         }
 
+        public static unsafe T ReadStruct<T>(this Memory64<byte> data, long offset = 0) where T : struct
+        {
+            return ReadStruct<T>(data.Span, offset);
+        }
+
         public static Memory<T> GetField<T, TStruct, TField>(this Memory<T> memory, string fieldName)
+        where T : unmanaged
+            where TStruct : struct
+            where TField : struct
+        {
+            var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
+            var length = Marshal.SizeOf<TField>();
+
+            return memory.Cast<T, byte>()
+                .Slice(offset, length)
+                .Cast<byte, T>();
+        }
+
+        public static Memory64<T> GetField<T, TStruct, TField>(this Memory64<T> memory, string fieldName)
         where T : unmanaged
             where TStruct : struct
             where TField : struct
@@ -281,7 +355,35 @@ namespace Yafex.Support
                 .Cast<byte, T>();
         }
 
+        public static Span64<T> GetField<T, TStruct, TField>(this Span64<T> span, string fieldName)
+            where T : unmanaged
+            where TStruct : struct
+            where TField : struct
+        {
+            var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
+            var length = Marshal.SizeOf<TField>();
+
+            return span
+                .Cast<T, byte>()
+                .Slice(offset, length)
+                .Cast<byte, T>();
+        }
+
         public static ReadOnlySpan<T> GetField<T, TStruct, TField>(this ReadOnlySpan<T> span, string fieldName)
+            where T : unmanaged
+            where TStruct : struct
+            where TField : struct
+        {
+            var offset = Marshal.OffsetOf<TStruct>(fieldName).ToInt32();
+            var length = Marshal.SizeOf<TField>();
+
+            return span
+                .Cast<T, byte>()
+                .Slice(offset, length)
+                .Cast<byte, T>();
+        }
+
+        public static ReadOnlySpan64<T> GetField<T, TStruct, TField>(this ReadOnlySpan64<T> span, string fieldName)
             where T : unmanaged
             where TStruct : struct
             where TField : struct

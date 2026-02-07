@@ -10,6 +10,9 @@
 #endregion
 using log4net;
 
+using Smx.SharpIO;
+using Smx.SharpIO.Memory.Buffers;
+
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
@@ -25,10 +28,10 @@ namespace Yafex
     public struct KeyFinderResult
     {
         public KeyEntry Key;
-        public Memory<byte> Data;
+        public Memory64<byte> Data;
     }
 
-    public delegate bool CryptoResultChecker(ReadOnlySpan<byte> data);
+    public delegate bool CryptoResultChecker(ReadOnlySpan64<byte> data);
 
     public class AesKeyFinder
     {
@@ -43,7 +46,7 @@ namespace Yafex
             _bundleId = bundleId;
         }
 
-        private Span<byte> TestAesKey(ReadOnlySpan<byte> data, KeyEntry keyEntry, CryptoResultChecker validator)
+        private Span64<byte> TestAesKey(ReadOnlySpan64<byte> data, KeyEntry keyEntry, CryptoResultChecker validator)
         {
             var aes = Aes.Create();
             aes.BlockSize = 128;
@@ -58,18 +61,17 @@ namespace Yafex
 
             var decryptor = aes.CreateDecryptor();
 
-            var outStream = new MemoryStream(data.Length);
+            var buffer = new NativeMemoryManager64<byte>(data.Length);
+            var outStream = new SpanStream(buffer.Memory);
 
             var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
-            cs.Write(data);
+            foreach(var chunk in data.GetChunks())
+            {
+                cs.Write(chunk);
+            }
             cs.Flush();
 
-            if (!outStream.TryGetBuffer(out ArraySegment<byte> buf))
-            {
-                return null;
-            }
-
-            var span = buf.AsSpan();
+            var span = buffer.Memory.Span;
             if (validator(span))
             {
                 return span;
@@ -79,7 +81,7 @@ namespace Yafex
         }
 
         public bool FindAesKey(
-            ReadOnlySpan<byte> data,
+            ReadOnlySpan64<byte> data,
             CryptoResultChecker checker,
             [MaybeNullWhen(false)]
             out KeyFinderResult? result)

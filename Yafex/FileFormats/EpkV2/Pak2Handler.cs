@@ -12,6 +12,7 @@ using Yafex.FileFormats.Epk;
 using Yafex.Support;
 
 using System;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -35,13 +36,13 @@ namespace Yafex.FileFormats.EpkV2
             return header.PakMagic == PAK_V2_HEADER.PAK_MAGIC;
         }
 
-        private static bool CheckPak2Magic(ReadOnlySpan<byte> data)
+        private static bool CheckPak2Magic(ReadOnlySpan64<byte> data)
         {
             var hdr = data.ReadStruct<PAK_V2_HEADER>();
             return hdr.PakMagic == PAK_V2_HEADER.PAK_MAGIC;
         }
 
-        private PAK_V2_HEADER DecryptIfNeeded(ReadOnlySpan<byte> data, out bool wasDecrypted)
+        private PAK_V2_HEADER DecryptIfNeeded(ReadOnlySpan64<byte> data, out bool wasDecrypted)
         {
             var hdr = data.ReadStruct<PAK_V2_HEADER>();
             if (IsPlainHeader(hdr))
@@ -60,7 +61,7 @@ namespace Yafex.FileFormats.EpkV2
             return data.ReadStruct<PAK_V2_HEADER>();
         }
 
-        public DetectionResult Detect(ReadOnlySpan<byte> data)
+        public DetectionResult Detect(ReadOnlySpan64<byte> data)
         {
             int confidence = 0;
 

@@ -20,6 +20,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Smx.SharpIO.Memory.Buffers;
+using Smx.SharpIO.Extensions;
 
 namespace Yafex.FileFormats.LzhsFs
 {
@@ -28,7 +30,7 @@ namespace Yafex.FileFormats.LzhsFs
         public const int UNCOMPRESSED_HEADING_SIZE = 0x100000;
 
         private IDataSource source;
-        private Span<byte> span => source.Data.Span;
+        private Span64<byte> span => source.Data.Span;
 
         public LzhsFsReader(IDataSource source)
         {

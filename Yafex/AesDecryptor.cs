@@ -1,6 +1,9 @@
-﻿using System;
-using System.IO;
+﻿using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text;
+
+using Smx.SharpIO;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex;
 
@@ -13,20 +16,19 @@ public class AesDecryptor
         this.aes = aes;
     }
 
-    public Memory<byte> Decrypt(ReadOnlySpan<byte> data)
+    public unsafe Memory64<byte> Decrypt(ReadOnlySpan64<byte> data)
     {
         ICryptoTransform decryptor = aes.CreateDecryptor();
 
-        MemoryStream outStream = new MemoryStream(data.Length);
+        var buffer = new NativeMemoryManager64<byte>(data.Length);
+        var outStream = new SpanStream(buffer.Memory);
 
-        CryptoStream cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
-        cs.Write(data);
-        cs.Flush();
-
-        if (!outStream.TryGetBuffer(out ArraySegment<byte> buf))
+        var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
+        foreach (var chunk in data.GetChunks())
         {
-            return null;
+            cs.Write(chunk);
         }
-        return buf;
+        cs.Flush();
+        return buffer.Memory;
     }
 }

@@ -11,6 +11,8 @@
 using System;
 using System.Collections.Generic;
 
+using Smx.SharpIO.Memory.Buffers;
+
 using Yafex.Support;
 
 namespace Yafex
@@ -18,14 +20,14 @@ namespace Yafex
 
     public class MemoryDataSource : BaseDataSource, IDataSource
     {
-        private Memory<byte> data;
+        private Memory64<byte> data;
 
-        public MemoryDataSource(Memory<byte> data)
+        public MemoryDataSource(Memory64<byte> data)
         {
             this.data = data;
         }
 
-        public Memory<byte> Data => data;
+        public Memory64<byte> Data => data;
 
         public IEnumerable<byte> Bytes => data.ToEnumerable();
 

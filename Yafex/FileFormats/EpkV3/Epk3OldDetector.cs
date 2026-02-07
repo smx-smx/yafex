@@ -14,6 +14,7 @@ using Yafex.FileFormats.Epk;
 using Yafex.Support;
 
 using System;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.EpkV3
 {
@@ -33,13 +34,13 @@ namespace Yafex.FileFormats.EpkV3
             return hdr.EpkMagic == EPK_V3_HEADER.EPK3_MAGIC;
         }
 
-        private bool IsPlainHeaderData(ReadOnlySpan<byte> data)
+        private bool IsPlainHeaderData(ReadOnlySpan64<byte> data)
         {
             EPK_V3_HEADER hdr = data.ReadStruct<EPK_V3_HEADER>();
             return IsPlainHeader(hdr);
         }
 
-        private Epk3Variant DetectEpk3Type(ReadOnlySpan<byte> data)
+        private Epk3Variant DetectEpk3Type(ReadOnlySpan64<byte> data)
         {
             var head_old = data.ReadStruct<EPK_V3_HEAD_STRUCTURE>();
 

@@ -11,6 +11,8 @@
 using System;
 using System.Collections.Generic;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.FileFormats.Epk
 {
     public abstract class EpkContext<T> where T : struct
@@ -53,7 +55,7 @@ namespace Yafex.FileFormats.Epk
             decryptors[key] = decryptor;
         }
 
-        public AesDecryptor? GetOrCreateDecryptor(string key, ReadOnlySpan<byte> data, CryptoResultChecker checker)
+        public AesDecryptor? GetOrCreateDecryptor(string key, ReadOnlySpan64<byte> data, CryptoResultChecker checker)
         {
             var decryptor = GetDecryptor(key);
             if (decryptor == null)

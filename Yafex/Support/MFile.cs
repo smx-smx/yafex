@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 
+using Smx.SharpIO.Memory.Buffers;
+
 using Yafex.Metadata;
 
 namespace Yafex.Support
@@ -25,7 +27,7 @@ namespace Yafex.Support
         private MemoryMappedFile mf;
         private MemoryMappedSpan<byte> span;
 
-        public Memory<byte> Data => span.Memory;
+        public Memory64<byte> Data => span.Memory;
 
         public IEnumerable<byte> Bytes => Data.ToEnumerable();
 

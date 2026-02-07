@@ -11,6 +11,8 @@
 using System;
 using System.Collections.Generic;
 
+using Smx.SharpIO.Memory.Buffers;
+
 using Yafex.Metadata;
 
 namespace Yafex
@@ -31,7 +33,7 @@ namespace Yafex
         string? Name { get; set; }
         string? Directory { get; set; }
 
-        Memory<byte> Data { get; }
+        Memory64<byte> Data { get; }
 
         DataSourceFlags Flags { get; set; }
 

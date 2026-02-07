@@ -10,6 +10,8 @@
 #endregion
 using System;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.Fuse
 {
     public class YafexDirectory : VfsNode, IVfsDir
@@ -36,7 +38,7 @@ namespace Yafex.Fuse
 
         public byte[]? Read(long offset, long count)
         {
-            Memory<byte> data = source.Data;
+            Memory64<byte> data = source.Data;
             if (offset > data.Length) return null;
             var available = data.Length - offset;
             var length = Math.Min(available, count);

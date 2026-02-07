@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
 
 using Yafex.Support;
 
@@ -30,13 +31,13 @@ public class MediatekPkgDetector : IFormatDetector
         _ctx = new MediatekPkgContext();
     }
 
-    private static bool IsDecryptedHeader(Memory<byte> bytes)
+    private static bool IsDecryptedHeader(Memory64<byte> bytes)
     {
         var hdr = bytes.Cast<PkgHeader>()[0];
         return hdr.MtkMagic == PkgHeader.MTK_MAGIC;
     }
 
-    private bool TryDecryptHeader(Memory<byte> bytes, [MaybeNullWhen(false)] out Memory<PkgHeader> header)
+    private bool TryDecryptHeader(Memory64<byte> bytes, [MaybeNullWhen(false)] out Memory64<PkgHeader> header)
     {
         var decrypted = _decryptor.Decrypt(bytes.Span);
         if(IsDecryptedHeader(decrypted))
@@ -57,7 +58,7 @@ public class MediatekPkgDetector : IFormatDetector
         var headerSize = Unsafe.SizeOf<PkgHeader>();
         var headerBytes = data.Slice(0, headerSize);
 
-        Memory<PkgHeader> hdr;
+        Memory64<PkgHeader> hdr;
         if(TryDecryptHeader(headerBytes, out hdr))
         {
             _ctx.Header = hdr;

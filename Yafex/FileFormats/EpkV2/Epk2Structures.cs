@@ -12,6 +12,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using Smx.SharpIO.Memory.Buffers;
+
 using Yafex.FileFormats.Epk;
 using Yafex.Support;
 
@@ -68,7 +70,7 @@ namespace Yafex.FileFormats.EpkV2
     {
         public PAK_V2_HEADER pakHeader;
 
-        public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> pak2) where T : unmanaged
+        public static ReadOnlySpan64<T> GetHeader<T>(ReadOnlySpan64<T> pak2) where T : unmanaged
         {
             return pak2.GetField<T, PAK_V2_BETA_STRUCTURE, PAK_V2_HEADER>(nameof(pakHeader));
         }
@@ -83,7 +85,7 @@ namespace Yafex.FileFormats.EpkV2
         public byte[] signature;
         public PAK_V2_HEADER pakHeader;
 
-        public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> pak2) where T : unmanaged
+        public static ReadOnlySpan64<T> GetHeader<T>(ReadOnlySpan64<T> pak2) where T : unmanaged
         {
             return pak2.GetField<T, PAK_V2_STRUCTURE, PAK_V2_HEADER>(nameof(pakHeader));
         }
@@ -182,7 +184,7 @@ namespace Yafex.FileFormats.EpkV2
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string sdkVersion;
 
-        public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> epk) where T : unmanaged
+        public static ReadOnlySpan64<T> GetHeader<T>(ReadOnlySpan64<T> epk) where T : unmanaged
         {
             return epk.GetField<T, EPK_V2_STRUCTURE, EPK_V2_HEADER>(nameof(epkHeader));
         }

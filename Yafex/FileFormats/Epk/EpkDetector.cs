@@ -12,6 +12,8 @@ using System;
 using System.Linq;
 using System.Text;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.FileFormats.Epk
 {
 
@@ -33,7 +35,7 @@ namespace Yafex.FileFormats.Epk
 
         public const string EPAK_MAGIC = "epak";
 
-        protected static bool ValidateEpkHeader(ReadOnlySpan<byte> fileData)
+        protected static bool ValidateEpkHeader(ReadOnlySpan64<byte> fileData)
         {
             byte[] magic = fileData.Slice(0, 4).ToArray();
             var str = Encoding.ASCII.GetString(magic);

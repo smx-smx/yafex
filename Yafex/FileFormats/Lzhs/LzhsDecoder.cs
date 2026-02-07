@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.Lzhs
 {
@@ -29,7 +30,7 @@ namespace Yafex.FileFormats.Lzhs
 
         public static int SIZE => sizeof(LzhsHeader);
 
-        public LzhsHeader(ReadOnlySpan<byte> mem)
+        public LzhsHeader(ReadOnlySpan64<byte> mem)
         {
             this = mem.Read<LzhsHeader>(0);
             fixed (byte* dptr = this.spare)
@@ -156,14 +157,14 @@ namespace Yafex.FileFormats.Lzhs
         public readonly LzhsHeader header;
         private readonly LzhsChecksumPassThru checksum = new LzhsChecksumPassThru();
 
-        private static unsafe LzhsHeader ReadHeader(ReadOnlySpan<byte> data)
+        private static unsafe LzhsHeader ReadHeader(ReadOnlySpan64<byte> data)
         {
             return data.Slice(0, LzhsHeader.SIZE).ReadStruct<LzhsHeader>();
         }
 
         private IEnumerable<byte> data;
 
-        public LzhsDecoder(ReadOnlyMemory<byte> data)
+        public LzhsDecoder(ReadOnlyMemory64<byte> data)
         {
             header = ReadHeader(data.Span);
             this.data = data.ToEnumerable();

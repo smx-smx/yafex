@@ -9,6 +9,7 @@
  */
 #endregion
 using Smx.SharpIO;
+using Smx.SharpIO.Memory.Buffers;
 
 using System;
 using System.Linq;
@@ -66,7 +67,7 @@ namespace Yafex.FileFormats.Xex
             SIZEOF = (int)(r.Position - pos);
         }
 
-        public IMAGE_DOS_HEADER(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_DOS_HEADER(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -93,7 +94,7 @@ namespace Yafex.FileFormats.Xex
             Characteristics = r.ReadUInt16();
         }
 
-        public IMAGE_FILE_HEADER(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_FILE_HEADER(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
 
         public const ushort IMAGE_FILE_MACHINE_POWERPCBE = 0x01F2;
@@ -133,7 +134,7 @@ namespace Yafex.FileFormats.Xex
             Characteristics = r.ReadUInt32();
         }
 
-        public IMAGE_SECTION_HEADER(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_SECTION_HEADER(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -149,7 +150,7 @@ namespace Yafex.FileFormats.Xex
             VirtualAddress = r.ReadUInt32();
             Size = r.ReadUInt32();
         }
-        public IMAGE_DATA_DIRECTORY(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_DATA_DIRECTORY(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -252,7 +253,7 @@ namespace Yafex.FileFormats.Xex
             SIZEOF = (int)(r.Position - pos);
         }
 
-        public IMAGE_OPTIONAL_HEADER(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_OPTIONAL_HEADER(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -281,7 +282,7 @@ namespace Yafex.FileFormats.Xex
             FirstThunk = r.ReadUInt32();
         }
 
-        public void Write(Memory<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
+        public void Write(Memory64<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
         public void Write(SpanStream r)
         {
             r.WriteUInt32(DUMMYUNIONNAME);
@@ -291,7 +292,7 @@ namespace Yafex.FileFormats.Xex
             r.WriteUInt32(FirstThunk);
         }
 
-        public IMAGE_IMPORT_DESCRIPTOR(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_IMPORT_DESCRIPTOR(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -330,7 +331,7 @@ namespace Yafex.FileFormats.Xex
         public IMAGE_THUNK_DATA32()
         { }
 
-        public void Write(Memory<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
+        public void Write(Memory64<byte> bytes) => Write(new SpanStream(bytes, Endianness.LittleEndian));
         public void Write(SpanStream r)
         {
             r.WriteUInt32(value);
@@ -342,7 +343,7 @@ namespace Yafex.FileFormats.Xex
             value = r.ReadUInt32();
         }
 
-        public IMAGE_THUNK_DATA32(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_THUNK_DATA32(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 
@@ -369,7 +370,7 @@ namespace Yafex.FileFormats.Xex
             SIZEOF = 4 + FileHeader.SIZEOF + FileHeader.SizeOfOptionalHeader;
         }
 
-        public IMAGE_NT_HEADERS(Memory<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
+        public IMAGE_NT_HEADERS(Memory64<byte> bytes) : this(new SpanStream(bytes, Endianness.LittleEndian))
         { }
     }
 }

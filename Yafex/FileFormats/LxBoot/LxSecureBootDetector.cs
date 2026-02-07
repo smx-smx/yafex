@@ -11,6 +11,8 @@
 using log4net;
 
 using Smx.SharpIO;
+using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
 
 using System;
 using System.Buffers.Binary;
@@ -62,7 +64,7 @@ namespace Yafex.FileFormats.LxBoot
         private const uint LLB_MAGIC = 0x4C4C5F42;
         private const uint BLL_MAGIC = 0x425F4C4C;
 
-        private int FindSecondStage(Memory<byte> data, uint startOffset)
+        private long FindSecondStage(Memory64<byte> data, uint startOffset)
         {
             var mask = 15;
             startOffset = (uint)((startOffset + mask) & ~mask);

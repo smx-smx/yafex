@@ -11,6 +11,8 @@
 using System;
 using System.IO;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex
 {
     public class MemoryDataSourceBuffer : BaseDataSource, IDisposable
@@ -31,16 +33,22 @@ namespace Yafex
         {
             mem.Write(data);
         }
-        public void Write(ReadOnlySpan<byte> data)
+        public void Write(ReadOnlySpan64<byte> data)
         {
-            mem.Write(data);
+            foreach(var chunk in data.GetChunks())
+            {
+                mem.Write(chunk);
+            }
         }
 
-        public void WriteAt(int index, ReadOnlySpan<byte> data)
+        public void WriteAt(int index, ReadOnlySpan64<byte> data)
         {
             var savedPos = mem.Position;
             mem.Position = index;
-            mem.Write(data);
+            foreach(var chunk in data.GetChunks())
+            {
+                mem.Write(chunk);
+            }
             mem.Position = savedPos;
         }
 

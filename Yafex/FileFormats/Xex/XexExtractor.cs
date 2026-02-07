@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.Xex
 {
@@ -40,14 +41,14 @@ namespace Yafex.FileFormats.Xex
             Xex2,
         }
 
-        private Memory<byte> mem;
+        private Memory64<byte> mem;
 
         private xex2_header? header;
         private xex2_security_info? security_info;
         private xex2_opt_file_format_info? opt_file_format_info;
         private byte[]? session_key;
 
-        private Memory<byte> peMem;
+        private Memory64<byte> peMem;
 
         private XexFormat GetXexFormat()
         {
@@ -62,12 +63,12 @@ namespace Yafex.FileFormats.Xex
             }
         }
 
-        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key)
+        private Memory64<byte>? GetOptHeader<T>(xex2_header_keys key)
         {
             return GetOptHeader<T>(key, out var _);
         }
 
-        private Memory<byte>? GetOptHeader<T>(xex2_header_keys key, out long header_offset)
+        private Memory64<byte>? GetOptHeader<T>(xex2_header_keys key, out long header_offset)
         {
             var offset = GetOptHeader(key, out header_offset);
             if (!offset.HasValue) return null;
@@ -142,8 +143,8 @@ namespace Yafex.FileFormats.Xex
 
         private void ReadImageUncompressed()
         {
-            int exe_length = mem.Length - (int)header.header_size;
-            int uncompressed_size = exe_length;
+            long exe_length = mem.Length - (int)header.header_size;
+            long uncompressed_size = exe_length;
 
             this.peMem = new Memory<byte>(new byte[exe_length]);
             var out_ptr = peMem;
@@ -188,7 +189,7 @@ namespace Yafex.FileFormats.Xex
 
         private void ReadImageBasicCompressed()
         {
-            int exe_length = mem.Length - (int)header.header_size;
+            long exe_length = mem.Length - (int)header.header_size;
             int block_count = (int)(opt_file_format_info.info_size - 8) / 8;
 
             var comp_info = opt_file_format_info.basic_compression_info();
@@ -240,12 +241,12 @@ namespace Yafex.FileFormats.Xex
             aes.Dispose();
         }
 
-        private Memory<byte> BuildIAT(IMAGE_NT_HEADERS nthdr)
+        private Memory64<byte> BuildIAT(IMAGE_NT_HEADERS nthdr)
         {
             var pe_impdir = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IMPORT];
             var pe_iat = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IAT];
 
-            Memory<byte> xex_implibs_data;
+            Memory64<byte> xex_implibs_data;
             {
                 var maybe_xex_implibs_data = GetOptHeader<xex2_opt_import_libraries>(xex2_header_keys.IMPORT_LIBRARIES);
                 if (maybe_xex_implibs_data == null)
@@ -365,7 +366,7 @@ namespace Yafex.FileFormats.Xex
             return (nthdr, sections);
         }
 
-        private Memory<byte> BuildFinalPE(IMAGE_SECTION_HEADER[] sections, Memory<byte>? iat)
+        private Memory64<byte> BuildFinalPE(IMAGE_SECTION_HEADER[] sections, Memory64<byte>? iat)
         {
             var lastSection = sections.Aggregate((a, b) =>
                 a.PointerToRawData > b.PointerToRawData ? a : b);
@@ -375,7 +376,7 @@ namespace Yafex.FileFormats.Xex
             var iat_segment = sections.Where(s => s.Name == ".idata").First();
             var iat_file_offset = iat_segment.PointerToRawData;
 
-            var peFile = new Memory<byte>(new byte[fileSize]);
+            var peFile = new Memory64<byte>(new byte[fileSize]);
 
             // copy all headers
             var minSection = (int)sections.Min(s => s.VirtualAddress);
@@ -402,7 +403,7 @@ namespace Yafex.FileFormats.Xex
             return peFile;
         }
 
-        private Memory<byte> RebuildPEFile()
+        private Memory64<byte> RebuildPEFile()
         {
             var (nthdr, sections) = ReadPEHeaders();
             var iat = BuildIAT(nthdr);
@@ -413,7 +414,7 @@ namespace Yafex.FileFormats.Xex
         private void ReadImageCompressed()
         {
             var exe_length = mem.Length - header.header_size;
-            var compress_buffer = new Memory<byte>(new byte[exe_length]);
+            var compress_buffer = new Memory64<byte>(new byte[exe_length]);
 
             var ivec = new byte[16];
             var aes = new RijndaelManaged()

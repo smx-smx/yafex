@@ -1,5 +1,8 @@
 ﻿using log4net;
 
+using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,7 +26,7 @@ namespace Yafex.FileFormats.EpkV3
 
         }
 
-        private IEnumerable<PAK_V3_HEADER> GetPackageInfoPackages(Memory<byte> packageInfo, int packageInfoCount)
+        private IEnumerable<PAK_V3_HEADER> GetPackageInfoPackages(Memory64<byte> packageInfo, int packageInfoCount)
         {
             var listOffset = Marshal.SizeOf<PAK_V3_NEW_LISTHEADER>();
             var sizeOfPak = Marshal.SizeOf<PAK_V3_HEADER>();
@@ -35,7 +38,7 @@ namespace Yafex.FileFormats.EpkV3
             }
         }
 
-        private (PAK_V3_NEW_LISTHEADER, IDictionary<string, List<PAK_V3_HEADER>>) GetPackageInfo(EPK_V3_NEW_STRUCTURE epk, ReadOnlySpan<byte> data)
+        private (PAK_V3_NEW_LISTHEADER, IDictionary<string, List<PAK_V3_HEADER>>) GetPackageInfo(EPK_V3_NEW_STRUCTURE epk, ReadOnlySpan64<byte> data)
         {
             var offset = Marshal.OffsetOf<EPK_V3_NEW_STRUCTURE>(nameof(epk.packageInfo)).ToInt32();
 

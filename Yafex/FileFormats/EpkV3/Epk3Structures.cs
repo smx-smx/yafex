@@ -8,11 +8,13 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using Yafex.Support;
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+
+using Smx.SharpIO.Memory.Buffers;
+
+using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
 {
@@ -156,7 +158,7 @@ namespace Yafex.FileFormats.EpkV3
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 16)]
         public string sdkVersion;
 
-        public static ReadOnlySpan<T> GetHeader<T>(ReadOnlySpan<T> data) where T : unmanaged
+        public static ReadOnlySpan64<T> GetHeader<T>(ReadOnlySpan64<T> data) where T : unmanaged
         {
             return data.GetField<T, EPK_V3_NEW_HEAD_STRUCTURE, EPK_V3_NEW_HEADER>(nameof(epkHeader));
         }
@@ -169,7 +171,7 @@ namespace Yafex.FileFormats.EpkV3
         public EPK_V3_NEW_HEAD_STRUCTURE head;
         public PAK_V3_NEW_LISTHEADER packageInfo;
 
-        public static ReadOnlySpan<T> GetHead<T>(ReadOnlySpan<T> data) where T : unmanaged
+        public static ReadOnlySpan64<T> GetHead<T>(ReadOnlySpan64<T> data) where T : unmanaged
         {
             return data.GetField<T, EPK_V3_NEW_STRUCTURE, EPK_V3_NEW_HEAD_STRUCTURE>(nameof(head));
         }

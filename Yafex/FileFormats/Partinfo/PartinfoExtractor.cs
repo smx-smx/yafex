@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.Partinfo
 {
@@ -26,7 +27,7 @@ namespace Yafex.FileFormats.Partinfo
             this.ctx = (PartinfoContext)result.Context!;
         }
 
-        private PartinfoTable GetPartinfoTable(ReadOnlySpan<byte> data)
+        private PartinfoTable GetPartinfoTable(ReadOnlySpan64<byte> data)
         {
             switch (ctx.PartinfoType)
             {
@@ -57,7 +58,7 @@ namespace Yafex.FileFormats.Partinfo
             "[{0,2}] Empty\n"
         };
 
-        private string DumpPartinfo(ReadOnlySpan<byte> data)
+        private string DumpPartinfo(ReadOnlySpan64<byte> data)
         {
             PartinfoTable tbl = GetPartinfoTable(data);
 

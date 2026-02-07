@@ -10,6 +10,8 @@
 #endregion
 using System;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.FileFormats.Epk
 {
 
@@ -24,7 +26,7 @@ namespace Yafex.FileFormats.Epk
             _keyRepo = keyRepo;
         }
 
-        public AesDecryptor? CreateEpkDecryptor(ReadOnlySpan<byte> data, CryptoResultChecker validator)
+        public AesDecryptor? CreateEpkDecryptor(ReadOnlySpan64<byte> data, CryptoResultChecker validator)
         {
             return _keyRepo.CreateAesDecryptor(KEYS_ID, data, validator);
         }

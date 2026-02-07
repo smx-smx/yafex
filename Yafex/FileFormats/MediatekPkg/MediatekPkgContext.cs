@@ -1,5 +1,7 @@
 ﻿using System;
 
+using Smx.SharpIO.Memory.Buffers;
+
 namespace Yafex.FileFormats.MediatekPkg;
 public class MediatekPkgContext
 {
@@ -9,5 +11,5 @@ public class MediatekPkgContext
     /// <summary>
     /// Decrypted header
     /// </summary>
-    public Memory<PkgHeader> Header { get; set; }
+    public Memory64<PkgHeader> Header { get; set; }
 }

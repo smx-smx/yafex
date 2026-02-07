@@ -16,6 +16,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Smx.SharpIO;
 using Yafex.Metadata;
+using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -74,10 +75,10 @@ namespace Yafex.FileFormats.EpkV2
             _ctx = ctx;
         }
 
-        protected abstract ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data) where T : unmanaged;
+        protected abstract ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data) where T : unmanaged;
         protected abstract int PakStructureSize { get; }
 
-        private Pak2DetectionResult GetPak2Header(ReadOnlySpan<byte> fileData, int offset)
+        private Pak2DetectionResult GetPak2Header(ReadOnlySpan64<byte> fileData, int offset)
         {
             var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
 
@@ -115,7 +116,7 @@ namespace Yafex.FileFormats.EpkV2
 
 
         private (string, string, IDataSource) HandlePak(
-            ReadOnlySpan<byte> fileData,
+            ReadOnlySpan64<byte> fileData,
             int offset,
             string baseDir,
             out int numberOfSegments,
@@ -249,7 +250,7 @@ namespace Yafex.FileFormats.EpkV2
 
         protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
 
-        protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
+        protected override ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data)
         {
             return PAK_V2_STRUCTURE.GetHeader(data);
         }
@@ -265,7 +266,7 @@ namespace Yafex.FileFormats.EpkV2
 
         protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>();
 
-        protected override ReadOnlySpan<T> GetPak2HeaderBytes<T>(ReadOnlySpan<T> data)
+        protected override ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data)
         {
             return PAK_V2_BETA_STRUCTURE.GetHeader(data);
         }

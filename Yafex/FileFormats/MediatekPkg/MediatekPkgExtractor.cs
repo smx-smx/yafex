@@ -9,6 +9,7 @@ using System.Text;
 
 using Smx.SharpIO;
 using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
 
 using Yafex.Metadata;
 using Yafex.Support;
@@ -35,7 +36,7 @@ public class MediatekPkgExtractor : IFormatExtractor
         _decryptor = null;
     }
 
-    private bool IsDecryptedHeader(ReadOnlySpan<byte> data)
+    private bool IsDecryptedHeader(ReadOnlySpan64<byte> data)
     {
         return SpanEx.Cast<DataHeader>(data)[0]
             .Mtk.AsString(Encoding.ASCII) == MTK_RESERVED_MAGIC;
@@ -43,7 +44,7 @@ public class MediatekPkgExtractor : IFormatExtractor
 
     private PkgHeader Header => _ctx.Header.Span[0];
 
-    private Memory<byte> AttemptDecrypt(Memory<byte> data)
+    private Memory64<byte> AttemptDecrypt(Memory64<byte> data)
     {
         if(_decryptor != null)
         {
@@ -109,7 +110,7 @@ public class MediatekPkgExtractor : IFormatExtractor
         return otaId;
     }
 
-    private Memory<byte> ReadMtkMetadata(Memory<byte> data, out string? otaId)
+    private Memory64<byte> ReadMtkMetadata(Memory64<byte> data, out string? otaId)
     {
         var st = new SpanStream(data);
         var iMtk = st.PerformAt(st.Position, st.ReadStruct<iMtkHeader>);

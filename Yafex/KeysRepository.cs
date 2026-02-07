@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Security.Cryptography;
 
+using Smx.SharpIO.Memory.Buffers;
+
 using Yafex.Support;
 
 namespace Yafex;
@@ -37,7 +39,7 @@ public class KeysRepository
 
     public AesDecryptor? CreateAesDecryptor(
         string keysId,
-        ReadOnlySpan<byte> data, CryptoResultChecker validator
+        ReadOnlySpan64<byte> data, CryptoResultChecker validator
     )
     {
         if (_keyBundle == null)
