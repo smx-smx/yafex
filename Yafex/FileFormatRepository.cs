@@ -21,6 +21,7 @@ using Yafex.FileFormats.EpkV3;
 using Yafex.FileFormats.FreescaleNand;
 using Yafex.FileFormats.LxBoot;
 using Yafex.FileFormats.Lzhs;
+using Yafex.FileFormats.LzhsFs;
 using Yafex.FileFormats.MediatekPkg;
 using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Nfwb;
@@ -84,6 +85,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, LxSecureBootAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, NfwbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MediatekPkgAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, LzhsFsAddon>(key);
         }
     }
 }
