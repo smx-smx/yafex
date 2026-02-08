@@ -8,19 +8,61 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using Yafex.FileFormats.Lzhs;
-
 using System;
+using System.Runtime.CompilerServices;
+
 using Smx.SharpIO.Memory.Buffers;
+
+using Yafex.FileFormats.Lzhs;
 
 namespace Yafex.FileFormats.LzhsFs
 {
-    public record LzhsChunk(ushort index, int size, long outputOffset, LzhsHeader outerHeader, Memory64<byte> buf)
+    public class LzhsChunk
     {
-        public readonly LzhsHeader Header = new LzhsHeader(buf.Span);
-        public LzhsDecoder NewDecoder() => new LzhsDecoder(buf);
-        public bool isUncompressed => 
-            Header.compressedSize == Header.uncompressedSize &&
-            Header.checksum == 0x00;
+        public readonly LzhsHeader SegmentHeader;
+        public readonly LzhsHeader Header;
+        public readonly ReadOnlyMemory64<byte> SegmentData;
+        public readonly long InputOffset;
+        public readonly long OutputOffset;
+
+        private static readonly int HEADER_SIZE = Unsafe.SizeOf<LzhsHeader>();
+
+        private uint Pad(uint num, uint align = 16) {
+            uint rem = num % align;
+            uint pad = rem switch {
+                0 => 0,
+                _ => 16 - rem
+            };
+            return num + pad; 
+        }
+
+        public long SizeCompressed => Header.CompressedSize;
+        public long SizeUncompressed => Header.UncompressedSize;
+
+        public ushort Checksum => Header.Checksum;
+
+
+        public bool IsUncompressed =>
+            Header.CompressedSize == Header.UncompressedSize &&
+            Header.Checksum == 0x00;
+
+        public long SegmentIndex => SegmentHeader.Checksum;
+        public bool IsCompressed => !IsUncompressed;
+        public long SegmentSize => HEADER_SIZE + Pad(SegmentHeader.CompressedSize);
+
+        public LzhsChunk(ReadOnlyMemory64<byte> data, long offsetIn, long offsetOut)
+        {
+            InputOffset = offsetIn;
+            OutputOffset = offsetOut;
+
+            var pos = offsetIn;
+            SegmentHeader = new LzhsHeader(data.Slice(pos, HEADER_SIZE).Span);
+            pos += HEADER_SIZE;
+
+            SegmentData = data.Slice(pos, HEADER_SIZE + SegmentSize);
+            Header = new LzhsHeader(data.Slice(pos, HEADER_SIZE).Span);
+        }
+
+        public LzhsDecoder NewDecoder() => new LzhsDecoder(SegmentData);
     }
 }

@@ -32,20 +32,20 @@ namespace Yafex.FileFormats.LzhsFs
             try
             {
                 LzhsHeader firstHdr = new LzhsHeader(source.Data.Span.Slice(LzhsFsReader.UNCOMPRESSED_HEADING_SIZE, 16));
-                if (firstHdr.checksum != 1) throw new InvalidDataException();
+                if (firstHdr.Checksum != 1) throw new InvalidDataException();
 
                 var innerData = source.Data.Slice(LzhsFsReader.UNCOMPRESSED_HEADING_SIZE + 16);
                 var dec = new LzhsDecoder(innerData);
                 dec.AsEnumerable().ToArray();
                 bool result = dec.VerifyChecksum();
-                Console.WriteLine($"{firstHdr.checksum}: " + (result ? "PASS" : "FAIL"));
+                Console.WriteLine($"{firstHdr.Checksum}: " + (result ? "PASS" : "FAIL"));
 
                 if (result) {
                     return new DetectionResult(80, null);
                 }
 
                 //Decompression failed, but we want to check in case the first segment is stored uncompressed
-                if (dec.header.checksum == 0x00 && dec.header.compressedSize == dec.header.uncompressedSize)
+                if (dec.header.Checksum == 0x00 && dec.header.CompressedSize == dec.header.UncompressedSize)
                 {
                     return new DetectionResult(50, null);
                 }

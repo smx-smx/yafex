@@ -23,10 +23,10 @@ namespace Yafex.FileFormats.Lzhs
 {
     public unsafe struct LzhsHeader
     {
-        public uint uncompressedSize;
-        public uint compressedSize;
-        public ushort checksum;
-        public fixed byte spare[6];
+        public uint UncompressedSize;
+        public uint CompressedSize;
+        public ushort Checksum;
+        private fixed byte spare[6];
 
         public static int SIZE => sizeof(LzhsHeader);
 
@@ -172,7 +172,7 @@ namespace Yafex.FileFormats.Lzhs
 
         public bool VerifyChecksum()
         {
-            return checksum.Value == header.checksum;
+            return checksum.Value == header.Checksum;
         }
 
         private uint Pad(uint num, uint align = 16)
@@ -189,12 +189,12 @@ namespace Yafex.FileFormats.Lzhs
         public IEnumerable<byte> AsEnumerable()
         {
             var huffmanIn = data.Skip(Marshal.SizeOf<LzhsHeader>())
-                .Take((int)header.compressedSize);
+                .Take((int)header.CompressedSize);
 
             var huffmanOut = new HuffmanDecoder(huffmanIn).Decode();
             var lzssOut = new LzssDecoder(huffmanOut).Decode();
             var athumbOut = new ArmThumbConvert(lzssOut).Decode(0);
-            var output = athumbOut.Take((int)header.uncompressedSize);
+            var output = athumbOut.Take((int)header.UncompressedSize);
             var final = checksum.Update(output);
             return final;
         }

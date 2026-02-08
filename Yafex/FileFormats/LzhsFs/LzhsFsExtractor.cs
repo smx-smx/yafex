@@ -59,7 +59,7 @@ namespace Yafex.FileFormats.LzhsFs
             var size = UNCOMPRESSED_HEADING_SIZE;
             foreach (var chunk in GetChunks())
             {
-                size += chunk.outerHeader.uncompressedSize;
+                size += chunk.SizeUncompressed;
             }
             return size;
         }
@@ -75,23 +75,14 @@ namespace Yafex.FileFormats.LzhsFs
 
             while (inOffset < data.Length)
             {
-                var outer = new LzhsHeader(span.Slice(inOffset, lzhsHeaderSize));
-                // outer header contains segment number instead of checksum
-                var chunkNo = outer.checksum;
-
-                // compressed size excludes header size
-                var chunkTotalSize = outer.compressedSize + lzhsHeaderSize;
-
-                var lzhsStart = inOffset + lzhsHeaderSize;
-                var lzhsSize = (int)Pad((uint)(chunkTotalSize - lzhsHeaderSize));
-
-                var chunkBuf = data.Slice(lzhsStart, lzhsSize);
-
-                var chunk = new LzhsChunk(chunkNo, lzhsSize, outOffset, outer, chunkBuf);
+                var chunk = new LzhsChunk(data, inOffset, outOffset);
+                if(chunk.SizeCompressed == 0)
+                {
+                    yield break;
+                }
+                inOffset += chunk.SegmentSize;
+                outOffset += chunk.SizeUncompressed;
                 yield return chunk;
-
-                inOffset = lzhsStart + lzhsSize;
-                outOffset += chunk.outerHeader.uncompressedSize;
             }
         }
     }
@@ -109,19 +100,18 @@ namespace Yafex.FileFormats.LzhsFs
 
         private void DumpFailedChunk(LzhsChunk chunk)
         {
-            string dumpPath = Path.Combine(Path.GetTempPath(), $"lzhs_{chunk.index}.bin");
+            string dumpPath = Path.Combine(Path.GetTempPath(), $"lzhs_{chunk.SegmentIndex}.bin");
             log.Debug($"Failed chunk dumped: {dumpPath}");
-            File.WriteAllBytes(dumpPath, chunk.buf.ToArray());
+            File.WriteAllBytes(dumpPath, chunk.SegmentData.ToArray());
         }
 
         public void WriteChunk(LzhsChunk chunk)
         {
-            Trace.WriteLine($"{chunk.index}: {chunk.size}");
-            var ptrOut = mfOut.Data.Span.Slice(chunk.outputOffset);
+            var ptrOut = mfOut.Data.Span.Slice(chunk.OutputOffset);
 
-            if (chunk.isUncompressed)
+            if (chunk.IsUncompressed)
             {
-                var raw = chunk.buf.Span.Slice(LzhsHeader.SIZE, chunk.outerHeader.uncompressedSize);
+                var raw = chunk.SegmentData.Span.Slice(LzhsHeader.SIZE, chunk.SegmentHeader.UncompressedSize);
                 raw.CopyTo(ptrOut);
                 return;
             }
@@ -175,8 +165,7 @@ namespace Yafex.FileFormats.LzhsFs
                 writer.WriteData(rdr.GetUncompressedHeading(), 0);
                 Parallel.ForEach(rdr.GetChunks(), chunk =>
                 {
-                    log.Info($"Extracting chunk {chunk.index} -> 0x{chunk.outputOffset:X8} (0x{chunk.size:X8}) {(chunk.isUncompressed ? "[UNCOMPRESSED]" : "")}");
-                    log.Info($"    0x{chunk.Header.compressedSize:X8} -> 0x{chunk.outerHeader.uncompressedSize:X8}");
+                    log.Info($"[{chunk.InputOffset:X8}]: Extracting chunk {chunk.SegmentIndex} -> 0x{chunk.OutputOffset:X8} (0x{chunk.SegmentSize:X8}) {(chunk.IsUncompressed ? "[UNCOMPRESSED]" : "")}");
                     writer.WriteChunk(chunk);
                 });
             }
