@@ -22,6 +22,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Smx.SharpIO.Memory.Buffers;
 using Smx.SharpIO.Extensions;
+using System.Threading.Tasks;
 
 namespace Yafex.FileFormats.LzhsFs
 {
@@ -168,29 +169,16 @@ namespace Yafex.FileFormats.LzhsFs
             string fileName = Path.GetFileNameWithoutExtension(source.Name);
             string destPath = Path.Combine(source.RequireBaseDirectory(), $"{fileName}.unlzhs");
 
-            int activeThreads = 0;
-            ManualResetEvent allFinished = new ManualResetEvent(false);
-
             var rdr = new LzhsFsReader(source);
             using (var writer = new LzhsFsWriter(destPath, rdr.GetOutputSize()))
             {
                 writer.WriteData(rdr.GetUncompressedHeading(), 0);
-                foreach (var chunk in rdr.GetChunks())
+                Parallel.ForEach(rdr.GetChunks(), chunk =>
                 {
-                    Interlocked.Increment(ref activeThreads);
-                    ThreadPool.QueueUserWorkItem(arg =>
-                    {
-                        log.Info($"Extracting chunk {chunk.index} -> 0x{chunk.outputOffset:X8} (0x{chunk.size:X8}) {(chunk.isUncompressed ? "[UNCOMPRESSED]" : "")}");
-                        log.Info($"    0x{chunk.Header.compressedSize:X8} -> 0x{chunk.outerHeader.uncompressedSize:X8}");
-                        writer.WriteChunk(chunk);
-                        if (Interlocked.Decrement(ref activeThreads) == 0)
-                        {
-                            allFinished.Set();
-                        }
-                    });
-                }
-
-                allFinished.WaitOne();
+                    log.Info($"Extracting chunk {chunk.index} -> 0x{chunk.outputOffset:X8} (0x{chunk.size:X8}) {(chunk.isUncompressed ? "[UNCOMPRESSED]" : "")}");
+                    log.Info($"    0x{chunk.Header.compressedSize:X8} -> 0x{chunk.outerHeader.uncompressedSize:X8}");
+                    writer.WriteChunk(chunk);
+                });
             }
 
             return Enumerable.Empty<IDataSource>();
