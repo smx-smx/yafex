@@ -50,7 +50,16 @@ namespace Yafex.FileFormats.Lzhs
 
     public abstract class HuffmanCacheBase
     {
-        private Dictionary<uint, int> cache = new Dictionary<uint, int>();
+        public HuffmanCacheBase(HuffmanSymbol[] table)
+        {
+            // prefill cache
+            foreach (var item in table.Select((sym, i) => (sym, i)))
+            {
+                Insert(item.sym, item.i);
+            }
+        }
+
+        private readonly Dictionary<uint, int> cache = new Dictionary<uint, int>();
         protected abstract uint MakeKey(uint code, int length);
 
         public void Insert(HuffmanSymbol sym, int idx)
@@ -66,7 +75,7 @@ namespace Yafex.FileFormats.Lzhs
         }
     }
 
-    public class HuffCharlenCache : HuffmanCacheBase
+    public class HuffCharlenCache(HuffmanSymbol[] table) : HuffmanCacheBase(table)
     {
         protected override uint MakeKey(uint code, int length)
         {
@@ -74,7 +83,7 @@ namespace Yafex.FileFormats.Lzhs
         }
     }
 
-    public class HuffCharposCache : HuffmanCacheBase
+    public class HuffCharposCache(HuffmanSymbol[] table) : HuffmanCacheBase(table)
     {
         protected override uint MakeKey(uint code, int length)
         {
@@ -119,8 +128,8 @@ namespace Yafex.FileFormats.Lzhs
 
     public class LzhsCache
     {
-        public static readonly HuffCharlenCache CharLenCache = new HuffCharlenCache();
-        public static readonly HuffCharposCache CharposCache = new HuffCharposCache();
+        public static readonly HuffCharlenCache CharLenCache = new HuffCharlenCache(LzhsTables.TblCharlen);
+        public static readonly HuffCharposCache CharposCache = new HuffCharposCache(LzhsTables.TblCharpos);
     }
 
     public class LzhsTables

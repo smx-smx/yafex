@@ -28,19 +28,11 @@ namespace Yafex.FileFormats.Lzhs
 
         private int GetSymbol(HuffmanSymbol sym, HuffmanSymbol[] table, HuffmanCacheBase cache)
         {
-            int idx;
-            // O(1)
-            if (!cache.TryGetValue(sym, out idx))
+            if (cache.TryGetValue(sym, out var idx))
             {
-                // O(n)
-                var q = table
-                    .Select((sym, i) => (sym, i))
-                    .Where(it => it.sym == sym);
-
-                idx = q.Any() ? q.First().i : -1;
-                cache.Insert(sym, idx);
+                return idx;
             }
-            return idx;
+            return -1;
         }
 
         private bool TryReadLZSSPos(out int pos)
