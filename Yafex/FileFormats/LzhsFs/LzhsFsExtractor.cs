@@ -76,10 +76,6 @@ namespace Yafex.FileFormats.LzhsFs
             while (inOffset < data.Length)
             {
                 var chunk = new LzhsChunk(data, inOffset, outOffset);
-                if(chunk.SizeCompressed == 0)
-                {
-                    yield break;
-                }
                 inOffset += chunk.SegmentSize;
                 outOffset += chunk.SizeUncompressed;
                 yield return chunk;
@@ -163,11 +159,20 @@ namespace Yafex.FileFormats.LzhsFs
             using (var writer = new LzhsFsWriter(destPath, rdr.GetOutputSize()))
             {
                 writer.WriteData(rdr.GetUncompressedHeading(), 0);
-                Parallel.ForEach(rdr.GetChunks(), chunk =>
+                var chunks = rdr.GetChunks();
+#if LZHS_DEBUG
+                foreach(var chunk in chunks)
+                {
+                    log.Info($"[{chunk.InputOffset:X8}]: Extracting chunk {chunk.SegmentIndex} -> 0x{chunk.OutputOffset:X8} (0x{chunk.SegmentSize:X8}) {(chunk.IsUncompressed ? "[UNCOMPRESSED]" : "")}");
+                    writer.WriteChunk(chunk);
+                }
+#else
+                Parallel.ForEach(chunks, chunk =>
                 {
                     log.Info($"[{chunk.InputOffset:X8}]: Extracting chunk {chunk.SegmentIndex} -> 0x{chunk.OutputOffset:X8} (0x{chunk.SegmentSize:X8}) {(chunk.IsUncompressed ? "[UNCOMPRESSED]" : "")}");
                     writer.WriteChunk(chunk);
                 });
+#endif
             }
 
             return Enumerable.Empty<IDataSource>();

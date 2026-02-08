@@ -37,17 +37,24 @@ namespace Yafex.FileFormats.LzhsFs
         }
 
         public long SizeCompressed => Header.CompressedSize;
-        public long SizeUncompressed => Header.UncompressedSize;
+        public long SizeUncompressed => SegmentHeader.UncompressedSize;
 
         public ushort Checksum => Header.Checksum;
-
 
         public bool IsUncompressed =>
             Header.CompressedSize == Header.UncompressedSize &&
             Header.Checksum == 0x00;
 
+        public bool IsZeroFill => 
+            Header.CompressedSize == 0 && Header.UncompressedSize > 0 &&
+            Header.Checksum == 0x00;
+
         public long SegmentIndex => SegmentHeader.Checksum;
         public bool IsCompressed => !IsUncompressed;
+        
+        /// <summary>
+        /// Size of the inner LZHS + the outer lzhs header
+        /// </summary>
         public long SegmentSize => HEADER_SIZE + Pad(SegmentHeader.CompressedSize);
 
         public LzhsChunk(ReadOnlyMemory64<byte> data, long offsetIn, long offsetOut)
@@ -59,10 +66,16 @@ namespace Yafex.FileFormats.LzhsFs
             SegmentHeader = new LzhsHeader(data.Slice(pos, HEADER_SIZE).Span);
             pos += HEADER_SIZE;
 
-            SegmentData = data.Slice(pos, HEADER_SIZE + SegmentSize);
             Header = new LzhsHeader(data.Slice(pos, HEADER_SIZE).Span);
+
+            SegmentData = IsZeroFill
+                ? new byte[SegmentHeader.UncompressedSize]
+                : data.Slice(pos, HEADER_SIZE + SegmentSize);
         }
 
-        public LzhsDecoder NewDecoder() => new LzhsDecoder(SegmentData);
+        public LzhsDecoder? NewDecoder()
+        {
+            return new LzhsDecoder(SegmentData);
+        }
     }
 }
