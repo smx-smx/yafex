@@ -40,9 +40,17 @@ namespace Yafex.FileFormats.LzhsFs
                 bool result = dec.VerifyChecksum();
                 Console.WriteLine($"{firstHdr.checksum}: " + (result ? "PASS" : "FAIL"));
 
-                return result
-                    ? new DetectionResult(80, null)
-                    : new DetectionResult(0, null);
+                if (result) {
+                    return new DetectionResult(80, null);
+                }
+
+                //Decompression failed, but we want to check in case the first segment is stored uncompressed
+                if (dec.header.checksum == 0x00 && dec.header.compressedSize == dec.header.uncompressedSize)
+                {
+                    return new DetectionResult(50, null);
+                }
+                    
+                return new DetectionResult(0, null);
 
             }
             catch (InvalidDataException)

@@ -78,7 +78,7 @@ namespace Yafex.Support
             this.mf = null;
         }
 
-        public void SetLength(int length)
+        public void SetLength(long length)
         {
             if (isReadOnly)
             {

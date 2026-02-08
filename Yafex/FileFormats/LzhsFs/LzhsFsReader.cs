@@ -15,9 +15,12 @@ using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.LzhsFs
 {
-    public record LzhsChunk(ushort index, int size, int outputOffset, Memory64<byte> buf)
+    public record LzhsChunk(ushort index, int size, long outputOffset, LzhsHeader outerHeader, Memory64<byte> buf)
     {
         public readonly LzhsHeader Header = new LzhsHeader(buf.Span);
         public LzhsDecoder NewDecoder() => new LzhsDecoder(buf);
+        public bool isUncompressed => 
+            Header.compressedSize == Header.uncompressedSize &&
+            Header.checksum == 0x00;
     }
 }

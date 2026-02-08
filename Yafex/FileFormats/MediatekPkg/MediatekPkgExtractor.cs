@@ -207,6 +207,7 @@ public class MediatekPkgExtractor : IFormatExtractor
             artifact.SetChildOf(source);
             artifact.AddMetadata(new OutputFileName(fileName));
             artifact.AddMetadata(new OutputDirectoryName(basedir));
+            artifact.Name = fileName;
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
         }

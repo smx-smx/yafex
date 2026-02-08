@@ -27,7 +27,7 @@ namespace Yafex.FileFormats.LzhsFs
 {
     public class LzhsFsReader
     {
-        public const int UNCOMPRESSED_HEADING_SIZE = 0x100000;
+        public const long UNCOMPRESSED_HEADING_SIZE = 0x100000;
 
         private IDataSource source;
         private Span64<byte> span => source.Data.Span;
@@ -53,12 +53,12 @@ namespace Yafex.FileFormats.LzhsFs
             return num + pad;
         }
 
-        public int GetOutputSize()
+        public long GetOutputSize()
         {
-            int size = UNCOMPRESSED_HEADING_SIZE;
+            var size = UNCOMPRESSED_HEADING_SIZE;
             foreach (var chunk in GetChunks())
             {
-                size += (int)chunk.Header.uncompressedSize;
+                size += chunk.outerHeader.uncompressedSize;
             }
             return size;
         }
@@ -67,8 +67,8 @@ namespace Yafex.FileFormats.LzhsFs
         {
             var data = source.Data;
 
-            int inOffset = UNCOMPRESSED_HEADING_SIZE;
-            int outOffset = UNCOMPRESSED_HEADING_SIZE;
+            long inOffset = UNCOMPRESSED_HEADING_SIZE;
+            long outOffset = UNCOMPRESSED_HEADING_SIZE;
 
             var lzhsHeaderSize = Marshal.SizeOf<LzhsHeader>();
 
@@ -86,11 +86,11 @@ namespace Yafex.FileFormats.LzhsFs
 
                 var chunkBuf = data.Slice(lzhsStart, lzhsSize);
 
-                var chunk = new LzhsChunk(chunkNo, lzhsSize, outOffset, chunkBuf);
+                var chunk = new LzhsChunk(chunkNo, lzhsSize, outOffset, outer, chunkBuf);
                 yield return chunk;
 
                 inOffset = lzhsStart + lzhsSize;
-                outOffset += (int)chunk.Header.uncompressedSize;
+                outOffset += chunk.outerHeader.uncompressedSize;
             }
         }
     }
@@ -100,7 +100,7 @@ namespace Yafex.FileFormats.LzhsFs
         private static readonly ILog log = LogManager.GetLogger(nameof(LzhsFsWriter));
 
         private readonly MFile mfOut;
-        public LzhsFsWriter(string outputPath, int outputSize)
+        public LzhsFsWriter(string outputPath, long outputSize)
         {
             mfOut = new MFile(outputPath, readOnly: false);
             mfOut.SetLength(outputSize);
@@ -116,9 +116,16 @@ namespace Yafex.FileFormats.LzhsFs
         public void WriteChunk(LzhsChunk chunk)
         {
             Trace.WriteLine($"{chunk.index}: {chunk.size}");
-            var decoder = chunk.NewDecoder();
-
             var ptrOut = mfOut.Data.Span.Slice(chunk.outputOffset);
+
+            if (chunk.isUncompressed)
+            {
+                var raw = chunk.buf.Span.Slice(LzhsHeader.SIZE, chunk.outerHeader.uncompressedSize);
+                raw.CopyTo(ptrOut);
+                return;
+            }
+
+            var decoder = chunk.NewDecoder();       
             int i = 0;
             foreach (var b in decoder.AsEnumerable())
             {
@@ -133,7 +140,7 @@ namespace Yafex.FileFormats.LzhsFs
             }
         }
 
-        public void WriteData(byte[] data, int fileOffset)
+        public void WriteData(byte[] data, long fileOffset)
         {
             var ptrOut = mfOut.Data.Slice(fileOffset);
             data.CopyTo(ptrOut);
@@ -159,7 +166,7 @@ namespace Yafex.FileFormats.LzhsFs
         public IEnumerable<IDataSource> Extract(IDataSource source)
         {
             string fileName = Path.GetFileNameWithoutExtension(source.Name);
-            string destPath = Path.Combine(source.RequireBaseDirectory(), $"{fileName}.ext4");
+            string destPath = Path.Combine(source.RequireBaseDirectory(), $"{fileName}.unlzhs");
 
             int activeThreads = 0;
             ManualResetEvent allFinished = new ManualResetEvent(false);
@@ -173,8 +180,8 @@ namespace Yafex.FileFormats.LzhsFs
                     Interlocked.Increment(ref activeThreads);
                     ThreadPool.QueueUserWorkItem(arg =>
                     {
-                        log.Info($"Extracting chunk {chunk.index} -> 0x{chunk.outputOffset:X8} (0x{chunk.size:X8})");
-                        log.Info($"    0x{chunk.Header.compressedSize:X8} -> 0x{chunk.Header.uncompressedSize:X8}");
+                        log.Info($"Extracting chunk {chunk.index} -> 0x{chunk.outputOffset:X8} (0x{chunk.size:X8}) {(chunk.isUncompressed ? "[UNCOMPRESSED]" : "")}");
+                        log.Info($"    0x{chunk.Header.compressedSize:X8} -> 0x{chunk.outerHeader.uncompressedSize:X8}");
                         writer.WriteChunk(chunk);
                         if (Interlocked.Decrement(ref activeThreads) == 0)
                         {
