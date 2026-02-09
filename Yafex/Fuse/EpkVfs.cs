@@ -16,6 +16,7 @@ using Smx.SharpIO.Extensions;
 using Smx.SharpIO.Memory.Buffers;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -187,17 +188,11 @@ namespace Yafex.Fuse
 
         public EpkVfs(string epkPath)
         {
-
-            var conf = new Support.Config()
-            {
-                ConfigDir = @"C:\TEMP"
-            };
-
-            var keysBundle = new KeyBundle(Path.Combine(conf.ConfigDir, "secrets.json"));
-            var keysRepo = new KeysRepository(conf, keysBundle);
+            var keysBundle = new KeyBundle(Path.Combine(@"C:\TEMP", "secrets.json"));
+            var keysRepo = new KeysRepository(keysBundle);
 
             var a = new Epk2Addon(keysRepo);
-            var detector = a.CreateDetector();
+            var detector = a.CreateDetector(new Dictionary<string, string>());
             var mf = new Yafex.Support.MFile(epkPath);
             var res = detector.Detect(mf);
 

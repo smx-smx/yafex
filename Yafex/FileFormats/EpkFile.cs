@@ -38,7 +38,7 @@ namespace Yafex.FileFormats
     {
         public const int SIGNATURE_SIZE = 0x80;
 
-        protected EpkFile(Config config)
+        protected EpkFile()
         {
 
         }

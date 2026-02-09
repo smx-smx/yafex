@@ -8,28 +8,45 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+
 using log4net;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 using Yafex.Fuse;
 using Yafex.Support;
 
 namespace Yafex
 {
+    public enum ProgramMode
+    {
+        Standalone,
+        Fuse
+    }
+
+    public class ProgramOptions
+    {
+        public required string InputFile { get; set; }
+        public string? DestDir { get; set; } = null;
+        public ProgramMode ProgramMode { get; set; }
+        public Dictionary<string, Dictionary<string, string>> FormatOptions { get; set; } = new();
+        public string? KeyBundlePath { get; set; }
+    }
+
     public class Program
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(Program));
+        private readonly ProgramOptions _opts;
 
-        Program()
+        Program(IEnumerable<string> args)
         {
             try
             {
@@ -42,6 +59,7 @@ namespace Yafex
                 Console.Error.WriteLine("Warning: log4net setup failed");
                 Console.Error.WriteLine(ex);
             }
+            _opts = ProcessArgs(args);
         }
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
@@ -55,30 +73,20 @@ namespace Yafex
             Environment.Exit(1);
         }
 
-        private Config BuildConfig(string fileName)
-        {
-            Config config = new Config()
-            {
-                ConfigDir = Directory.GetCurrentDirectory(),
-                DestDir = Path.GetDirectoryName(fileName)
-            };
-            return config;
-        }
-
-        IHost BuildHost(Config config)
+        IHost BuildHost()
         {
             var hostBuilder = Host.CreateApplicationBuilder();
             FileFormatRepository.RegisterFileFormats(hostBuilder.Services);
 
-            var secretsPath = Path.Combine(config.ConfigDir, "secrets.json");
-            if (!File.Exists(secretsPath))
+            var secretsPath = _opts.KeyBundlePath;
+            if (secretsPath == null || !File.Exists(secretsPath))
             {
-                throw new InvalidOperationException($"Secrets file \"{secretsPath}\" does not exist");
+                throw new InvalidOperationException($"Secrets file \"{secretsPath ?? ""}\" does not exist");
             }
             var keyFile = new KeyBundle(secretsPath);
 
-            hostBuilder.Services.AddSingleton(config);
             hostBuilder.Services.AddSingleton(keyFile);
+            hostBuilder.Services.AddSingleton(_opts);
             hostBuilder.Services.AddSingleton<KeysRepository>();
             hostBuilder.Services.AddSingleton<FileFormatRepository>();
             hostBuilder.Services.AddSingleton<FormatFinder>();
@@ -88,46 +96,112 @@ namespace Yafex
             return host;
         }
 
-        void Run(string[] args)
+        bool TryTake(IEnumerator<string> it, [MaybeNullWhen(false)] out string arg)
+        {
+            if (!it.MoveNext())
+            {
+                arg = null;
+                return false;
+            }
+
+            arg = it.Current;
+            return true;
+        }
+
+        private ProgramOptions ProcessArgs(IEnumerable<string> args)
+        {
+            ProgramMode programMode = ProgramMode.Standalone;
+            var formatOptions = new Dictionary<string, Dictionary<string, string>>();
+            string? inputFile = null;
+            string? destDir = null;
+            string? keysPath = Path.Combine(Directory.GetCurrentDirectory(), "secrets.json");
+
+            var it = args.GetEnumerator();
+            while (it.MoveNext())
+            {
+                var res = true;
+                var arg = it.Current;
+                switch (arg)
+                {
+                    case "--mount":
+                        programMode = ProgramMode.Fuse;
+                        break;
+                    case "-k":
+                        res = TryTake(it, out keysPath);
+                        break;
+                    case "-i":
+                        res = TryTake(it, out inputFile);
+                        break;
+                    case "-d":
+                        res = TryTake(it, out destDir);
+                        break;
+                    case "-o":
+                        // -o fmt:opt=val
+                        do
+                        {
+                            if((res=TryTake(it, out var fmtArg)) == false){
+                                break;
+                            }
+                            var p = fmtArg.Split(':', 2);
+                            if (p.Length != 2) break;
+                            var (format, prop, _) = p;
+
+                            p = prop.Split('=', 2);
+                            if (p.Length != 2) break;
+                            var (key, val, _) = p;
+                            
+                            if (!formatOptions.TryGetValue(format, out var bucket))
+                            {
+                                bucket = new Dictionary<string, string>();
+                            }
+                            bucket[key] = val;
+                            formatOptions[format] = bucket;
+                        } while (false);
+                        break;
+                }
+            }
+
+            if(inputFile == null)
+            {
+                throw new ArgumentException("Input filename not specified");
+            }
+            if (!File.Exists(inputFile))
+            {
+                throw new ArgumentException("Input filename does not exist");
+            }
+
+            if(programMode == ProgramMode.Fuse && destDir == null)
+            {
+                throw new ArgumentException("Fuse mountpoint not specified");
+            }
+
+
+            var opts = new ProgramOptions
+            {
+                InputFile = inputFile,
+                FormatOptions = formatOptions,
+                ProgramMode = programMode,
+                DestDir = destDir,
+                KeyBundlePath = keysPath
+            };
+            return opts;
+        }
+
+        void Run()
         {
             Console.WriteLine("Firmex#");
 
-            var it = args.GetEnumerator();
-
-            string? filename = null;
-            string? fuse_mountpoint = null;
-            string? arg0 = null;
-            if (it.MoveNext())
-            {
-                arg0 = it.Current.ToString();
-            }
-
-            if (arg0 == "fuse")
+            if(_opts.ProgramMode == ProgramMode.Fuse)
             {
                 fuseVfs = new YafexVfs();
-                if (!it.MoveNext())
-                {
-                    FuseUsageError();
-                }
-                filename = it.Current.ToString();
-                if (!it.MoveNext())
-                {
-                    FuseUsageError();
-                }
-                fuse_mountpoint = it.Current.ToString();
-            }
-            else if (!string.IsNullOrEmpty(arg0))
-            {
-                filename = arg0;
             }
 
-            var cfg = BuildConfig(filename);
-            var host = BuildHost(cfg);
+            var host = BuildHost();
 
             host.Start();
             var extractor = host.Services.GetRequiredService<Extractor>();
 
-            using (MFile input = new MFile(filename))
+            using (MFile input = new MFile(_opts.InputFile))
             {
                 var artifacts = extractor.Extract(fuseVfs?.Root, input);
                 var numArtifacts = 0;
@@ -136,17 +210,17 @@ namespace Yafex
                     ++numArtifacts;
                     // $FIXME: centralized artifact printing
                 }
-                if (fuseVfs != null && fuse_mountpoint != null && numArtifacts > 0)
+                if (fuseVfs != null && _opts.DestDir != null && numArtifacts > 0)
                 {
-                    FuseInterop.Start(fuseVfs, fuse_mountpoint);
+                    FuseInterop.Start(fuseVfs, _opts.DestDir);
                 }
             }
         }
 
         public static void Main(string[] args)
         {
-            var prg = new Program();
-            prg.Run(args);
+            var prg = new Program(args);
+            prg.Run();
         }
 
         private static bool IsRunningInCygwin()

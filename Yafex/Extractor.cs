@@ -11,17 +11,14 @@ namespace Yafex
 {
     public class Extractor
     {
-        private readonly Config _config;
         private readonly FormatFinder _finder;
         private readonly FileFormatRepository _repo;
 
         public Extractor(
-            Config config,
             FileFormatRepository repo,
             FormatFinder finder
         )
         {
-            _config = config;
             _repo = repo;
             _finder = finder;
         }

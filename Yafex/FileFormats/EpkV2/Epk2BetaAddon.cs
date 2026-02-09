@@ -1,4 +1,6 @@
-﻿using Yafex.Fuse;
+﻿using System.Collections.Generic;
+
+using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -13,7 +15,7 @@ namespace Yafex.FileFormats.EpkV2
             _keysRepo = keysRepo;
         }
 
-        public IFormatDetector CreateDetector()
+        public IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new Epk2BetaDetector(_keysRepo);
         }

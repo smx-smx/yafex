@@ -8,6 +8,8 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System.Collections.Generic;
+
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV3
@@ -23,7 +25,7 @@ namespace Yafex.FileFormats.EpkV3
             _keysRepo = keysRepo;
         }
 
-        public IFormatDetector CreateDetector()
+        public IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new Epk3NewDetector(_keysRepo);
         }

@@ -8,6 +8,9 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System.Collections;
+using System.Collections.Generic;
+
 using Yafex.Fuse;
 
 namespace Yafex
@@ -16,7 +19,7 @@ namespace Yafex
     {
         FileFormat FileFormat { get; }
         IFormatExtractor CreateExtractor(DetectionResult result);
-        IFormatDetector CreateDetector();
+        IFormatDetector CreateDetector(IDictionary<string, string> args);
         IVfsNode CreateVfsNode(IDataSource ds);
     }
 }

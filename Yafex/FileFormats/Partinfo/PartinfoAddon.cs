@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using System.Collections.Generic;
 
 using Yafex.Fuse;
 
@@ -18,7 +19,7 @@ namespace Yafex.FileFormats.Partinfo
     {
         public FileFormat FileFormat => FileFormat.Partinfo;
 
-        public IFormatDetector CreateDetector()
+        public IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new PartinfoDetector();
         }

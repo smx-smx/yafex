@@ -10,15 +10,12 @@ namespace Yafex;
 
 public class KeysRepository
 {
-    private readonly Config _config;
     private readonly KeyBundle _keyBundle;
 
     public KeysRepository(
-        Config config,
         KeyBundle keyBundle
     )
     {
-        _config = config;
         _keyBundle = keyBundle;
     }
     

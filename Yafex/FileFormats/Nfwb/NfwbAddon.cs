@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Nfwb
@@ -7,7 +9,7 @@ namespace Yafex.FileFormats.Nfwb
     {
         public FileFormat FileFormat => FileFormat.Nfwb;
 
-        public IFormatDetector CreateDetector()
+        public IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new NfwbDetector();
         }

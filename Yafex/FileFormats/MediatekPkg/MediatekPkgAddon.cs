@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using Yafex.Fuse;
 
@@ -34,7 +35,7 @@ public class MediatekPkgAddon : IFormatAddon
         _keys = keys;
     }
 
-    public IFormatDetector CreateDetector()
+    public IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new MediatekPkgDetector(_keys);
     }

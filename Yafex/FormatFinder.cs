@@ -11,6 +11,7 @@
 using log4net;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Yafex
@@ -24,20 +25,28 @@ namespace Yafex
     public class FormatFinder
     {
         private readonly FileFormatRepository repo;
+        private readonly ProgramOptions _opts;
 
         private delegate int GetConfidenceDelegate(FinderArg arg);
 
         private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
 
-        public FormatFinder(FileFormatRepository repo)
+        public FormatFinder(ProgramOptions opts, FileFormatRepository repo)
         {
             this.repo = repo;
+            _opts = opts;
         }
 
         private DetectionResult Detect(FileFormat fmt, IDataSource source)
         {
+            var formatName = (Enum.GetName(fmt) ?? string.Empty).ToLowerInvariant();
+            if(!_opts.FormatOptions.TryGetValue(formatName, out var fmtOpts))
+            {
+                fmtOpts = new Dictionary<string, string>();
+            }
+
             repo.TryGetAddonForFormat(fmt, out var addon);
-            return addon!.CreateDetector().Detect(source);
+            return addon!.CreateDetector(fmtOpts).Detect(source);
         }
 
         public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)
