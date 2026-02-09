@@ -38,7 +38,7 @@ namespace Yafex.FileFormats.LxBoot
                 : (uint)data.Length;
 
             var firstStage = new MemoryDataSource(
-                data.Slice((int)firstOffset, (int)(firstEnd - firstOffset))
+                data.Slice(firstOffset, (long)(firstEnd - firstOffset))
             )
             {
                 Flags = DataSourceFlags.Output,
@@ -49,9 +49,9 @@ namespace Yafex.FileFormats.LxBoot
 
             if (isSecondStage)
             {
-                var header = data.ReadStruct<LxBootHeader>((int)secondStageOffset);
+                var header = data.ReadStruct<LxBootHeader>((long)secondStageOffset);
                 yield return new MemoryDataSource(
-                    data.Slice((int)secondStageOffset, (int)header.Size)
+                    data.Slice((long)secondStageOffset, header.Size)
                 )
                 {
                     Flags = DataSourceFlags.Output,

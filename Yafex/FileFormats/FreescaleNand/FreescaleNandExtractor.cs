@@ -40,7 +40,7 @@ namespace Yafex.FileFormats.FreescaleNand
             while (start < end)
             {
                 var page = ds.Data.Span
-                    .Slice((int)start, (int)fcb.page_data_size)
+                    .Slice(start, fcb.page_data_size)
                     .ToArray();
 
                 foreach (var b in page)

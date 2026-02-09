@@ -59,7 +59,7 @@ namespace Yafex.FileFormats.EpkV1
             string fwVerString;
             {
                 var firstPak = AdjustPakHeader(
-                    fileData.ReadStruct<PakHeader>((int)GetPakRec(0).offset)
+                    fileData.ReadStruct<PakHeader>(GetPakRec(0).offset)
                 );
                 fwVerString = $"{hdr.EpakVersion}-{firstPak.Platform}";
             }
@@ -75,10 +75,10 @@ namespace Yafex.FileFormats.EpkV1
                     continue;
                 }
 
-                var pakHdr = fileData.ReadStruct<PakHeader>((int)rec.offset);
+                var pakHdr = fileData.ReadStruct<PakHeader>(rec.offset);
                 pakHdr = AdjustPakHeader(pakHdr);
 
-                var pakData = fileData.Slice((int)rec.offset + Marshal.SizeOf<PakHeader>(), (int)pakHdr.imageSize);
+                var pakData = fileData.Slice(rec.offset + Marshal.SizeOf<PakHeader>(), pakHdr.imageSize);
 
                 var fileName = $"{pakHdr.PakName}.pak";
                 var filePath = Path.Combine(basedir, fileName);
@@ -109,7 +109,7 @@ namespace Yafex.FileFormats.EpkV1
             {
                 var rec = hdr.pakRecs[i];
 
-                var pakHdr = fileData.ReadStruct<PakHeader>((int)rec.offset);
+                var pakHdr = fileData.ReadStruct<PakHeader>(rec.offset);
 
                 var fileName = $"{pakHdr.PakName}.pak";
                 var filePath = Path.Combine(basedir, fileName);
@@ -120,8 +120,8 @@ namespace Yafex.FileFormats.EpkV1
                     $" size='{rec.size}') to file {filePath}");
 
                 var pakData = fileData.Slice(
-                    (int)(rec.offset + Marshal.SizeOf<PakHeader>()),
-                    (int)(pakHdr.imageSize)
+                    rec.offset + Marshal.SizeOf<PakHeader>(),
+                    pakHdr.imageSize
                 );
 
                 var artifact = new MemoryDataSource(pakData.ToArray());

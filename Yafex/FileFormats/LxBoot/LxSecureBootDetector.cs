@@ -69,11 +69,11 @@ namespace Yafex.FileFormats.LxBoot
             var mask = 15;
             startOffset = (uint)((startOffset + mask) & ~mask);
 
-            var words = data.Slice((int)startOffset).Cast<uint>();
+            var words = data.Slice(startOffset).Cast<uint>();
             var wordIndex = words.IndexOfAny(BLL_MAGIC, LLB_MAGIC);
             if (wordIndex > -1)
             {
-                return (int)((wordIndex * sizeof(uint)) + startOffset - 4);
+                return (wordIndex * sizeof(uint)) + startOffset - 4;
             }
             return wordIndex;
 

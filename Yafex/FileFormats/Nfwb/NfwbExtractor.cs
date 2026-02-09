@@ -35,7 +35,7 @@ namespace Yafex.FileFormats.Nfwb
   			{
     			var partEntry = dataStream.ReadStruct<PartEntry>();
 
-				var partData = fileData.Slice((int)partEntry.offset, (int)partEntry.size);
+				var partData = fileData.Slice(partEntry.offset, partEntry.size);
 
 				var fileName = $"{partEntry.partitionID}.bin";
 				var filePath = Path.Combine(basedir, fileName);

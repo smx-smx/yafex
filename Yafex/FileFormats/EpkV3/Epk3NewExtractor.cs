@@ -42,7 +42,7 @@ namespace Yafex.FileFormats.EpkV3
         {
             var offset = Marshal.OffsetOf<EPK_V3_NEW_STRUCTURE>(nameof(epk.packageInfo)).ToInt32();
 
-            var packageInfoBytes = data.Slice(offset, (int)ctx.Header.packageInfoSize);
+            var packageInfoBytes = data.Slice(offset, ctx.Header.packageInfoSize);
             var decryptor = ctx.GetDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC);
             var decrypted = decryptor.Decrypt(packageInfoBytes);
 
@@ -101,7 +101,7 @@ namespace Yafex.FileFormats.EpkV3
                 + EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE
                 + hdr.packageInfoSize
             );
-            var dataPtr = span.Slice((int)dataOffset);
+            var dataPtr = span.Slice(dataOffset);
 
             var artifacts = new List<IDataSource>();
 
@@ -133,7 +133,7 @@ namespace Yafex.FileFormats.EpkV3
                     );
 
                     var dataSize = sizeof(uint) + chunk.segmentInfo.segmentSize;
-                    var chunkData = dataPtr.Slice(EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE, (int)dataSize);
+                    var chunkData = dataPtr.Slice(EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE, dataSize);
 
                     var decrypted = decryptor.Decrypt(chunkData);
 

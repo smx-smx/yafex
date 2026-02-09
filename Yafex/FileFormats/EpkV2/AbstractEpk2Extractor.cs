@@ -153,7 +153,7 @@ namespace Yafex.FileFormats.EpkV2
                     throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
                 }
 
-                var pakData = fileData.Slice(offset + PakStructureSize, (int)pakHdr.segmentSize);
+                var pakData = fileData.Slice(offset + PakStructureSize, pakHdr.segmentSize);
                 if (needsDecryption && _ctx.Services.Decryptor != null)
                 {
                     pakData = _ctx.Services.Decryptor.Decrypt(pakData).Span;
