@@ -148,11 +148,11 @@ public class MediatekPkgExtractor : IFormatExtractor
         {
             st.Position += Unsafe.SizeOf<iMtkHeader>();
 
-            var metaData = st.ReadBytes((int)iMtk.Length);
+            var metaData = st.ReadBytes(iMtk.Length);
             otaId = ReadOptionalOtaId(metaData);
         }
 
-        return data.Slice((int)st.Position);
+        return data.Slice(st.Position);
     }
 
 
@@ -200,8 +200,8 @@ public class MediatekPkgExtractor : IFormatExtractor
             var part = st.ReadStruct<PartEntry>();
             
             var dataOffset = st.Position;
-            var dataSize = (int)part.Size + Unsafe.SizeOf<DataHeader>();
-            var dataSlice = st.Memory.Slice((int)dataOffset, dataSize);
+            var dataSize = part.Size + Unsafe.SizeOf<DataHeader>();
+            var dataSlice = st.Memory.Slice(dataOffset, dataSize);
 
             if (part.Flags.HasFlag(PartFlags.Encrypted))
             {

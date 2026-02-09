@@ -42,7 +42,7 @@ namespace Yafex.Fuse
             if (offset > data.Length) return null;
             var available = data.Length - offset;
             var length = Math.Min(available, count);
-            return data.Slice((int)offset, (int)length).ToArray();
+            return data.Slice(offset, length).ToArray();
         }
 
         public int Rename(string newName)

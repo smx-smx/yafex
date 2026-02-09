@@ -72,7 +72,7 @@ namespace Yafex.FileFormats.Xex
         {
             var offset = GetOptHeader(key, out header_offset);
             if (!offset.HasValue) return null;
-            return mem.Slice((int)offset.Value);
+            return mem.Slice(offset.Value);
         }
 
         private uint? GetOptHeader(xex2_header_keys key)
@@ -113,7 +113,7 @@ namespace Yafex.FileFormats.Xex
         {
             var opt_image_base = GetOptHeader(xex2_header_keys.IMAGE_BASE_ADDRESS)?.Let(it =>
             {
-                var view = mem.Slice((int)it);
+                var view = mem.Slice(it);
                 return new SpanStream(view, Endianness.BigEndian).ReadUInt32();
             });
             if (opt_image_base.HasValue) return opt_image_base.Value;
@@ -221,10 +221,10 @@ namespace Yafex.FileFormats.Xex
                 switch (opt_file_format_info.encryption_type)
                 {
                     case xex2_encryption_type.NONE:
-                        mem.Slice(p, (int)block.data_size).CopyTo(out_ptr);
+                        mem.Slice(p, block.data_size).CopyTo(out_ptr);
                         break;
                     case xex2_encryption_type.NORMAL:
-                        int data_size = (int)block.data_size;
+                        var data_size = block.data_size;
                         var data = mem.Slice(p, data_size).ToArray();
                         // in place decrypt
                         for (int i = 0; i < block.data_size; i += 16)
@@ -235,7 +235,7 @@ namespace Yafex.FileFormats.Xex
                         break;
                 }
                 p += (int)block.data_size;
-                out_ptr = out_ptr.Slice((int)(block.data_size + block.zero_size));
+                out_ptr = out_ptr.Slice(block.data_size + block.zero_size);
             }
 
             aes.Dispose();
@@ -386,9 +386,9 @@ namespace Yafex.FileFormats.Xex
             foreach (var s in sections)
             {
                 var source = (int)s.VirtualAddress;
-                var target = peFile.Slice((int)s.PointerToRawData);
+                var target = peFile.Slice(s.PointerToRawData);
                 if (source >= peMem.Length) continue;
-                var sectionData = peMem.Slice(source, (int)s.VirtualSize);
+                var sectionData = peMem.Slice(source, s.VirtualSize);
                 sectionData.CopyTo(target);
             }
 
@@ -396,7 +396,7 @@ namespace Yafex.FileFormats.Xex
             if (iat != null)
             {
 
-                var iat_data = peFile.Slice((int)iat_file_offset);
+                var iat_data = peFile.Slice(iat_file_offset);
                 //iat.Value.CopyTo(iat_data);
             }
 
@@ -427,7 +427,7 @@ namespace Yafex.FileFormats.Xex
                 Padding = PaddingMode.None
             }.CreateDecryptor();
 
-            var input_buffer = mem.Slice((int)header.header_size);
+            var input_buffer = mem.Slice(header.header_size);
 
             switch (opt_file_format_info.encryption_type)
             {
@@ -435,7 +435,7 @@ namespace Yafex.FileFormats.Xex
                     break;
                 case xex2_encryption_type.NORMAL:
                     input_buffer = aes.TransformFinalBlock(
-                        mem.Slice((int)header.header_size, (int)exe_length).ToArray(),
+                        mem.Slice(header.header_size, exe_length).ToArray(),
                         0, (int)exe_length);
                     break;
             }
@@ -447,7 +447,7 @@ namespace Yafex.FileFormats.Xex
             int out_offset = 0;
             while (cur_block.block_size > 0)
             {
-                var block_data = input_buffer.Slice(in_offset, (int)cur_block.block_size).ToArray();
+                var block_data = input_buffer.Slice(in_offset, cur_block.block_size).ToArray();
 
                 var digest = SHA1.HashData(block_data);
                 if (!Enumerable.SequenceEqual(digest, cur_block.block_hash))
@@ -472,7 +472,7 @@ namespace Yafex.FileFormats.Xex
                     out_offset += chunk_size;
                 }
 
-                var next_slice = input_buffer.Slice((int)cur_block.block_size);
+                var next_slice = input_buffer.Slice(cur_block.block_size);
                 if (next_slice.Length == 0)
                 {
                     break;
@@ -556,7 +556,7 @@ namespace Yafex.FileFormats.Xex
                     throw new InvalidDataException("Missing FILE_FORMAT_INFO");
                 }
 
-                xex2_opt_header opt_header = new xex2_opt_header(mem.Slice((int)opt_file_format_info_offset));
+                xex2_opt_header opt_header = new xex2_opt_header(mem.Slice(opt_file_format_info_offset));
                 this.opt_file_format_info = opt_file_format_info;
             }
 

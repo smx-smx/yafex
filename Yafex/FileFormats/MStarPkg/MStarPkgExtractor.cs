@@ -92,7 +92,7 @@ namespace Yafex.FileFormats.MStarPkg
                 var artifact = new MemoryDataSource(
                     source
                         .Data.Span
-                        .Slice((int)part.Offset, (int)part.Size)
+                        .Slice(part.Offset, part.Size)
                         .ToArray()
                 );
                 yield return artifact;
