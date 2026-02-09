@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,18 +11,22 @@ namespace Yafex;
 
 public class AesDecryptor
 {
-    private Aes aes;
+    public Aes aes;
 
     public AesDecryptor(Aes aes)
     {
         this.aes = aes;
     }
 
-    public unsafe Memory64<byte> Decrypt(ReadOnlySpan64<byte> data)
+    public Memory64<byte> Decrypt(ReadOnlySpan64<byte> data, long bufferSize)
     {
+        if (bufferSize < data.Length) {
+            throw new ArgumentException("provided bufferSize is smaller than the size of the data");
+        }
+
         ICryptoTransform decryptor = aes.CreateDecryptor();
 
-        var buffer = new NativeMemoryManager64<byte>(data.Length);
+        var buffer = new NativeMemoryManager64<byte>(bufferSize);
         var outStream = new SpanStream(buffer.Memory);
 
         var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
@@ -31,4 +37,7 @@ public class AesDecryptor
         cs.Flush();
         return buffer.Memory;
     }
+
+    public Memory64<byte> Decrypt(ReadOnlySpan64<byte> data) => Decrypt(data, data.Length);
 }
+

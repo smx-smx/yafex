@@ -81,20 +81,15 @@ public struct MtkReserved {
     private byte _element0;
 }
 
-[InlineArray(16)]
-public struct HmacReserved {
-    private byte _element0;
-}
-[InlineArray(16)]
-public struct VendorReserved {
+[InlineArray(32)]
+public struct PartChecksum {
     private byte _element0;
 }
 
 public struct DataHeader
 {
     public MtkReserved Mtk;
-    public HmacReserved Hmac;
-    public VendorReserved Vendor;
+    public PartChecksum Checksum; //MD5 in Standard, SHA256 in New
 }
 
 public struct iMtkHeader

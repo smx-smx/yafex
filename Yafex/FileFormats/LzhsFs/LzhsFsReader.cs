@@ -70,7 +70,7 @@ namespace Yafex.FileFormats.LzhsFs
 
             SegmentData = IsZeroFill
                 ? new byte[SegmentHeader.UncompressedSize]
-                : data.Slice(pos, HEADER_SIZE + SegmentSize);
+                : data.Slice(pos, SegmentSize - HEADER_SIZE);
         }
 
         public LzhsDecoder? NewDecoder()
