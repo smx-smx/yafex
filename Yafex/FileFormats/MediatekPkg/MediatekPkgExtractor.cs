@@ -47,11 +47,36 @@ public class MediatekPkgExtractor : IFormatExtractor
 
     private PkgHeader Header => _ctx.Header.Span[0];
 
+    private Memory64<byte> DecryptUnalign(Memory64<byte> data, AesDecryptor decryptor)
+    {
+        //if all data is aligned to 16 bytes(no tail), just return the AES decrypted data.
+        if (data.Length % 16 == 0) {
+            return decryptor.Decrypt(data.Span);
+        }
+
+        var alignedLen = data.Length - (data.Length % 16);
+        var alignedSlice = data.Slice(0, alignedLen);
+        var unalignedSlice = data.Slice(alignedLen);
+
+        //AES decrypt data aligned to 16 bytes
+        var decrypted = decryptor.Decrypt(alignedSlice.Span, data.Length);
+
+        //deXOR unaligned data with the AES key.
+        var aesKey = decryptor.aes.Key;
+        var outTailSpan = decrypted.Span.Slice(alignedLen);
+        for (int i = 0; i < unalignedSlice.Length; i++)
+        {
+            outTailSpan[i] = (byte)(unalignedSlice.Span[i] ^ aesKey[i % aesKey.Length]);
+        }
+
+        return decrypted;
+    }
+
     private Memory64<byte> AttemptDecrypt(Memory64<byte> data)
     {
         if(_decryptor != null)
         {
-            return _decryptor.Decrypt(data.Span);
+            return DecryptUnalign(data, _decryptor);
         }
 
         if (_keySearchAttempted)
@@ -84,7 +109,7 @@ public class MediatekPkgExtractor : IFormatExtractor
             }.GetAes();
 
             decryptor = new AesDecryptor(vendorKey);
-            data = decryptor.Decrypt(data.Span);
+            data = DecryptUnalign(data, decryptor);
             if (IsDecryptedHeader(data.Span)) 
             {
                 _decryptor = decryptor;
@@ -93,7 +118,7 @@ public class MediatekPkgExtractor : IFormatExtractor
         }
 
         _decryptor = decryptor;
-        return decryptor.Decrypt(data.Span);
+        return DecryptUnalign(data, _decryptor);
     }
 
     private const string MTK_MAGIC_META = "iMtK";
