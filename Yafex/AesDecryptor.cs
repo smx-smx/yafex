@@ -27,6 +27,8 @@ public class AesDecryptor
         ICryptoTransform decryptor = Aes.CreateDecryptor();
 
         var outStream = new MemoryStream();
+        outStream.SetLength(bufferSize);
+
         using (var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write))
         {
             foreach (var chunk in data.GetChunks())
