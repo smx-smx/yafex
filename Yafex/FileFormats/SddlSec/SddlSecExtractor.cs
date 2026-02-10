@@ -192,7 +192,7 @@ namespace Yafex.FileFormats.SddlSec
 				}
 
 				//print content of info file
-				var infoString = Encoding.UTF8.GetString(fileData.ToArray());
+				var infoString = fileData.AsString(Encoding.UTF8);
 				foreach(var line in infoString.Split("\n")) {
 					log.Info($"{line}");
 				}
