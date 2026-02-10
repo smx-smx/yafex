@@ -26,7 +26,7 @@ namespace Yafex
         public required byte[] iv;
         public required string comment;
 
-        public Aes GetAes(PaddingMode paddingMode = PaddingMode.None)
+        public Aes GetAes(PaddingMode paddingMode = PaddingMode.Zeros)
         {
             var blockSize = key.Length * 8;
 
