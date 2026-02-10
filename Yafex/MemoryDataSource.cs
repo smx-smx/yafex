@@ -38,8 +38,8 @@ namespace Yafex
             set => _flags = value;
         }
 
-        private string? _name;
-        public string? Name
+        private string _name;
+        public required string Name
         {
             get => _name;
             set => _name = value;

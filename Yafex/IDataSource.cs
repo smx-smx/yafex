@@ -30,7 +30,7 @@ namespace Yafex
 
     public interface IDataSource
     {
-        string? Name { get; set; }
+        string Name { get; set; }
         string? Directory { get; set; }
 
         Memory64<byte> Data { get; }

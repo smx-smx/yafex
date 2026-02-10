@@ -94,7 +94,10 @@ namespace Yafex.FileFormats.MStarPkg
                         .Data.Span
                         .Slice(part.Offset, part.Size)
                         .ToArray()
-                );
+                )
+                {
+                    Name = $"{part.Name}.pak"
+                };
                 yield return artifact;
             }
         }

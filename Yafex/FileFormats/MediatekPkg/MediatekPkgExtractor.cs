@@ -228,11 +228,13 @@ public class MediatekPkgExtractor : IFormatExtractor
                     $"{(otaId != null ? $", version='{otaId}'" : "")}" +
                     $") to file {filePath}");
 
-            var artifact = new MemoryDataSource(dataSlice);
+            var artifact = new MemoryDataSource(dataSlice)
+            {
+                Name = fileName
+            };
             artifact.SetChildOf(source);
             artifact.AddMetadata(new OutputFileName(fileName));
             artifact.AddMetadata(new OutputDirectoryName(basedir));
-            artifact.Name = fileName;
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
         }

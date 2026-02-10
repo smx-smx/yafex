@@ -137,7 +137,10 @@ namespace Yafex.FileFormats.Partinfo
                 Path.GetFileNameWithoutExtension(source.Directory) + ".txt"
             );
 
-            var artifact = new MemoryDataSource(Encoding.ASCII.GetBytes(sOut));
+            var artifact = new MemoryDataSource(Encoding.ASCII.GetBytes(sOut))
+            {
+                Name = artifactName
+            };
             yield return artifact;
         }
     }
