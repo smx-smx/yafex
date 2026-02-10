@@ -32,21 +32,55 @@ namespace Yafex.Support
         {
             int length = Unsafe.SizeOf<TBuffer>();
             ref var bufferRef = ref Unsafe.AsRef(in buffer);
-            ref var start = ref Unsafe.As<TBuffer, byte>(ref bufferRef);
+            ref var start = ref Unsafe.As<TBuffer, byte>(ref buffer);
             var span = MemoryMarshal.CreateReadOnlySpan(ref start, length);
             return span.AsString(encoding);
         }
 
+        public static string AsString(this ReadOnlyMemory64<byte> data, Encoding encoding)
+        {
+            // we're not gonna have a string larger than 2GB, hopefully
+            return AsString((ReadOnlySpan<byte>)data.Span, encoding);
+        }
+
+        public static string AsString(this Memory64<byte> data, Encoding encoding)
+        {
+            // we're not gonna have a string larger than 2GB, hopefully
+            return AsString((ReadOnlySpan<byte>)data.Span, encoding);
+        }
+
+        public static string AsString(this ReadOnlyMemory<byte> data, Encoding encoding)
+        {
+            return AsString(data.Span, encoding);
+        }
+
+        public static string AsString(this Memory<byte> data, Encoding encoding)
+        {
+            return AsString(data.Span, encoding);
+        }
+
         public static string AsString(this ReadOnlySpan<byte> data, Encoding encoding)
         {
-            var bytes = data.ToArray();
-            return encoding.GetString(bytes).TrimEnd('\0');
+            var nullPos = data.IndexOf((byte)0x00);
+            if(nullPos < 0)
+            {
+                return encoding.GetString(data);
+            } else
+            {
+                return encoding.GetString(data.Slice(0, nullPos));
+            }
         }
 
         public static string AsString(this Span<byte> data, Encoding encoding)
         {
-            var bytes = data.ToArray();
-            return encoding.GetString(bytes).TrimEnd('\0');
+            var nullPos = data.IndexOf((byte)0x00);
+            if(nullPos < 0)
+            {
+                return encoding.GetString(data);
+            } else
+            {
+                return encoding.GetString(data.Slice(0, nullPos));
+            }
         }
 
         public unsafe static T Read<T>(this ReadOnlySpan<byte> data, int offset) where T : unmanaged
