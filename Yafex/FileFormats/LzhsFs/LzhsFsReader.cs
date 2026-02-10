@@ -73,7 +73,7 @@ namespace Yafex.FileFormats.LzhsFs
                 : data.Slice(pos, SegmentSize - HEADER_SIZE);
         }
 
-        public LzhsDecoder? NewDecoder()
+        public LzhsDecoder NewDecoder()
         {
             return new LzhsDecoder(SegmentData);
         }

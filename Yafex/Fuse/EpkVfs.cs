@@ -104,7 +104,7 @@ namespace Yafex.Fuse
             var buf = new byte[length];
             try
             {
-                stream.Read(buf);
+                stream.ReadExactly(buf);
             }
             catch (Exception)
             {

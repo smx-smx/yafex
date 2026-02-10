@@ -41,7 +41,7 @@ public class MediatekPkgDetector : IFormatDetector
         return hdr.MtkMagic == PkgHeader.MTK_MAGIC;
     }
 
-    private bool TryDecryptHeaderStandard(Memory64<byte> bytes, [MaybeNullWhen(false)] out Memory64<PkgHeader> header)
+    private bool TryDecryptHeaderStandard(Memory64<byte> bytes, out Memory64<PkgHeader> header)
     {
         var decrypted = _standardDecryptor.Decrypt(bytes.Span);
         if(IsDecryptedHeader(decrypted.Span))
@@ -50,12 +50,12 @@ public class MediatekPkgDetector : IFormatDetector
             return true;
         } else
         {
-            header = null;
+            header = default;
             return false;
         }
     }
 
-    private bool TryDecryptHeaderNew(Memory64<byte> bytes, [MaybeNullWhen(false)] out Memory64<PkgHeader> header)
+    private bool TryDecryptHeaderNew(Memory64<byte> bytes, out Memory64<PkgHeader> header)
     {
         var decryptor = _keys.CreateAesDecryptor("mtkpkg-keys", bytes.Span, IsDecryptedHeader);
         if(decryptor != null)
@@ -65,7 +65,7 @@ public class MediatekPkgDetector : IFormatDetector
             return true;
         } else
         {
-            header = null;
+            header = default;
             return false;
         }
     }

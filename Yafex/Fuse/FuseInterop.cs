@@ -277,7 +277,7 @@ namespace Yafex.Fuse
         public static nint CreateOptionList(IList<fuse_opt> opts)
         {
             var st_size = Marshal.SizeOf(typeof(fuse_opt)) * (opts.Count + 1);
-            var data_size = opts.Sum(s => s.templ.Length + 1);
+            var data_size = opts.Sum(s => (s.templ?.Length + 1) ?? 0);
 
             var buf = Marshal.AllocHGlobal(st_size + data_size);
 

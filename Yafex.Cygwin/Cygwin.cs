@@ -115,7 +115,12 @@ namespace Yafex.Cygwin
                 try
                 {
                     cygwin_conv_path(flags, fromPtr, buffer, bufSize);
-                    result = Marshal.PtrToStringAnsi(buffer);
+                    var converted = Marshal.PtrToStringAnsi(buffer);
+                    if(converted == null)
+                    {
+                        throw new InvalidOperationException("Failed to convert string");
+                    }
+                    result = converted;
                 }
                 finally
                 {
@@ -142,7 +147,12 @@ namespace Yafex.Cygwin
                 try
                 {
                     cygwin_conv_path(flags, fromPtr, buffer, bufSize);
-                    result = Marshal.PtrToStringAnsi(buffer);
+                    var converted = Marshal.PtrToStringAnsi(buffer);
+                    if(converted == null)
+                    {
+                        throw new InvalidOperationException("Failed to convert string");
+                    }
+                    result = converted;
                 }
                 finally
                 {

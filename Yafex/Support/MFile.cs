@@ -24,14 +24,24 @@ namespace Yafex.Support
         private readonly string filePath;
         private readonly FileStream fs;
 
-        private MemoryMappedFile mf;
-        private MemoryMappedSpan<byte> span;
+        private MemoryMappedFile? _mf;
+        private MemoryMappedSpan<byte>? span;
 
-        public Memory64<byte> Data => span.Memory;
+        public Memory64<byte> Data
+        {
+            get
+            {
+                if(span == null)
+                {
+                    throw new InvalidOperationException();
+                }
+                return span.Memory;
+            }
+        }
 
         public IEnumerable<byte> Bytes => Data.ToEnumerable();
 
-        private string _name;
+        private readonly string _name;
         public string? Name
         {
             get => _name;
@@ -43,7 +53,7 @@ namespace Yafex.Support
             set => throw new NotSupportedException();
         }
 
-        private DataSourceFlags _flags;
+        private readonly DataSourceFlags _flags;
         public DataSourceFlags Flags
         {
             get => _flags;
@@ -52,6 +62,10 @@ namespace Yafex.Support
 
         public Span64<T> GetData<T>(int offset = 0) where T : unmanaged
         {
+            if (span == null)
+            {
+                throw new InvalidOperationException();
+            }
             return span.GetSpan()
                        .Slice(offset)
                        .Cast<T>();
@@ -71,11 +85,11 @@ namespace Yafex.Support
                 this.span.Dispose();
             }
             this.span = null;
-            if (this.mf != null)
+            if (this._mf != null)
             {
-                this.mf.Dispose();
+                this._mf.Dispose();
             }
-            this.mf = null;
+            this._mf = null;
         }
 
         public void SetLength(long length)
@@ -96,16 +110,16 @@ namespace Yafex.Support
 
             if (isReadOnly)
             {
-                this.mf = MemoryMappedFile.CreateFromFile(this.fs, null, 0,
+                this._mf = MemoryMappedFile.CreateFromFile(this.fs, null, 0,
                     MemoryMappedFileAccess.Read, HandleInheritability.Inheritable, true);
             }
             else
             {
-                this.mf = MemoryMappedFile.CreateFromFile(this.fs, null, 0,
+                this._mf = MemoryMappedFile.CreateFromFile(this.fs, null, 0,
                     MemoryMappedFileAccess.ReadWrite, HandleInheritability.Inheritable, true);
             }
 
-            this.span = new MemoryMappedSpan<byte>(this.mf, length, readOnly: this.isReadOnly);
+            this.span = new MemoryMappedSpan<byte>(this._mf, length, readOnly: this.isReadOnly);
         }
 
         public MFile(string filePath, bool readOnly = true)
@@ -139,8 +153,8 @@ namespace Yafex.Support
 
         public void Dispose()
         {
-            span.Dispose();
-            mf.Dispose();
+            span?.Dispose();
+            _mf?.Dispose();
             fs.Close();
         }
     }

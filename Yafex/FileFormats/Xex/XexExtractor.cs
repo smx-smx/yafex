@@ -52,6 +52,11 @@ namespace Yafex.FileFormats.Xex
 
         private XexFormat GetXexFormat()
         {
+            if(header == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             switch (header.magic.AsString(Encoding.ASCII))
             {
                 case kXEX1Signature:
@@ -82,6 +87,11 @@ namespace Yafex.FileFormats.Xex
 
         private uint? GetOptHeader(xex2_header_keys key, out long header_offset)
         {
+            if(header == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             header_offset = 0;
 
             var s = Enumerable.Range(0, (int)header.header_count)
@@ -111,6 +121,11 @@ namespace Yafex.FileFormats.Xex
 
         private uint GetBaseAddress()
         {
+            if(security_info == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             var opt_image_base = GetOptHeader(xex2_header_keys.IMAGE_BASE_ADDRESS)?.Let(it =>
             {
                 var view = mem.Slice(it);
@@ -122,6 +137,11 @@ namespace Yafex.FileFormats.Xex
 
         private bool IsPatch()
         {
+            if(header == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             var flags = header.module_flags;
             return flags.HasFlag(xex2_module_flags.MODULE_PATCH)
                 || flags.HasFlag(xex2_module_flags.PATCH_DELTA)
@@ -143,6 +163,13 @@ namespace Yafex.FileFormats.Xex
 
         private void ReadImageUncompressed()
         {
+            if(header == null
+                || opt_file_format_info == null
+                || session_key == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             long exe_length = mem.Length - (int)header.header_size;
             long uncompressed_size = exe_length;
 
@@ -189,6 +216,14 @@ namespace Yafex.FileFormats.Xex
 
         private void ReadImageBasicCompressed()
         {
+            if(header == null
+                || opt_file_format_info == null
+                || security_info == null
+                || session_key == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             long exe_length = mem.Length - (int)header.header_size;
             int block_count = (int)(opt_file_format_info.info_size - 8) / 8;
 
@@ -241,7 +276,7 @@ namespace Yafex.FileFormats.Xex
             aes.Dispose();
         }
 
-        private Memory64<byte> BuildIAT(IMAGE_NT_HEADERS nthdr)
+        private Memory64<byte>? BuildIAT(IMAGE_NT_HEADERS nthdr)
         {
             var pe_impdir = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IMPORT];
             var pe_iat = nthdr.OptionalHeader.DataDirectory[IMAGE_OPTIONAL_HEADER.IMAGE_DIRECTORY_ENTRY_IAT];
@@ -413,6 +448,13 @@ namespace Yafex.FileFormats.Xex
 
         private void ReadImageCompressed()
         {
+            if(header == null
+                || opt_file_format_info == null
+                || session_key == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             var exe_length = mem.Length - header.header_size;
             var compress_buffer = new Memory64<byte>(new byte[exe_length]);
 
@@ -505,6 +547,11 @@ namespace Yafex.FileFormats.Xex
 
         private uint ImageSize()
         {
+            if(security_info == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             uint total_size = (uint)security_info.page_descriptors.Sum(
                 d => d.section.page_count * PageSize()
             );

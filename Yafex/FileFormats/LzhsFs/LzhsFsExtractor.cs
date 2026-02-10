@@ -152,7 +152,12 @@ namespace Yafex.FileFormats.LzhsFs
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
         {
-            string fileName = Path.GetFileNameWithoutExtension(source.Name);
+            var fileName = Path.GetFileNameWithoutExtension(source.Name);
+            if(fileName == null)
+            {
+                throw new InvalidOperationException("Path.GetFileNameWithoutExtension failed");
+            }
+
             string destPath = Path.Combine(source.RequireBaseDirectory(), $"{fileName}.unlzhs");
 
             var rdr = new LzhsFsReader(source);

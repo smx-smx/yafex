@@ -41,11 +41,11 @@ namespace Yafex.FileFormats.Epk
             this.Header = header;
         }
 
-        public AesDecryptor? GetDecryptor(string key)
+        public AesDecryptor GetDecryptor(string key)
         {
             if (!decryptors.TryGetValue(key, out var decryptor))
             {
-                return null;
+                throw new InvalidOperationException($"Missing decryptor for {key}");
             }
             return decryptor;
         }
@@ -55,12 +55,16 @@ namespace Yafex.FileFormats.Epk
             decryptors[key] = decryptor;
         }
 
-        public AesDecryptor? GetOrCreateDecryptor(string key, ReadOnlySpan64<byte> data, CryptoResultChecker checker)
+        public AesDecryptor GetOrCreateDecryptor(string key, ReadOnlySpan64<byte> data, CryptoResultChecker checker)
         {
             var decryptor = GetDecryptor(key);
             if (decryptor == null)
             {
                 decryptor = ServiceFactory.CreateEpkDecryptor(data, checker);
+                if(decryptor == null)
+                {
+                    throw new InvalidOperationException("Failed to create decryptor");
+                }
                 decryptors[key] = decryptor;
             }
             return decryptor;

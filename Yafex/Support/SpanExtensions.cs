@@ -173,8 +173,17 @@ namespace Yafex.Support
         {
             if (field.FieldType.IsArray)
             {
-                MarshalAsAttribute attr = (MarshalAsAttribute)field.GetCustomAttribute(typeof(MarshalAsAttribute), false);
-                return Marshal.SizeOf(field.FieldType.GetElementType()) * attr.SizeConst;
+                var attr = field.GetCustomAttribute<MarshalAsAttribute>(false);
+                if(attr == null)
+                {
+                    throw new InvalidOperationException("Cannot determine Field Size: missing [MarshalAs] attribute");
+                }
+                var elementType = field.FieldType.GetElementType();
+                if(elementType == null)
+                {
+                    throw new InvalidOperationException();
+                }
+                return Marshal.SizeOf(elementType) * attr.SizeConst;
             }
             else
             {
@@ -205,11 +214,15 @@ namespace Yafex.Support
 
             if (field.FieldType.IsArray)
             {
-                MarshalAsAttribute attr = (MarshalAsAttribute)field.GetCustomAttribute(typeof(MarshalAsAttribute), false);
-                int subSize = Marshal.SizeOf(field.FieldType.GetElementType());
-                for (int i = 0; i < attr.SizeConst; i++)
+                var attr = field.GetCustomAttribute<MarshalAsAttribute>(false);
+                var elementType = field.FieldType.GetElementType();
+                if (attr != null && elementType != null)
                 {
-                    Array.Reverse(data, offset + (i * subSize), subSize);
+                    int subSize = Marshal.SizeOf(elementType);
+                    for (int i = 0; i < attr.SizeConst; i++)
+                    {
+                        Array.Reverse(data, offset + (i * subSize), subSize);
+                    }
                 }
             }
             else
@@ -219,15 +232,17 @@ namespace Yafex.Support
         }
 
         /* Adapted from http://stackoverflow.com/a/2624377 */
-        private static T RespectEndianness<T>(T data)
+        private static T RespectEndianness<T>(T data) where T : notnull
         {
             var structEndianness = Endianness.LittleEndian;
             var type = typeof(T);
             if (type.IsDefined(typeof(EndianAttribute), false))
             {
-                EndianAttribute attr = (EndianAttribute)type
-                    .GetCustomAttribute(typeof(EndianAttribute), false);
-                structEndianness = attr.Endianness;
+                var attr = type.GetCustomAttribute<EndianAttribute>(false);
+                if (attr != null)
+                {
+                    structEndianness = attr.Endianness;
+                }
             }
 
             var sz = Marshal.SizeOf(data);
@@ -263,7 +278,12 @@ namespace Yafex.Support
                     }
                 }
                 Marshal.Copy(bytes, 0, mem, sz);
-                data = Marshal.PtrToStructure<T>(mem);
+                var res = Marshal.PtrToStructure<T>(mem);
+                if(res == null)
+                {
+                    throw new InvalidOperationException("Marshal.PtrToStructure failed");
+                }
+                data = res;
             }
             finally
             {

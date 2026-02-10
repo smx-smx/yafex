@@ -142,7 +142,7 @@ namespace Yafex
                             if((res=TryTake(it, out var fmtArg)) == false){
                                 break;
                             }
-                            var p = fmtArg.Split(':', 2);
+                            var p = fmtArg!.Split(':', 2);
                             if (p.Length != 2) break;
                             var (format, prop, _) = p;
 

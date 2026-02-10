@@ -47,11 +47,15 @@ namespace Yafex.Util
 
             while (!sr.EndOfStream)
             {
-                string line = sr.ReadLine();
+                string? line = sr.ReadLine();
+                if (line == null)
+                {
+                    continue;
+                }
 
                 byte[] key = new byte[AES_BLOCK_SIZE];
                 byte[] iv = new byte[AES_BLOCK_SIZE];
-                string comment = null;
+                string? comment = null;
 
                 int i;
                 for (i = 0; i < AES_BLOCK_SIZE * 2; i += 2)

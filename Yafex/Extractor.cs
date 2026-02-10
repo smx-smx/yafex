@@ -26,7 +26,7 @@ namespace Yafex
         public IEnumerable<IDataSource> Extract(IVfsNode? root, IDataSource input)
         {
             var (bestAddon, bestResult) = _finder.DetectFormatAddon(input);
-            if (bestAddon == null)
+            if (bestAddon == null || bestResult == null)
             {
                 yield break;
             }
@@ -34,8 +34,13 @@ namespace Yafex
             var useVfs = root != null;
             if (useVfs)
             {
-                var mountPoint = new YafexDirectory(input.Name, Helpers.OctalLiteral(0755));
-                root.AddNode(mountPoint);
+                var dirName = input.Name;
+                if(dirName == null)
+                {
+                    throw new InvalidOperationException("Node has has no name");
+                }
+                var mountPoint = new YafexDirectory(dirName, Helpers.OctalLiteral(0755));
+                root!.AddNode(mountPoint);
                 root = mountPoint;
             }
 
@@ -65,7 +70,7 @@ namespace Yafex
                     }
                     if (node != null)
                     {
-                        root.AddNode(node);
+                        root!.AddNode(node);
                     }
                 }
                 else

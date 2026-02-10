@@ -125,7 +125,7 @@ namespace Yafex.FileFormats.EpkV2
             string? pakName = null;
 
             MemoryDataSource outputFile;
-            MemoryDataSourceBuffer outputBuffer = null;
+            MemoryDataSourceBuffer? outputBuffer = null;
 
             numberOfSegments = 0;
 
