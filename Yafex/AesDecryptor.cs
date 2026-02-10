@@ -27,12 +27,13 @@ public class AesDecryptor
         ICryptoTransform decryptor = Aes.CreateDecryptor();
 
         var outStream = new MemoryStream();
-        var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
-        foreach (var chunk in data.GetChunks())
+        using (var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write))
         {
-            cs.Write(chunk);
+            foreach (var chunk in data.GetChunks())
+            {
+                cs.Write(chunk);
+            }
         }
-        cs.Flush();
         return outStream.ToArray();
     }
 
