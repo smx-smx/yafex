@@ -26,16 +26,14 @@ public class AesDecryptor
 
         ICryptoTransform decryptor = aes.CreateDecryptor();
 
-        var buffer = new NativeMemoryManager64<byte>(bufferSize);
-        var outStream = new SpanStream(buffer.Memory);
-
+        var outStream = new MemoryStream();
         var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
         foreach (var chunk in data.GetChunks())
         {
             cs.Write(chunk);
         }
         cs.Flush();
-        return buffer.Memory;
+        return outStream.ToArray();
     }
 
     public Memory64<byte> Decrypt(ReadOnlySpan64<byte> data) => Decrypt(data, data.Length);

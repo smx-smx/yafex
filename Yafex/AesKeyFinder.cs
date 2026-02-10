@@ -61,8 +61,7 @@ namespace Yafex
 
             var decryptor = aes.CreateDecryptor();
 
-            var buffer = new NativeMemoryManager64<byte>(data.Length);
-            var outStream = new SpanStream(buffer.Memory);
+            var outStream = new MemoryStream();
 
             var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);
             foreach(var chunk in data.GetChunks())
@@ -71,7 +70,7 @@ namespace Yafex
             }
             cs.Flush();
 
-            var span = buffer.Memory.Span;
+            var span = outStream.ToArray();
             if (validator(span))
             {
                 return span;
