@@ -122,7 +122,7 @@ namespace Yafex.FileFormats.LxBoot
             }
             else
             {
-                return new DetectionResult(0, null);
+                return new LxSecureBootDetectionResult(0, null);
             }
 
             var descrsOffset = variant switch
@@ -156,7 +156,7 @@ namespace Yafex.FileFormats.LxBoot
                 SpbcSecondStageOffset = (secondStageOffset < 0) ? null : (uint)secondStageOffset,
             };
 
-            return new DetectionResult(confidence, ctx);
+            return new LxSecureBootDetectionResult(confidence, ctx);
         }
     }
 }

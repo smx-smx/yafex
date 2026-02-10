@@ -16,11 +16,13 @@ using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.EpkV2
 {
-    class Pak2DetectionResult
+    class Pak2DetectionData
     {
         public bool WasDecrypted { get; set; }
         public PAK_V2_HEADER Header { get; set; }
     }
+
+    record Pak2DetectionResult(int Confidence, Pak2DetectionData Context) : DetectionResult(Confidence) { }
 
     class Pak2Handler<THeader> : IFormatDetector where THeader : struct
     {
@@ -61,7 +63,7 @@ namespace Yafex.FileFormats.EpkV2
             return data.ReadStruct<PAK_V2_HEADER>();
         }
 
-        public DetectionResult Detect(ReadOnlySpan64<byte> data)
+        public Pak2DetectionResult Detect(ReadOnlySpan64<byte> data)
         {
             int confidence = 0;
 
@@ -71,13 +73,13 @@ namespace Yafex.FileFormats.EpkV2
                 confidence += 100;
             }
 
-            var result = new Pak2DetectionResult()
+            var result = new Pak2DetectionData()
             {
                 Header = pak2,
                 WasDecrypted = wasDecrypted
             };
 
-            return new DetectionResult(confidence, result);
+            return new Pak2DetectionResult(confidence, result);
         }
 
         public DetectionResult Detect(IDataSource source) => Detect(source.Data.Span);

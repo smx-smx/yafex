@@ -22,9 +22,9 @@ namespace Yafex.FileFormats.Partinfo
     {
         private PartinfoContext ctx;
 
-        public PartinfoExtractor(DetectionResult result)
+        public PartinfoExtractor(PartinfoDetectionResult result)
         {
-            this.ctx = (PartinfoContext)result.Context!;
+            this.ctx = result.Context;
         }
 
         private PartinfoTable GetPartinfoTable(ReadOnlySpan64<byte> data)

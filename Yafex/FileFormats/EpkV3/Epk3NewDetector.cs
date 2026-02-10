@@ -93,7 +93,7 @@ namespace Yafex.FileFormats.EpkV3
                     confidence = 0;
                 }
             }
-            return new DetectionResult(confidence, ctx);
+            return new Epk3NewDetectionResult(confidence, ctx);
         }
     }
 }

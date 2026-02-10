@@ -24,7 +24,7 @@ public enum MtkPkgVariant
     New
 }
 
-public class MediatekPkgAddon : IFormatAddon
+public class MediatekPkgAddon : IFormatAddon<MediatekPkgDetectionResult>
 {
     public FileFormat FileFormat => FileFormat.MediatekPkg;
 
@@ -40,9 +40,9 @@ public class MediatekPkgAddon : IFormatAddon
         return new MediatekPkgDetector(_keys);
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    public IFormatExtractor CreateExtractor(MediatekPkgDetectionResult result)
     {
-        return new MediatekPkgExtractor((MediatekPkgContext)result.Context!, _keys);
+        return new MediatekPkgExtractor(result.Context, _keys);
     }
 
     public IVfsNode CreateVfsNode(IDataSource ds)

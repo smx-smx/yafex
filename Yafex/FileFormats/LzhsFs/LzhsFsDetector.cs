@@ -26,7 +26,7 @@ namespace Yafex.FileFormats.LzhsFs
         {
             if (source.Data.Length < LzhsFsReader.UNCOMPRESSED_HEADING_SIZE + 32)
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
 
             try
@@ -41,21 +41,21 @@ namespace Yafex.FileFormats.LzhsFs
                 Console.WriteLine($"{firstHdr.Checksum}: " + (result ? "PASS" : "FAIL"));
 
                 if (result) {
-                    return new DetectionResult(80, null);
+                    return new SimpleDetectionResult(80);
                 }
 
                 //Decompression failed, but we want to check in case the first segment is stored uncompressed
                 if (dec.header.Checksum == 0x00 && dec.header.CompressedSize == dec.header.UncompressedSize)
                 {
-                    return new DetectionResult(50, null);
+                    return new SimpleDetectionResult(50);
                 }
                     
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
 
             }
             catch (InvalidDataException)
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
         }
     }

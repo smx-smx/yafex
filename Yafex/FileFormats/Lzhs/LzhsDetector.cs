@@ -33,7 +33,7 @@ namespace Yafex.FileFormats.Lzhs
             }
             catch (InvalidDataException)
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
 
             var decoder = new LzhsDecoder(data);
@@ -41,11 +41,11 @@ namespace Yafex.FileFormats.Lzhs
             foreach (var item in decoder.AsEnumerable()) ;
             if (decoder.VerifyChecksum())
             {
-                return new DetectionResult(50, null);
+                return new SimpleDetectionResult(50);
             }
             else
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
         }
     }

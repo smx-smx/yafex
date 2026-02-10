@@ -12,6 +12,8 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.MediatekPkg;
 
+public record MediatekPkgDetectionResult(int Confidence, MediatekPkgContext? Context) : DetectionResult(Confidence);
+
 public class MediatekPkgDetector : IFormatDetector
 {
     private const string HEADER_KEY_ID = "mtkpkg-header-key";
@@ -80,14 +82,14 @@ public class MediatekPkgDetector : IFormatDetector
         {
             _ctx.Header = hdr;
             _ctx.Variant = MtkPkgVariant.Standard;
-            return new DetectionResult(100, _ctx);
+            return new MediatekPkgDetectionResult(100, _ctx);
         }
 
         if(TryDecryptHeaderNew(headerBytes, out hdr))
         {
             _ctx.Header = hdr;
             _ctx.Variant = MtkPkgVariant.New;
-            return new DetectionResult(100, _ctx);
+            return new MediatekPkgDetectionResult(100, _ctx);
         }
 
         /* It failed, but we want to check for Philips.
@@ -99,9 +101,9 @@ public class MediatekPkgDetector : IFormatDetector
             _ctx.Header = hdr;
             _ctx.Variant = MtkPkgVariant.Standard;
             _ctx.Flags |= MtkPkgQuirks.Philips;
-            return new DetectionResult(100, _ctx);
+            return new MediatekPkgDetectionResult(100, _ctx);
         }
 
-        return new DetectionResult(0, null);
+        return new MediatekPkgDetectionResult(0, null);
     }
 }

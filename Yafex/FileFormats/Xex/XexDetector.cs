@@ -24,9 +24,9 @@ namespace Yafex.FileFormats.Xex
                     .AsString(Encoding.ASCII) == "XEX2"
             )
             {
-                return new DetectionResult(50, null);
+                return new SimpleDetectionResult(50);
             }
-            return new DetectionResult(0, null);
+            return new SimpleDetectionResult(0);
         }
     }
 }

@@ -24,7 +24,7 @@ namespace Yafex.FileFormats.MStarPkg
         {
             if (source.Data.Length < MBOOT_SCRIPT_SIZE)
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
 
             var script = Encoding.ASCII.GetString(
@@ -33,10 +33,10 @@ namespace Yafex.FileFormats.MStarPkg
 
             if (script.Contains("setenv MstarUpgrade_complete"))
             {
-                return new DetectionResult(100, null);
+                return new SimpleDetectionResult(100);
             }
 
-            return new DetectionResult(0, null);
+            return new SimpleDetectionResult(0);
         }
     }
 }

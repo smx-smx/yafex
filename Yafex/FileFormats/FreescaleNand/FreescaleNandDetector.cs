@@ -24,9 +24,9 @@ namespace Yafex.FileFormats.FreescaleNand
                 .AsString(Encoding.ASCII) == "FCB "
             )
             {
-                return new DetectionResult(100, null);
+                return new SimpleDetectionResult(100);
             }
-            return new DetectionResult(0, null);
+            return new SimpleDetectionResult(0);
         }
     }
 }

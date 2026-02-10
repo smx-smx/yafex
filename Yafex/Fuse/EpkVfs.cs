@@ -191,7 +191,7 @@ namespace Yafex.Fuse
             var keysBundle = new KeyBundle(Path.Combine(@"C:\TEMP", "secrets.json"));
             var keysRepo = new KeysRepository(keysBundle);
 
-            var a = new Epk2Addon(keysRepo);
+            IFormatAddon a = new Epk2Addon(keysRepo);
             var detector = a.CreateDetector(new Dictionary<string, string>());
             var mf = new Yafex.Support.MFile(epkPath);
             var res = detector.Detect(mf);

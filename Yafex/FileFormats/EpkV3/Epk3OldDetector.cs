@@ -77,7 +77,7 @@ namespace Yafex.FileFormats.EpkV3
             var type = DetectEpk3Type(data);
             if (type == Epk3Variant.UNKNOWN)
             {
-                return new DetectionResult(0, null);
+                return new SimpleDetectionResult(0);
             }
 
             confidence += 50;

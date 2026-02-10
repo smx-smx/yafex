@@ -15,7 +15,7 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Partinfo
 {
-    public class PartinfoAddon : IFormatAddon
+    public class PartinfoAddon : IFormatAddon<PartinfoDetectionResult>
     {
         public FileFormat FileFormat => FileFormat.Partinfo;
 
@@ -24,7 +24,7 @@ namespace Yafex.FileFormats.Partinfo
             return new PartinfoDetector();
         }
 
-        public IFormatExtractor CreateExtractor(DetectionResult result)
+        public IFormatExtractor CreateExtractor(PartinfoDetectionResult result)
         {
             return new PartinfoExtractor(result);
         }

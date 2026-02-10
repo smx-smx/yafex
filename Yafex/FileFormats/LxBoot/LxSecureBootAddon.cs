@@ -14,7 +14,9 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.LxBoot
 {
-    public class LxSecureBootAddon : IFormatAddon
+    public record LxSecureBootDetectionResult(int Confidence, LxSecureBootContext? Context) : DetectionResult(Confidence) { }
+
+    public class LxSecureBootAddon : IFormatAddon<LxSecureBootDetectionResult>
     {
         public FileFormat FileFormat => FileFormat.LxSecureBoot;
 
@@ -23,9 +25,14 @@ namespace Yafex.FileFormats.LxBoot
             return new LxSecureBootDetector();
         }
 
-        public IFormatExtractor CreateExtractor(DetectionResult result)
+        public IFormatExtractor CreateExtractor(LxSecureBootDetectionResult result)
         {
-            return new LxSecureBootExtractor((LxSecureBootContext)result.Context);
+            return new LxSecureBootExtractor(result.Context);
+        }
+
+        public IFormatExtractor CreateExtractor<T>(T result) where T : DetectionResult
+        {
+            throw new System.NotImplementedException();
         }
 
         public IVfsNode CreateVfsNode(IDataSource ds)

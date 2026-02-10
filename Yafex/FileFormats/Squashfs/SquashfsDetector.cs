@@ -39,7 +39,7 @@ namespace Yafex.FileFormats.Squashfs
                 confidence += 100;
             }
 
-            return new DetectionResult(confidence, null);
+            return new SimpleDetectionResult(confidence);
         }
     }
 }

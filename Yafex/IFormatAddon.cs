@@ -8,6 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -18,8 +19,24 @@ namespace Yafex
     public interface IFormatAddon
     {
         FileFormat FileFormat { get; }
-        IFormatExtractor CreateExtractor(DetectionResult result);
         IFormatDetector CreateDetector(IDictionary<string, string> args);
         IVfsNode CreateVfsNode(IDataSource ds);
+
+        IFormatExtractor CreateExtractor(DetectionResult result);
+    }
+
+    public interface IFormatAddon<TResult> : IFormatAddon where TResult : DetectionResult
+    {
+        IFormatExtractor IFormatAddon.CreateExtractor(DetectionResult result)
+        {
+            if (this is not IFormatAddon<TResult> typedIface
+                || result is not TResult typedResult)
+            {
+                throw new InvalidOperationException();
+            }
+            return typedIface.CreateExtractor(typedResult);
+        }
+
+        IFormatExtractor CreateExtractor(TResult result);
     }
 }

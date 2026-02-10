@@ -54,6 +54,10 @@ namespace Yafex.FileFormats.EpkV2
         }
     }
 
+    public record Epk2DetectionResult<T>(int Confidence, EpkContext<T>? Context) : DetectionResult(Confidence)
+        where T : struct
+    { }
+
     public abstract class AbstractEpk2Extractor<THeader> : IFormatExtractor
         where THeader : struct, IEpkV2Header
     {
@@ -61,24 +65,19 @@ namespace Yafex.FileFormats.EpkV2
 
         private readonly EpkContext<THeader> _ctx;
 
-        public AbstractEpk2Extractor(DetectionResult result)
+        public AbstractEpk2Extractor(Epk2DetectionResult<THeader> result)
         {
             if (result.Context == null)
             {
                 throw new ArgumentNullException(nameof(result.Context));
             }
-            var ctx = result.Context as EpkContext<THeader>;
-            if (ctx == null)
-            {
-                throw new ArgumentException("invalid context type");
-            }
-            _ctx = ctx;
+            _ctx = result.Context;
         }
 
         protected abstract ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data) where T : unmanaged;
         protected abstract int PakStructureSize { get; }
 
-        private Pak2DetectionResult GetPak2Header(ReadOnlySpan64<byte> fileData, int offset)
+        private Pak2DetectionData GetPak2Header(ReadOnlySpan64<byte> fileData, int offset)
         {
             var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
 
@@ -91,7 +90,7 @@ namespace Yafex.FileFormats.EpkV2
                 throw new Exception("Invalid PAK2 header, or decryption failed");
             }
 
-            return (Pak2DetectionResult)pakResult.Context!;
+            return (Pak2DetectionData)pakResult.Context!;
         }
 
         private MemoryDataSourceBuffer NewPakBuffer(PAK_V2_HEADER pakHdr)
@@ -242,7 +241,7 @@ namespace Yafex.FileFormats.EpkV2
 
     public class Epk2Extractor : AbstractEpk2Extractor<EPK_V2_HEADER>
     {
-        public Epk2Extractor(DetectionResult result) : base(result)
+        public Epk2Extractor(Epk2DetectionResult<EPK_V2_HEADER> result) : base(result)
         {
         }
 
@@ -258,7 +257,7 @@ namespace Yafex.FileFormats.EpkV2
 
     public class Epk2BetaExtractor : AbstractEpk2Extractor<EPK_V2_BETA_HEADER>
     {
-        public Epk2BetaExtractor(DetectionResult result) : base(result)
+        public Epk2BetaExtractor(Epk2DetectionResult<EPK_V2_BETA_HEADER> result) : base(result)
         {
         }
 

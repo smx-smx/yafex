@@ -14,16 +14,17 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
 {
+    public record Epk3NewDetectionResult(int Confidence, Epk3NewContext? Context) : DetectionResult(Confidence);
+
     public class Epk3NewExtractor : IFormatExtractor
     {
         private static readonly ILog logger = LogManager.GetLogger(typeof(Epk3NewExtractor));
 
         private readonly Epk3NewContext ctx;
 
-        public Epk3NewExtractor(DetectionResult result)
+        public Epk3NewExtractor(Epk3NewDetectionResult result)
         {
-            this.ctx = (Epk3NewContext)result.Context!;
-
+            this.ctx = result.Context;
         }
 
         private IEnumerable<PAK_V3_HEADER> GetPackageInfoPackages(Memory64<byte> packageInfo, int packageInfoCount)

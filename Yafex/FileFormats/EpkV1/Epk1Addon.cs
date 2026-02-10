@@ -12,11 +12,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+using Yafex.FileFormats.LxBoot;
 using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV1
 {
-    public class Epk1Addon : IFormatAddon
+    public class Epk1Addon : IFormatAddon<Epk1DetectionResult>
     {
         public FileFormat FileFormat => FileFormat.EpkV1;
 
@@ -25,7 +26,7 @@ namespace Yafex.FileFormats.EpkV1
             return new Epk1Detector();
         }
 
-        public IFormatExtractor CreateExtractor(DetectionResult result)
+        public IFormatExtractor CreateExtractor(Epk1DetectionResult result)
         {
             return new Epk1Extractor(result);
         }

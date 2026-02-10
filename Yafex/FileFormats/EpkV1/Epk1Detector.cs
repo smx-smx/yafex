@@ -19,6 +19,10 @@ namespace Yafex.FileFormats.EpkV1
         New
     }
 
+    public record Epk1DetectionResult(int confidence, Epk1Type EpkType) : DetectionResult(confidence)
+    {
+    }
+
     public class Epk1Detector : IFormatDetector
     {
         public Epk1Detector()
@@ -53,7 +57,7 @@ namespace Yafex.FileFormats.EpkV1
             }
 
             var epkType = GetEpkType(hdr);
-            return new DetectionResult(confidence, epkType);
+            return new Epk1DetectionResult(confidence, epkType);
         }
     }
 }

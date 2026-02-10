@@ -14,7 +14,7 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV2
 {
-    public class Epk2Addon : IFormatAddon
+    public class Epk2Addon : IFormatAddon<Epk2DetectionResult<EPK_V2_HEADER>>
     {
         public FileFormat FileFormat => FileFormat.EpkV2;
 
@@ -30,7 +30,7 @@ namespace Yafex.FileFormats.EpkV2
             return new Epk2Detector(_keysRepo);
         }
 
-        public IFormatExtractor CreateExtractor(DetectionResult result)
+        public IFormatExtractor CreateExtractor(Epk2DetectionResult<EPK_V2_HEADER> result)
         {
             return new Epk2Extractor(result);
         }

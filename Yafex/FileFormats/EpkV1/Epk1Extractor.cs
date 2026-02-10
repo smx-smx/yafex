@@ -27,9 +27,9 @@ namespace Yafex.FileFormats.EpkV1
 
         private static readonly ILog log = LogManager.GetLogger(nameof(Epk1Extractor));
 
-        public Epk1Extractor(DetectionResult result)
+        public Epk1Extractor(Epk1DetectionResult result)
         {
-            this.epkType = (Epk1Type)result.Context!;
+            this.epkType = result.EpkType;
         }
 
         private IEnumerable<IDataSource> ExtractEpk1Be(IDataSource source)

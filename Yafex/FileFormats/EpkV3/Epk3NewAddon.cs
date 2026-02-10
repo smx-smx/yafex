@@ -14,7 +14,7 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.EpkV3
 {
-    public class Epk3NewAddon : IFormatAddon
+    public class Epk3NewAddon : IFormatAddon<Epk3NewDetectionResult>
     {
         public FileFormat FileFormat => FileFormat.EpkV3b;
 
@@ -30,7 +30,7 @@ namespace Yafex.FileFormats.EpkV3
             return new Epk3NewDetector(_keysRepo);
         }
 
-        public IFormatExtractor CreateExtractor(DetectionResult result)
+        public IFormatExtractor CreateExtractor(Epk3NewDetectionResult result)
         {
             return new Epk3NewExtractor(result);
         }

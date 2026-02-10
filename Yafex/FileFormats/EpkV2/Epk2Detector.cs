@@ -8,13 +8,16 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System;
+
 using log4net;
 
-using Yafex.FileFormats.Epk;
-using Yafex.Support;
-
-using System;
 using Smx.SharpIO.Memory.Buffers;
+
+using Yafex.FileFormats.Epk;
+using Yafex.FileFormats.EpkV1;
+using Yafex.FileFormats.EpkV3;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
@@ -49,7 +52,7 @@ namespace Yafex.FileFormats.EpkV2
             var data = source.Data.Span;
 
             int confidence = 0;
-            object? ctx = null;
+            Epk2Context? ctx = null;
 
             // Beta EPK2 has no signatures, and immediately starts with the header
             bool isBetaEpk = IsPlainHeaderData(data);
@@ -85,11 +88,11 @@ namespace Yafex.FileFormats.EpkV2
             {
                 confidence += 100;
                 ctx = CreateContext(header);
-                return new DetectionResult(confidence, ctx);
+                return new Epk2DetectionResult<EPK_V2_HEADER>(confidence, ctx);
             }
 
 
-            return new DetectionResult(confidence, ctx);
+            return new Epk2DetectionResult<EPK_V2_HEADER>(confidence, ctx);
         }
     }
 }

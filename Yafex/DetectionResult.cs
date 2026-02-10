@@ -10,17 +10,17 @@
 #endregion
 namespace Yafex
 {
-    public class DetectionResult
+    public abstract record DetectionResult
     {
         public int Confidence { get; private set; }
-        public object? Context { get; private set; }
 
-        public DetectionResult(int confidence, object? context)
+        public DetectionResult(int confidence)
         {
             this.Confidence = confidence;
-            this.Context = context;
         }
 
         public bool Succeded() => Confidence > 0;
     }
+
+    public record SimpleDetectionResult(int Confidence) : DetectionResult(Confidence);
 }

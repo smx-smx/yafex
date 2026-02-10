@@ -13,9 +13,9 @@ namespace Yafex.FileFormats.Nfwb
                     .AsString(Encoding.ASCII) == "NFWB"
             )
             {
-                return new DetectionResult(90, null);
+                return new SimpleDetectionResult(90);
             }
-            return new DetectionResult(0, null);
+            return new SimpleDetectionResult(0);
         }
     }
 }

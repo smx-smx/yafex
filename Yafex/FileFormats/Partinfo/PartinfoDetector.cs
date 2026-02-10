@@ -16,6 +16,8 @@ using System.Linq;
 
 namespace Yafex.FileFormats.Partinfo
 {
+    public record PartinfoDetectionResult(int Confidence, PartinfoContext? Context) : DetectionResult(Confidence);
+
     public class PartinfoDetector : IFormatDetector
     {
         private static ILog log = LogManager.GetLogger(nameof(PartinfoDetector));
@@ -63,7 +65,7 @@ namespace Yafex.FileFormats.Partinfo
                     };
                     break;
             }
-            return new DetectionResult(confidence, ctx);
+            return new PartinfoDetectionResult(confidence, ctx);
         }
     }
 }
