@@ -28,7 +28,7 @@ namespace Yafex.FileFormats.SddlSec
 
 		public SddlSecExtractor(SddlSecContext ctx, KeysRepository keys) {
 			var aesKey = keys.GetKey(AES_KEY_ID);
-			_aesKey = aesKey.GetAes();
+			_aesKey = aesKey.GetAes(PaddingMode.PKCS7);
 			Decryptor = new AesDecryptor(_aesKey);
             _ctx = ctx;
 		}
@@ -102,7 +102,7 @@ namespace Yafex.FileFormats.SddlSec
 
 		public List<SditModuleEntry> ParseSditToModules(Memory64<byte> sditData)
 		{
-			var dataStream = new SpanStream(sditData);
+			var dataStream = new SpanStream(sditData, Endianness.BigEndian);
 			var sditHeader = dataStream.ReadStruct<SditHeader>();
 
 			if (!sditHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC)){
@@ -120,7 +120,6 @@ namespace Yafex.FileFormats.SddlSec
 
 				for (int entry_i = 0; entry_i < groupHeader.EntryCount; entry_i++)
 				{
-					//log.Debug($"[SDIT] {dataStream.Position}");
 					var moduleEntry = dataStream.ReadStruct<SditModuleEntry>();
 					log.Debug($"[SDIT] - Entry: {moduleEntry.ModuleName}, Segcount: {moduleEntry.SegmentCount}, Version {moduleEntry.VersionString}");
 
@@ -136,15 +135,15 @@ namespace Yafex.FileFormats.SddlSec
 			return moduleList;
 		}
 
-		public static string SDIT_FILENAME = "SDIT.FDI";
+		public static string SDIT_FILE_NAME = "SDIT.FDI";
 		public static string INFO_FILE_EXTENSION = ".TXT";
 		public static int SUB_FILE_NAME_LENGHT = 0x100;
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			var data = source.Data;
-			var st = new SpanStream(data);
+			var st = new SpanStream(data, Endianness.BigEndian);
 
-            log.Info("Firmware Info");
+            log.Info("File Info");
             log.Info("-------------");
             log.Info($"Info file count: {Header.InfoEntriesCount}");
             log.Info($"Module file count: {Header.ModuleEntriesCount}");
@@ -157,10 +156,19 @@ namespace Yafex.FileFormats.SddlSec
 
 			//get SDIT (always the first file)
 			var (sditEntry, sditData) = GetFile(st);
-			if (sditEntry.FileName != SDIT_FILENAME) {
-				throw new InvalidDataException($"Expected {SDIT_FILENAME} as the first file, got {sditEntry.FileName}");
+			if (sditEntry.FileName != SDIT_FILE_NAME) {
+				throw new InvalidDataException($"Expected {SDIT_FILE_NAME} as the first file, got {sditEntry.FileName}");
 			}
 			log.Info($"[SDIT] Name: {sditEntry.FileName}, Size: {sditEntry.FileSize}");
+			if (_ctx.SaveSDIT) {
+				var artifact = new MemoryDataSource(sditData) {
+                	Name = sditEntry.FileName
+            	};
+            	artifact.SetChildOf(source);
+            	artifact.AddMetadata(new OutputFileName(sditEntry.FileName));
+            	artifact.AddMetadata(new OutputDirectoryName(basedir));
+            	yield return artifact;
+			}
 
 			//.. parse SDIT to get module counts ..
 			var moduleList = ParseSditToModules(sditData);
@@ -173,9 +181,21 @@ namespace Yafex.FileFormats.SddlSec
 					throw new InvalidDataException($"Info file {fileEntry.FileName} does not have the expected extension {INFO_FILE_EXTENSION}");
 				}
 				log.Info($"[INFO] #{i + 1}/{Header.InfoEntriesCount} - Name: {fileEntry.FileName}, Size: {fileEntry.FileSize}");
+				if (_ctx.SaveInfo) {
+					var artifact = new MemoryDataSource(fileData) {
+                		Name = fileEntry.FileName
+            		};
+            		artifact.SetChildOf(source);
+            		artifact.AddMetadata(new OutputFileName(fileEntry.FileName));
+            		artifact.AddMetadata(new OutputDirectoryName(basedir));
+            		yield return artifact;
+				}
 
-				//TODO: print the contents of file (once PCKS7 is working)
-				//maybe the first line of the info file can be used as output folder
+				//print content of info file
+				var infoString = Encoding.UTF8.GetString(fileData.ToArray());
+				foreach(var line in infoString.Split("\n")) {
+					log.Info($"{line}");
+				}
 			}
 
 			//here process the modules that were parsed from SDIT (all following files are modules in the order they appear in SDIT)
@@ -199,20 +219,18 @@ namespace Yafex.FileFormats.SddlSec
 					}
 
 					//parse module seg data
-					var moduleStream = new SpanStream(moduleData);
+					var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
 					var moduleHeader = moduleStream.ReadStruct<ModuleHeader>();
-					if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.BE_HEADER_MAGIC)){ //FIXME: need fix in byteswap to avoid BE_HEADER_MAGIC
+					if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC)){
 						throw new InvalidDataException("Invalid module header magic");
 					}
 
-					var cipheredData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
-					var decipheredData = Decipher(cipheredData);
+					var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
+					var decipheredData = moduleHeader.isCiphered? Decipher(storedData) : storedData;
 					var finalData = moduleHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
 
-					var contentReader = new SpanStream(finalData);
-					var _magic1 = contentReader.ReadBytes(1); //FIXME: FIX THIS IS BYTE ISSUE
+					var contentReader = new SpanStream(finalData, Endianness.BigEndian);
 					var contentHeader = contentReader.ReadStruct<ContentHeader>();
-					var _magic2 = contentReader.ReadBytes(1); //FIXME: FIX THIS IS BYTE ISSUE
 
 					//TODO: figure out how to handle this
 					var subFileName = contentHeader.hasSubFile ? contentReader.ReadBytes(SUB_FILE_NAME_LENGHT).AsString(Encoding.ASCII) : null;
@@ -235,6 +253,7 @@ namespace Yafex.FileFormats.SddlSec
 				artifact.SetChildOf(source);
 				artifact.AddMetadata(new OutputFileName(fileName));
 				artifact.AddMetadata(new OutputDirectoryName(basedir));
+				artifact.Flags |= DataSourceFlags.ProcessFurther;
 				yield return artifact;
 
 				iModule++;

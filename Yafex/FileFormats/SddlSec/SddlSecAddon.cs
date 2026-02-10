@@ -18,7 +18,7 @@ namespace Yafex.FileFormats.SddlSec
 
         public IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
-            return new SddlSecDetector();
+            return new SddlSecDetector(args);
         }
 
         public IFormatExtractor CreateExtractor(SddlSecDetectionResult result)

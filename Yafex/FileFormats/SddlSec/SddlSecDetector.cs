@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
@@ -13,9 +14,23 @@ namespace Yafex.FileFormats.SddlSec
     public class SddlSecDetector : IFormatDetector
     {
         private readonly SddlSecContext _ctx;
-        public SddlSecDetector()
+        public SddlSecDetector(IDictionary<string, string> args)
         {
             _ctx = new SddlSecContext();
+
+            if(args.TryGetValue("save-extra", out string saveExtra))
+            {
+                if (saveExtra == "sdit"){
+                    _ctx.SaveSDIT = true;
+                }
+                if (saveExtra == "info"){
+                    _ctx.SaveInfo = true;
+                }
+                if (saveExtra == "all"){
+                    _ctx.SaveSDIT = true;
+                    _ctx.SaveInfo = true;
+                }
+            }
         }
 
         public DetectionResult Detect(IDataSource source)
