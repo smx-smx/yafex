@@ -26,7 +26,7 @@ namespace Yafex
         public required byte[] iv;
         public required string comment;
 
-        public Aes GetAes()
+        public Aes GetAes(PaddingMode paddingMode = PaddingMode.None)
         {
             var blockSize = key.Length * 8;
 
@@ -40,7 +40,7 @@ namespace Yafex
             }
             aes.Mode = keyMode;
             // $FIXME: expose in JSON, if/when needed
-            aes.Padding = PaddingMode.None;
+            aes.Padding = paddingMode;
             return aes;
         }
     }

@@ -11,11 +11,11 @@ namespace Yafex;
 
 public class AesDecryptor
 {
-    public Aes aes;
+    public Aes Aes { get; private set; }
 
     public AesDecryptor(Aes aes)
     {
-        this.aes = aes;
+        this.Aes = aes;
     }
 
     public Memory64<byte> Decrypt(ReadOnlySpan64<byte> data, long bufferSize)
@@ -24,7 +24,7 @@ public class AesDecryptor
             throw new ArgumentException("provided bufferSize is smaller than the size of the data");
         }
 
-        ICryptoTransform decryptor = aes.CreateDecryptor();
+        ICryptoTransform decryptor = Aes.CreateDecryptor();
 
         var outStream = new MemoryStream();
         var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write);

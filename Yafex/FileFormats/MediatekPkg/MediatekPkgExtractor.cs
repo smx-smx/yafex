@@ -62,7 +62,7 @@ public class MediatekPkgExtractor : IFormatExtractor
         var decrypted = decryptor.Decrypt(alignedSlice.Span, data.Length);
 
         //deXOR unaligned data with the AES key.
-        var aesKey = decryptor.aes.Key;
+        var aesKey = decryptor.Aes.Key;
         var outTailSpan = decrypted.Span.Slice(alignedLen);
         for (int i = 0; i < unalignedSlice.Length; i++)
         {
