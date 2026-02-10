@@ -125,7 +125,7 @@ namespace Yafex.FileFormats.EpkV3
                         chunk.ToString(); // $DEBUG
                     }
 
-                    logger.DebugFormat("segment #{0} (name='{1}', version='{2}', offset='0x{3}', size='{4} bytes')",
+                    logger.InfoFormat("segment #{0} (name='{1}', version='{2}', offset='0x{3}', size='{4} bytes')",
                         chunk.segmentInfo.segmentIndex + 1,
                         chunk.packageName.AsString(Encoding.ASCII),
                         $"{chunk.packageVersion[3]}.{chunk.packageVersion[2]}.{chunk.packageVersion[1]}.{chunk.packageVersion[0]}",
