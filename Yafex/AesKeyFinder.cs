@@ -59,18 +59,7 @@ namespace Yafex
             aes.Mode = keyEntry.keyMode;
             aes.Padding = PaddingMode.None;
 
-            var decryptor = aes.CreateDecryptor();
-
-            var outStream = new MemoryStream();
-
-            using (var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write))
-            {
-                foreach (var chunk in data.GetChunks())
-                {
-                    cs.Write(chunk);
-                }
-            }
-
+            var outStream = new AesDecryptor(aes).Decrypt(data);
             var span = outStream.ToArray();
             if (validator(span))
             {
