@@ -27,6 +27,7 @@ using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Nfwb;
 using Yafex.FileFormats.Partinfo;
 using Yafex.FileFormats.Xex;
+using Yafex.FileFormats.SddlSec;
 
 namespace Yafex
 {
@@ -86,6 +87,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, NfwbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MediatekPkgAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, LzhsFsAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, SddlSecAddon>(key);
         }
     }
 }

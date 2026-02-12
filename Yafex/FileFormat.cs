@@ -27,6 +27,7 @@ namespace Yafex
         Xex,
         LxSecureBoot,
         Nfwb,
-        MediatekPkg
+        MediatekPkg,
+        SddlSec
     }
 }
