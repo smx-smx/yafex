@@ -26,7 +26,7 @@ namespace Yafex.FileFormats.FreescaleNand
             {
                 return new SimpleDetectionResult(100);
             }
-            return new SimpleDetectionResult(0);
+            return DetectionResult.Fail;
         }
     }
 }

@@ -14,6 +14,8 @@ using Smx.SharpIO.Memory.Buffers;
 using System;
 using System.Linq;
 
+using Yafex.Support;
+
 namespace Yafex.FileFormats.Xex
 {
     public class IMAGE_DOS_HEADER

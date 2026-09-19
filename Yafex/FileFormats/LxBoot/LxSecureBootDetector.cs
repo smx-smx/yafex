@@ -83,8 +83,7 @@ namespace Yafex.FileFormats.LxBoot
         {
             var data = source.Data;
 
-            using var reader = new SpanStream(data)
-                .Also(it => it.Endianness = Endianness.LittleEndian);
+            using var reader = new SpanStream(data, Endianness.LittleEndian);
 
             var u4String = (uint v) =>
             {
@@ -98,31 +97,47 @@ namespace Yafex.FileFormats.LxBoot
                     .Let(b => Encoding.ASCII.GetString(b));
             };
 
-            var readU4string = (uint offset) =>
+            var readU4string = (uint offset, out string str) =>
             {
-                return reader.PerformAt(offset, () =>
+                var res = reader.PerformAt(offset, () =>
                 {
-                    return reader.ReadUInt32().Let(u4String);
+                    if(!reader.TryReadUInt32(out var dw))
+                    {
+                        return null;
+                    }
+                    return u4String(dw);
                 });
+                str = res == null
+                    ? string.Empty
+                    : res;
+
+                return res != null;
             };
 
-            var magic1 = reader.ReadUInt32().Let(u4String);
-            var magic2 = reader.ReadUInt32().Let(u4String);
+            if(!reader.TryReadUInt32(out var dw1)
+            || !reader.TryReadUInt32(out var dw2))
+            {
+                return DetectionResult.Fail;
+            }
+            var magic1 = u4String(dw1);
+            var magic2 = u4String(dw2);
 
             var confidence = 0;
 
             SpbcVariant variant = SpbcVariant.Unknown;
-            if (readU4string(0xD0) == SIC_MAGIC)
+
+            string sicMagic = string.Empty;
+            if(readU4string(0xD0, out sicMagic) && sicMagic == SIC_MAGIC)
             {
                 variant = SpbcVariant.Old;
             }
-            else if (readU4string(0x240) == SIC_MAGIC)
+            else if (readU4string(0x240, out sicMagic) && sicMagic == SIC_MAGIC)
             {
                 variant = SpbcVariant.New;
             }
             else
             {
-                return new LxSecureBootDetectionResult(0, null);
+                return DetectionResult.Fail;
             }
 
             var descrsOffset = variant switch
@@ -136,12 +151,22 @@ namespace Yafex.FileFormats.LxBoot
             confidence += IsKnownMagic(magic1) ? 20 : 0;
             confidence += IsKnownMagic(magic2) ? 20 : 0;
 
-            var descrs = reader.PerformAt(descrsOffset, () =>
+            var descrsPairs = reader.PerformAt(descrsOffset, () =>
             {
                 return Enumerable.Range(0, 2)
-                    .Select(_ => reader.ReadStruct<SpbcDescriptor>())
+                    .Select(_ => {
+                        var res = reader.TryReadStruct(out SpbcDescriptor descr);
+                        return (res, descr);
+                    })
                     .ToList();
             });
+
+            if (descrsPairs.Any(x => !x.res))
+            {
+                return DetectionResult.Fail;
+            }
+
+            var descrs = descrsPairs.Select(x => x.descr).ToList();
 
             var spbcLoadAddress = descrs.First().LoadAddress;
             logger.InfoFormat("SPBC Load Address: 0x{0:X}", spbcLoadAddress);

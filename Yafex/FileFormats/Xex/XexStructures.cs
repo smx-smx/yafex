@@ -17,6 +17,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 
+using Yafex.Support;
+
 namespace Yafex.FileFormats.Xex
 {
     public enum xex2_section_type : byte

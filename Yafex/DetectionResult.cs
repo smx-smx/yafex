@@ -20,6 +20,8 @@ namespace Yafex
         }
 
         public bool Succeded() => Confidence > 0;
+
+        public static DetectionResult Fail => new SimpleDetectionResult(0);
     }
 
     public record SimpleDetectionResult(int Confidence) : DetectionResult(Confidence);
