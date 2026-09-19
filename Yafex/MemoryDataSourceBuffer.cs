@@ -15,7 +15,7 @@ using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex
 {
-    public class MemoryDataSourceBuffer : BaseDataSource, IDisposable
+    public class MemoryDataSourceBuffer : BaseDataSource, IArtifactBuffer
     {
         private readonly MemoryStream mem;
 
@@ -52,7 +52,7 @@ namespace Yafex
             mem.Position = savedPos;
         }
 
-        public MemoryDataSource ToDataSource()
+        public IDataSource ToDataSource()
         {
             var ds = new MemoryDataSource(mem.ToArray())
             {

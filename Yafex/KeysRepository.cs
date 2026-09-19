@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
+
+using log4net;
 
 using Smx.SharpIO.Memory.Buffers;
 
@@ -10,6 +14,8 @@ namespace Yafex;
 
 public class KeysRepository
 {
+    private static readonly ILog log = LogManager.GetLogger(typeof(KeysRepository));
+
     private readonly KeyBundle _keyBundle;
 
     public KeysRepository(
@@ -24,6 +30,13 @@ public class KeysRepository
         return _keyBundle.GetKey(id);
     }
 
+    public bool TryGetKey(string id, out KeyEntry key)
+    {
+        key = null!;
+        if (_keyBundle == null) return false;
+        return _keyBundle.TryGetKey(id, out key);
+    }
+
     public T GetItem<T>(string id)
     {
         return _keyBundle.GetItem<T>(id);
@@ -32,6 +45,13 @@ public class KeysRepository
     public IEnumerable<KeyEntry> GetKeyCollection(string id)
     {
         return _keyBundle.GetKeyCollection(id);
+    }
+
+    public bool TryGetKeyCollection(string id, out IEnumerable<KeyEntry> keys)
+    {
+        keys = Enumerable.Empty<KeyEntry>();
+        if (_keyBundle == null) return false;
+        return _keyBundle.TryGetKeyCollection(id, out keys);
     }
 
     public AesDecryptor? CreateAesDecryptor<T>(
@@ -46,8 +66,19 @@ public class KeysRepository
         }
 
         var keyFinder = new AesKeyFinder(_keyBundle, keysId);
-        if (!keyFinder.FindAesKey(data, factory, validator, out var result) || result == null)
+        KeyFinderResult? result;
+        try
         {
+            if (!keyFinder.FindAesKey(data, factory, validator, out result) || result == null)
+            {
+                return null;
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException || ex is InvalidDataException)
+        {
+            // unknown/misconfigured key collection: behave as "no matching key"
+            // so detectors Fail gracefully instead of throwing
+            log.Debug($"key collection \"{keysId}\" unavailable", ex);
             return null;
         }
 

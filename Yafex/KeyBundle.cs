@@ -99,6 +99,20 @@ namespace Yafex
             return ConvertKey(key);
         }
 
+        public bool TryGetKey(string id, out KeyEntry key)
+        {
+            key = null!;
+            try
+            {
+                key = GetKey(id);
+                return true;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is InvalidDataException)
+            {
+                return false;
+            }
+        }
+
         public T GetItem<T>(string id)
         {
             if(!_keySecrets.TryGetValue(id, out var item))
@@ -125,6 +139,20 @@ namespace Yafex
             return keyList.Keys.Select(ConvertKey);
         }
 
+        public bool TryGetKeyCollection(string id, out IEnumerable<KeyEntry> keys)
+        {
+            keys = Enumerable.Empty<KeyEntry>();
+            try
+            {
+                keys = GetKeyCollection(id);
+                return true;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is InvalidDataException)
+            {
+                return false;
+            }
+        }
+
 
         public KeyBundle(string filePath)
         {
@@ -136,5 +164,12 @@ namespace Yafex
             }
             _keySecrets = keys.ToDictionary(x => x.Id, x => x);
         }
+
+        private KeyBundle()
+        {
+            _keySecrets = new Dictionary<string, KeyDTO>();
+        }
+
+        public static KeyBundle Empty { get; } = new KeyBundle();
     }
 }

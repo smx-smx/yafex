@@ -47,20 +47,20 @@ public class MediatekAesDecryptorFactory : IAesDecryptorFactory<MediatekAesDecry
 public class MediatekPkgDetector : IFormatDetector
 {
     private const string HEADER_KEY_ID = "mtkpkg-header-key";
-    private readonly Aes _standardHeaderKey;
     private readonly KeysRepository _keys;
 
     public const int PHILIPS_EXTRA_HEADER_SIZE = 0x80;
     public const int PHILIPS_FOOTER_SIGNATURE_SIZE = 0x100;
 
     private readonly MediatekPkgContext _ctx;
-    private readonly AesDecryptor _standardDecryptor;
+    private readonly AesDecryptor? _standardDecryptor;
 
     public MediatekPkgDetector(KeysRepository keys)
     {
-        var standardHeaderKey = keys.GetKey(HEADER_KEY_ID);
-        _standardHeaderKey = standardHeaderKey.GetAes();
-        _standardDecryptor = new AesDecryptor(_standardHeaderKey);
+        if (keys.TryGetKey(HEADER_KEY_ID, out var standardHeaderKey))
+        {
+            _standardDecryptor = new MediatekAesDecryptor(standardHeaderKey.GetAes());
+        }
         _keys = keys;
         _ctx = new MediatekPkgContext();
     }
@@ -73,6 +73,8 @@ public class MediatekPkgDetector : IFormatDetector
 
     private bool TryDecryptHeaderStandard(Memory64<byte> bytes, out Memory64<PkgHeader> header)
     {
+        header = default;
+        if (_standardDecryptor == null) return false;
         var decrypted = _standardDecryptor.Decrypt(bytes.Span);
         if(IsDecryptedHeader(decrypted.Span))
         {

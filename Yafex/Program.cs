@@ -22,6 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Yafex.Fuse;
+using Yafex.Metadata;
 using Yafex.Support;
 
 namespace Yafex
@@ -29,12 +30,15 @@ namespace Yafex
     public enum ProgramMode
     {
         Standalone,
-        Fuse
+        Fuse,
+        List,
+        Probe,
+        Help
     }
 
     public class ProgramOptions
     {
-        public required string InputFile { get; set; }
+        public string? InputFile { get; set; }
         public string? DestDir { get; set; } = null;
         public ProgramMode ProgramMode { get; set; }
         public Dictionary<string, Dictionary<string, string>> FormatOptions { get; set; } = new();
@@ -77,11 +81,16 @@ namespace Yafex
             FileFormatRepository.RegisterFileFormats(hostBuilder.Services);
 
             var secretsPath = _opts.KeyBundlePath;
-            if (secretsPath == null || !File.Exists(secretsPath))
+            KeyBundle keyFile;
+            if (secretsPath != null && File.Exists(secretsPath))
             {
-                throw new InvalidOperationException($"Secrets file \"{secretsPath ?? ""}\" does not exist");
+                keyFile = new KeyBundle(secretsPath);
             }
-            var keyFile = new KeyBundle(secretsPath);
+            else
+            {
+                log.WarnFormat("Secrets file \"{0}\" not found, continuing without keys", secretsPath ?? "");
+                keyFile = KeyBundle.Empty;
+            }
 
             hostBuilder.Services.AddSingleton(keyFile);
             hostBuilder.Services.AddSingleton(_opts);
@@ -113,6 +122,7 @@ namespace Yafex
             string? inputFile = null;
             string? destDir = null;
             string? keysPath = Path.Combine(Directory.GetCurrentDirectory(), "secrets.json");
+            var keysExplicit = false;
 
             var it = args.GetEnumerator();
             while (it.MoveNext())
@@ -124,8 +134,20 @@ namespace Yafex
                     case "--mount":
                         programMode = ProgramMode.Fuse;
                         break;
+                    case "--list":
+                        programMode = ProgramMode.List;
+                        break;
+                    case "--probe":
+                        programMode = ProgramMode.Probe;
+                        break;
+                    case "--help":
+                    case "-h":
+                    case "--list-formats":
+                        programMode = ProgramMode.Help;
+                        break;
                     case "-k":
                         res = TryTake(it, out keysPath);
+                        keysExplicit = true;
                         break;
                     case "-i":
                         res = TryTake(it, out inputFile);
@@ -159,11 +181,11 @@ namespace Yafex
                 }
             }
 
-            if(inputFile == null)
+            if(inputFile == null && programMode != ProgramMode.Help)
             {
                 throw new ArgumentException("Input filename not specified");
             }
-            if (!File.Exists(inputFile))
+            if (inputFile != null && !File.Exists(inputFile))
             {
                 throw new ArgumentException("Input filename does not exist");
             }
@@ -171,6 +193,19 @@ namespace Yafex
             if(programMode == ProgramMode.Fuse && destDir == null)
             {
                 throw new ArgumentException("Fuse mountpoint not specified");
+            }
+            if (programMode == ProgramMode.List && inputFile == null)
+            {
+                throw new ArgumentException("Input filename not specified");
+            }
+            if (programMode == ProgramMode.Probe && inputFile == null)
+            {
+                throw new ArgumentException("Input filename not specified");
+            }
+
+            if (!keysExplicit)
+            {
+                keysPath = Environment.GetEnvironmentVariable("YAFEX_KEYS") ?? keysPath;
             }
 
 
@@ -191,12 +226,45 @@ namespace Yafex
 
             var host = BuildHost();
 
+            if (_opts.FormatOptions.TryGetValue("global", out var global)
+                && global.TryGetValue("spool_mb", out var spoolMb)
+                && long.TryParse(spoolMb, out var mb) && mb > 0)
+            {
+                ArtifactSpool.ThresholdBytes = mb << 20;
+            }
+
             host.Start();
             var extractor = host.Services.GetRequiredService<Extractor>();
             var keysRepo = host.Services.GetRequiredService<KeysRepository>();
 
-            using (MFile input = new MFile(_opts.InputFile))
+            if (_opts.ProgramMode == ProgramMode.Help)
             {
+                PrintHelp(host.Services.GetRequiredService<FileFormatRepository>());
+                return;
+            }
+
+            var owned = new List<IDisposable>();
+            try
+            {
+                using (MFile input = new MFile(_opts.InputFile))
+                {
+                    if (_opts.ProgramMode == ProgramMode.Standalone && _opts.DestDir != null)
+                    {
+                        // appended last: wins the BaseDirectoryPath reverse-priority stack,
+                        // so top-level outputs land under -d instead of next to the input
+                        input.AddMetadata(new BaseDirectoryPath(_opts.DestDir));
+                    }
+
+                    if (_opts.ProgramMode == ProgramMode.Probe)
+                    {
+                        RunProbe(host.Services.GetRequiredService<FormatFinder>(), input);
+                        return;
+                    }
+                    if (_opts.ProgramMode == ProgramMode.List)
+                    {
+                        RunList(host.Services.GetRequiredService<FormatFinder>(), input);
+                        return;
+                    }
                 YafexVfs? fuseVfs = null;
 
                 if (_opts.ProgramMode == ProgramMode.Fuse)
@@ -224,13 +292,77 @@ namespace Yafex
                 foreach (var artifact in artifacts)
                 {
                     ++numArtifacts;
+                    if (artifact is IDisposable disposable) owned.Add(disposable);
                     // $FIXME: centralized artifact printing
                 }
                 if (fuseVfs != null && _opts.DestDir != null && numArtifacts > 0)
                 {
                     FuseInterop.Start(fuseVfs, _opts.DestDir);
                 }
+                } // using MFile
+            } // try
+            finally
+            {
+                // release streamed mappings; outputs themselves stay on disk
+                foreach (var d in owned)
+                {
+                    try { d.Dispose(); }
+                    catch (Exception ex) { log.Warn("artifact dispose failed", ex); }
+                }
             }
+        }
+
+        private static void PrintHelp(FileFormatRepository repo)
+        {
+            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--help]");
+            Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
+            Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
+            Console.WriteLine("  --probe          test the file against all formats, show matches");
+            Console.WriteLine("  -o fmt:opt=val   per-format option; -o global:spool_mb=<MB> streams big artifacts to disk (default 64)");
+            Console.WriteLine("  keys: -k <path>, else $YAFEX_KEYS, else ./secrets.json (missing file = no keys, not fatal)");
+            Console.WriteLine("Formats:");
+            foreach (var fmt in repo.GetRegisteredFormats().OrderBy(f => f.ToString()))
+            {
+                Console.WriteLine($"  {Enum.GetName(fmt)?.ToLowerInvariant()}");
+                if (repo.TryGetAddonForFormat(fmt, out var addon) && addon != null)
+                {
+                    foreach (var opt in addon.DescribeOptions())
+                    {
+                        Console.WriteLine($"    {opt.Key}: {opt.Value}");
+                    }
+                }
+            }
+        }
+
+        private static void RunProbe(FormatFinder finder, IDataSource input)
+        {
+            var hits = finder.ProbeAll(input);
+            if (hits.Count == 0)
+            {
+                Console.WriteLine("no format identified");
+                return;
+            }
+            foreach (var (fmt, _, result) in hits)
+            {
+                Console.WriteLine($"{Enum.GetName(fmt)?.ToLowerInvariant()}: confidence={result.Confidence}");
+            }
+        }
+
+        private static void RunList(FormatFinder finder, IDataSource input)
+        {
+            var (addon, result) = finder.DetectFormatAddon(input);
+            if (addon == null || result == null || !result.Succeded())
+            {
+                Console.WriteLine("no format identified");
+                return;
+            }
+            var lister = addon.CreateLister(result);
+            if (lister == null)
+            {
+                Console.WriteLine($"listing not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}");
+                return;
+            }
+            lister.List(input, result, Console.Out);
         }
 
         public static void Main(string[] args)

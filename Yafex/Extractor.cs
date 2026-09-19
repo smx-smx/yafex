@@ -90,7 +90,12 @@ namespace Yafex
                             }
                             path = Path.Combine(path, filename.FileName);
 
-                            using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+                            if (artifact is FileDataSource streamed
+                                && string.Equals(streamed.Path, path, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // already streamed straight to the destination: nothing to copy
+                            }
+                            else using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
                             {
                                 fs.SetLength(0);
                                 foreach(var chunk in artifact.Data.Span.GetChunks())

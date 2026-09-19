@@ -64,7 +64,7 @@ namespace Yafex.FileFormats.EpkV1
                 fwVerString = $"{hdr.EpakVersion}-{firstPak.Platform}";
             }
 
-            var basedir = Path.Combine(source.RequireBaseDirectory(), fwVerString);
+            var basedir = ArtifactBuilder.VersionedDir(source, fwVerString);
             source.AddMetadata(new BaseDirectoryPath(basedir));
 
             for (int i = 0; i < hdr.PakCount; i++)
@@ -105,7 +105,7 @@ namespace Yafex.FileFormats.EpkV1
             var fileData = source.Data;
             var hdr = fileData.ReadStruct<Epk1Header>();
 
-            var basedir = Path.Combine(source.RequireBaseDirectory(), $"{hdr.EpakVersion}-{hdr.OtaID}");
+            var basedir = ArtifactBuilder.VersionedDir(source, $"{hdr.EpakVersion}-{hdr.OtaID}");
             source.AddMetadata(new BaseDirectoryPath(basedir));
 
             for (int i = 0; i < hdr.pakCount; i++)

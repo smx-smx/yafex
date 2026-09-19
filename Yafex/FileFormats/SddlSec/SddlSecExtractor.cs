@@ -149,7 +149,7 @@ namespace Yafex.FileFormats.SddlSec
             log.Info($"Module file count: {Header.ModuleEntriesCount}");
             log.Info($"Total file count: {Header.TotalEntriesCount}");
 
-			var basedir = Path.Combine(source.RequireBaseDirectory(), $"_SDDL.SEC");
+			var basedir = ArtifactBuilder.VersionedDir(source, $"_SDDL.SEC");
             source.AddMetadata(new BaseDirectoryPath(basedir));
 
 			st.Position = Unsafe.SizeOf<SddlSecHeader>();
@@ -209,7 +209,8 @@ namespace Yafex.FileFormats.SddlSec
 					$" segment_count={module.SegmentCount}" +
 					$") to file {filePath}");
 
-				var moduleBuf = new MemoryDataSourceBuffer(fileName, DataSourceFlags.Output);
+				var moduleBuf = ArtifactBuilder.BeginBuffer(
+                    basedir, fileName, DataSourceFlags.Output | DataSourceFlags.ProcessFurther);
 
 				for (int iSegment = 0; iSegment < module.SegmentCount; iSegment++)
 				{
@@ -249,11 +250,7 @@ namespace Yafex.FileFormats.SddlSec
 					moduleBuf.WriteAt((int)contentHeader.DestOffset, outData);
 				}
 
-				var artifact = moduleBuf.ToDataSource();
-				artifact.SetChildOf(source);
-				artifact.AddMetadata(new OutputFileName(fileName));
-				artifact.AddMetadata(new OutputDirectoryName(basedir));
-				artifact.Flags |= DataSourceFlags.ProcessFurther;
+				var artifact = ArtifactBuilder.Complete(moduleBuf, source, basedir);
 				yield return artifact;
 
 				iModule++;
