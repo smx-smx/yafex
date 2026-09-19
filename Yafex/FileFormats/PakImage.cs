@@ -67,6 +67,110 @@ namespace Yafex.FileFormats
         public PakStream OpenStream() => new PakStream(this);
 
         Stream IVirtualFile.OpenRead() => OpenStream();
+
+        /// <summary>Stored byte count (payload regions as kept in the source, no decrypt).</summary>
+        public long RawLength
+        {
+            get
+            {
+                long len = 0;
+                foreach (var seg in Segments) len += seg.EncryptedSize;
+                return len;
+            }
+        }
+
+        /// <summary>Stored bytes as kept in the source (e.g. still encrypted), no decrypt.</summary>
+        public Stream OpenRawStream() => new RawPakStream(this);
+
+        /// <summary>Stored-bytes view of this image for raw VFS nodes.</summary>
+        public IVirtualFile AsRaw() => new RawPakView(this);
+
+        private sealed class RawPakView : IVirtualFile
+        {
+            private readonly PakImage _image;
+            public RawPakView(PakImage image) { _image = image; }
+            public string Name => _image.Name;
+            public long Length => _image.RawLength;
+            public Stream OpenRead() => _image.OpenRawStream();
+        }
+    }
+
+    /// <summary>
+    /// Forward-readable stream over the stored ( undecrypted) segment regions.
+    /// </summary>
+    public sealed class RawPakStream : Stream
+    {
+        private readonly PakImage _image;
+        private readonly IBlockSource _source;
+        private long _position;
+
+        public RawPakStream(PakImage image)
+            : this(image, image.Source)
+        {
+        }
+
+        public RawPakStream(PakImage image, IBlockSource source)
+        {
+            _image = image;
+            _source = source;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => _image.RawLength;
+        public override long Position
+        {
+            get => _position;
+            set
+            {
+                if (value < 0 || value > Length) throw new ArgumentOutOfRangeException(nameof(value));
+                _position = value;
+            }
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_position >= Length) return 0;
+            count = (int)Math.Min(count, Length - _position);
+            var total = 0;
+            var segBase = 0L;
+            foreach (var seg in _image.Segments)
+            {
+                var segEnd = segBase + seg.EncryptedSize;
+                if (_position + total >= segEnd)
+                {
+                    segBase = segEnd;
+                    continue;
+                }
+                var inSeg = _position + total - segBase;
+                var take = (int)Math.Min(count - total, seg.EncryptedSize - inSeg);
+                var n = _source.Read(seg.PhysicalDataOffset + inSeg, buffer, offset + total, take);
+                if (n <= 0) break;
+                total += n;
+                segBase = segEnd;
+                if (total >= count) break;
+            }
+            _position += total;
+            return total;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            var target = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => Length + offset,
+                _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+            };
+            Position = target;
+            return target;
+        }
+
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>

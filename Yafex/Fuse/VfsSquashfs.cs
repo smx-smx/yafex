@@ -69,26 +69,4 @@ public static class VfsSquashfs
             vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
         }
     }
-
-    /// <summary>
-    /// Mounts one virtual file plus its squashfs contents (if any) under parent.
-    /// Returns the number of top-level nodes added (1, or 2 with a squashfs subdir).
-    /// </summary>
-    public static int AddImage(
-        IVfsNode parent, IVirtualFile image, Func<IVirtualFile, VfsNode> makeFile,
-        ICollection<object> keepAlive)
-    {
-        parent.AddNode(makeFile(image));
-        if (TryOpen(image, keepAlive, out var reader))
-        {
-            var mountPoint = new YafexDirectory(
-                Path.GetFileNameWithoutExtension(image.Name),
-                Helpers.OctalLiteral(0755)
-            );
-            parent.AddNode(mountPoint);
-            BuildTree(mountPoint, reader);
-            return 2;
-        }
-        return 1;
-    }
 }

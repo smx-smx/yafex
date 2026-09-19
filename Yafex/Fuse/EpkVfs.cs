@@ -189,7 +189,10 @@ namespace Yafex.Fuse
                 ctx,
                 hdr
             );
-            AddImages(images.Select(i => i.Image), source);
+            AddImages(images.Select(pak => (
+                pak.Image,
+                (Func<string>?)(() => DescribePak(pak.Header, pak.Image))
+            )), source);
         }
 
         private void BuildEpk2Beta(Epk2BetaContext ctx, MappedBlockSource source)
@@ -200,7 +203,10 @@ namespace Yafex.Fuse
                 ctx,
                 hdr
             );
-            AddImages(images.Select(i => i.Image), source);
+            AddImages(images.Select(pak => (
+                pak.Image,
+                (Func<string>?)(() => DescribePak(pak.Header, pak.Image))
+            )), source);
         }
 
         private void BuildEpk3New(Epk3NewContext ctx, MappedBlockSource source)
@@ -208,29 +214,39 @@ namespace Yafex.Fuse
             var data = source.Data;
             var epk = data.ReadStruct<EPK_V3_NEW_STRUCTURE>();
             var image = new Epk3NewImage(ctx, data.AsReadonlySpan(), epk);
-            AddImages(image.Paks.Select(p => p.Image), source);
+            AddImages(image.Paks.Select(pak => (
+                pak.Image,
+                (Func<string>?)(() => $"package: {pak.Name}\nsegments: {pak.Image.Segments.Count}\nsize: {pak.Image.Length}\nraw: {pak.Image.RawLength}")
+            )), source);
         }
 
-        private void AddImages(IEnumerable<PakImage> images, IBlockSource source)
+        private static string DescribePak(PAK_V2_HEADER header, PakImage image)
+        {
+            return $"image: {header.ImageType}\nversion: {header.SwVersion}\nplatform: {header.ModelName}\n" +
+                $"magic: {header.PakMagic}\nsegments: {image.Segments.Count}\nsize: {image.Length}\nraw: {image.RawLength}";
+        }
+
+        private void AddImages(IEnumerable<(PakImage Image, Func<string>? Describe)> images, IBlockSource source)
         {
             var rootDir = new YafexDirectory(_input.Name ?? "epk", Helpers.OctalLiteral(0755));
             Root.AddNode(rootDir);
 
-            foreach (var image in images)
+            foreach (var (image, describe) in images)
             {
                 ++_pakCount;
-                AddPak(rootDir, image, source);
+                AddPak(rootDir, image, source, describe);
             }
         }
 
-        private void AddPak(IVfsNode parent, PakImage image, IBlockSource source)
+        private void AddPak(IVfsNode parent, PakImage image, IBlockSource source, Func<string>? describe)
         {
             image.Source = source;
-            ++_pakCount;
-            VfsSquashfs.AddImage(
+            VfsBuilder.AddImage(
                 parent, image,
-                img => new PakVfsFile(img, Helpers.OctalLiteral(0444)),
-                _openFilesystems);
+                VfsImageViews.All,
+                _openFilesystems,
+                raw: image.AsRaw(),
+                describe: describe);
         }
     }
 }

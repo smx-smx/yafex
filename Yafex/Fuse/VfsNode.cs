@@ -49,6 +49,13 @@ namespace Yafex.Fuse
 
         public IDictionary<string, VfsNodeLink> Tree => _tree;
 
+        /// <summary>
+        /// Materializes lazily-populated children. Base: already loaded, no-op.
+        /// (Virtual here — not just the interface default — so dispatch never
+        /// depends on default-interface-method subtleties.)
+        /// </summary>
+        public virtual void EnsureLoaded() { }
+
         public VfsNode(string name, int mode, long size)
         {
             _name = name;

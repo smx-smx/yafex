@@ -53,7 +53,7 @@ public class PakStreamTests
         return ms.ToArray();
     }
 
-    private static byte[] Sequence(int start, int count)
+    internal static byte[] Sequence(int start, int count)
     {
         var buf = new byte[count];
         for (int i = 0; i < count; i++) buf[i] = (byte)((start + i) & 0xFF);
@@ -310,7 +310,7 @@ public class PakStreamTests
     /// Builds a full EPK2 file with one pak made of the given segment payloads.
     /// Returns the file bytes and the expected extracted pak content.
     /// </summary>
-    private static (byte[] file, byte[] expectedPak) BuildEpk2File(string imageType, params byte[][] segments)
+    internal static (byte[] file, byte[] expectedPak) BuildEpk2File(string imageType, params byte[][] segments)
     {
         const int EPK_HEADER_TOTAL = 0x6D4;
 

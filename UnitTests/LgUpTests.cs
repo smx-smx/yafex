@@ -26,7 +26,7 @@ namespace UnitTests;
 [TestFixture]
 public class LgUpTests
 {
-    private static byte[] RandomKey()
+    internal static byte[] RandomKey()
     {
         var k = new byte[16];
         Random.Shared.NextBytes(k);
@@ -66,7 +66,7 @@ public class LgUpTests
     }
 
     /// <summary>Builds a minimal LGUP v4 file: one CInstallFull section, one unit.</summary>
-    private static byte[] BuildPackage(byte[] key, byte[] content, out byte[] expected)
+    internal static byte[] BuildPackage(byte[] key, byte[] content, out byte[] expected)
     {
         expected = content;
         var encPayload = AesCbcEncrypt(PkcsPad(content), key);

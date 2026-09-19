@@ -266,13 +266,19 @@ namespace Yafex
                         return;
                     }
                 YafexVfs? fuseVfs = null;
+                var lazyVfs = false;
 
                 if (_opts.ProgramMode == ProgramMode.Fuse)
                 {
-                    if (EpkVfs.TryCreate(input, keysRepo, out var epkVfs))
+                    var finder = host.Services.GetRequiredService<FormatFinder>();
+                    var (addon, result) = finder.DetectFormatAddon(input);
+                    if (addon != null && result != null)
                     {
-                        // lazy EPK mount: paks are read/decrypted on demand
-                        fuseVfs = epkVfs;
+                        fuseVfs = addon.CreateVfs(input, result);
+                    }
+                    if (fuseVfs != null)
+                    {
+                        lazyVfs = true;
                     }
                     else
                     {
@@ -281,9 +287,9 @@ namespace Yafex
                     }
                 }
 
-                if (fuseVfs is EpkVfs)
+                if (lazyVfs)
                 {
-                    FuseInterop.Start(fuseVfs, _opts.DestDir);
+                    FuseInterop.Start(fuseVfs!, _opts.DestDir);
                     return;
                 }
 
@@ -314,7 +320,10 @@ namespace Yafex
 
         private static void PrintHelp(FileFormatRepository repo)
         {
-            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--help]");
+            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--cat|--help]");
+            Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
+            Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
+            Console.WriteLine("  --probe          test the file against all formats, show matches");
             Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
             Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
             Console.WriteLine("  --probe          test the file against all formats, show matches");

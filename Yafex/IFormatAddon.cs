@@ -30,6 +30,12 @@ namespace Yafex
         IFormatLister? CreateLister(DetectionResult result) => null;
 
         /// <summary>
+        /// Lazy virtual filesystem for mount/cat without extraction, or null to fall
+        /// back to the materializing path. Default: unsupported.
+        /// </summary>
+        Yafex.Fuse.YafexVfs? CreateVfs(IDataSource source, DetectionResult result) => null;
+
+        /// <summary>
         /// Documents `-o &lt;format&gt;:&lt;opt&gt;=&lt;val&gt;` options shown by --help.
         /// Key = option name, value = one-line description.
         /// </summary>

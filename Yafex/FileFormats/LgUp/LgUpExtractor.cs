@@ -45,37 +45,40 @@ public class LgUpExtractor : IFormatExtractor
         {
             var sec = pkg.Sections[i];
             var secDir = Path.Combine(topDir, "partitions", Sanitize($"{i:D2}_{sec.Name}"));
-            var cursor = pkg.DataBase + pkg.PatchOffsets[i];
 
             yield return Artifact(source, secDir, "section_header.txt",
                 Encoding.UTF8.GetBytes(SectionDump(sec)), $"section {sec.Name} header");
+        }
 
-            var u = 0;
-            foreach (var unit in sec.Units)
-            {
-                unit.FileOffset = cursor;
-                if (cursor + unit.PatchSize > file.Length)
-                    throw new InvalidDataException($"unit {u} of section '{sec.Name}' overruns file");
-                unit.Payload = file.AsSpan((int)cursor, (int)unit.PatchSize).ToArray();
-                cursor += unit.PatchSize;
+        var unitNo = new int[pkg.Sections.Count];
+        foreach (var (sec, i, unit, offset) in LgUpUnitFile.Locate(pkg))
+        {
+            var u = unitNo[i]++;
+            var secDir = Path.Combine(topDir, "partitions", Sanitize($"{i:D2}_{sec.Name}"));
+            unit.FileOffset = offset;
+            if (offset + unit.PatchSize > file.Length)
+                throw new InvalidDataException($"unit {u} of section '{sec.Name}' overruns file");
+            unit.Payload = file.AsSpan((int)offset, (int)unit.PatchSize).ToArray();
 
-                if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(unit.Payload), unit.Sha256))
-                    log.WarnFormat("section '{0}' unit {1}: SHA256 mismatch, continuing", sec.Name, u);
+            if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(unit.Payload), unit.Sha256))
+                log.WarnFormat("section '{0}' unit {1}: SHA256 mismatch, continuing", sec.Name, u);
 
-                unit.Content = LgUpParser.StripPad(LgUpParser.AesCbcDecrypt(unit.Payload, _ctx.Key));
-                unit.Output = unit.UncompressedSize != 0
-                    ? LgUpDecompress.Decompress(pkg.CompressType, unit.Content)
-                    : unit.Content;
+            unit.Content = LgUpParser.StripPad(LgUpParser.AesCbcDecrypt(unit.Payload, _ctx.Key));
+            unit.Output = unit.UncompressedSize != 0
+                ? LgUpDecompress.Decompress(pkg.CompressType, unit.Content)
+                : unit.Content;
 
-                var ext = LgUpDecompress.ExtensionFor(unit.Output);
-                var kind = LgUpFormat.UnitTypeName(unit.UpdateType);
-                log.InfoFormat("section '{0}' unit {1}: {2} payload={3} output={4} bytes",
-                    sec.Name, u, kind, unit.Payload.Length, unit.Output.Length);
-                yield return Artifact(source, secDir, $"unit_{u:D4}.data{ext}", unit.Output,
-                    $"section {sec.Name} unit {u} ({kind})", processFurther: true);
-                u++;
-            }
+            var ext = LgUpDecompress.ExtensionFor(unit.Output);
+            var kind = LgUpFormat.UnitTypeName(unit.UpdateType);
+            log.InfoFormat("section '{0}' unit {1}: {2} payload={3} output={4} bytes",
+                sec.Name, u, kind, unit.Payload.Length, unit.Output.Length);
+            yield return Artifact(source, secDir, $"unit_{u:D4}.data{ext}", unit.Output,
+                $"section {sec.Name} unit {u} ({kind})", processFurther: true);
+        }
 
+        for (var i = 0; i < pkg.Sections.Count; i++)
+        {
+            var sec = pkg.Sections[i];
             if (sec.InstallType == LgUpFormat.InstallFull && sec.Units.Count > 0)
             {
                 var img = sec.Units[0].Output;

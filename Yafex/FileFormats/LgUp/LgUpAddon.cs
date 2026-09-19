@@ -49,6 +49,13 @@ public class LgUpAddon : IFormatAddon<LgUpDetectionResult>
             : null;
     }
 
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        return result is LgUpDetectionResult typed && typed.Context != null
+            ? new LgUpVfs(typed.Context, source)
+            : null;
+    }
+
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));

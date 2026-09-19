@@ -29,6 +29,7 @@ namespace Yafex.Fuse
             }
 
             var node = Root;
+            node.EnsureLoaded();
             var iter = parts.AsEnumerable().GetEnumerator();
 
             if (!iter.MoveNext()) return null;
@@ -43,6 +44,7 @@ namespace Yafex.Fuse
             {
                 if (!node.Tree.TryGetValue(iter.Current, out var nodeLink)) return null;
                 node = nodeLink.Node;
+                node.EnsureLoaded();
             }
 
             return node;

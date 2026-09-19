@@ -36,6 +36,11 @@ namespace Yafex.Fuse
         public void AddNode(IVfsNode node);
         public void RemoveNode(IVfsNode node);
 
+        /// <summary>
+        /// Materializes lazily-populated children. Default: already loaded, no-op.
+        /// Called by lookup paths before reading <see cref="Tree"/>.
+        /// </summary>
+        public void EnsureLoaded() { }
 
         int LinkTo(string linkName);
     }
