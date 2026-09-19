@@ -6,6 +6,7 @@ using Smx.SharpIO.Memory.Buffers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using Yafex.Metadata;
 using Yafex.Support;
@@ -54,7 +55,9 @@ namespace Yafex.FileFormats.EpkV3
 
             var decryptor = ctx.GetDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC);
 
-            var baseDir = Path.Combine(source.RequireBaseDirectory(), $"{hdr.EpkVersion}-{hdr.OtaId}");
+            var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
+            var inputBase = source.GetMetadata<BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+            var baseDir = inputBase != null ? Path.Combine(inputBase, fwVersion) : fwVersion;
 
             var curPak = 0;
             foreach (var pak in image.Paks)

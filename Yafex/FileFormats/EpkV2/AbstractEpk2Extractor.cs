@@ -13,6 +13,7 @@ using Yafex.FileFormats.Epk;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Smx.SharpIO;
 using Yafex.Metadata;
@@ -145,9 +146,10 @@ namespace Yafex.FileFormats.EpkV2
             logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
             var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
-            // absolute: Path.Combine drops the base when the second part is
-            // rooted, matching the EpkV1 convention (single-level fw dir)
-            var baseDir = Path.Combine(source.RequireBaseDirectory(), fwVersion);
+            // absolute when the source has a base dir (EpkV1 convention,
+            // single-level fw dir); relative fallback for baseless sources
+            var inputBase = source.GetMetadata<BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+            var baseDir = inputBase != null ? Path.Combine(inputBase, fwVersion) : fwVersion;
 
             var images = Epk2SegmentWalker.BuildPakImages(
                 fileData.AsReadonlySpan(),
