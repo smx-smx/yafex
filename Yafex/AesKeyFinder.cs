@@ -46,7 +46,10 @@ namespace Yafex
             _bundleId = bundleId;
         }
 
-        private Span64<byte> TestAesKey(ReadOnlySpan64<byte> data, KeyEntry keyEntry, CryptoResultChecker validator)
+        private Span64<byte> TestAesKey<T>(
+            ReadOnlySpan64<byte> data,
+            IAesDecryptorFactory<T> factory,
+            KeyEntry keyEntry, CryptoResultChecker validator) where T : AesDecryptor
         {
             var aes = Aes.Create();
             aes.BlockSize = 128;
@@ -59,7 +62,7 @@ namespace Yafex
             aes.Mode = keyEntry.keyMode;
             aes.Padding = PaddingMode.None;
 
-            var outStream = new AesDecryptor(aes).Decrypt(data);
+            var outStream = factory.Create(aes).Decrypt(data);
             var span = outStream.ToArray();
             if (validator(span))
             {
@@ -69,11 +72,12 @@ namespace Yafex
             return null;
         }
 
-        public bool FindAesKey(
+        public bool FindAesKey<T>(
             ReadOnlySpan64<byte> data,
+            IAesDecryptorFactory<T> factory,
             CryptoResultChecker checker,
             [MaybeNullWhen(false)]
-            out KeyFinderResult? result)
+            out KeyFinderResult? result) where T : AesDecryptor
         {
             var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
 
@@ -84,7 +88,7 @@ namespace Yafex
                     k.key.HexDump(printAddress: false, printSpacing: false, printAscii: false),
                     k.comment
                 );
-                var decrypted = TestAesKey(data, k, checker);
+                var decrypted = TestAesKey(data, factory, k, checker);
                 if (!decrypted.IsEmpty)
                 {
                     result = new KeyFinderResult

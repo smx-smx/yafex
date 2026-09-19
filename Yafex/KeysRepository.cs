@@ -34,10 +34,11 @@ public class KeysRepository
         return _keyBundle.GetKeyCollection(id);
     }
 
-    public AesDecryptor? CreateAesDecryptor(
+    public AesDecryptor? CreateAesDecryptor<T>(
         string keysId,
+        IAesDecryptorFactory<T> factory,
         ReadOnlySpan64<byte> data, CryptoResultChecker validator
-    )
+    ) where T : AesDecryptor
     {
         if (_keyBundle == null)
         {
@@ -45,13 +46,14 @@ public class KeysRepository
         }
 
         var keyFinder = new AesKeyFinder(_keyBundle, keysId);
-        if (!keyFinder.FindAesKey(data, validator, out var result) || result == null)
+        if (!keyFinder.FindAesKey(data, factory, validator, out var result) || result == null)
         {
             return null;
         }
 
         var keyEntry = result.Value.Key;
         var aes = keyEntry.GetAes();
-        return new AesDecryptor(aes);
+
+        return factory.Create(aes);
     }
 }

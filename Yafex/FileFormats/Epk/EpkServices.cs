@@ -9,11 +9,32 @@
  */
 #endregion
 using System;
+using System.Security.Cryptography;
 
 using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.Epk
 {
+
+    public class EpkAesDecryptor : AesDecryptor
+    {
+        public EpkAesDecryptor(Aes aes) : base(aes)
+        {
+        }
+
+        protected override ReadOnlySpan<byte> HandleUnalignedData(ReadOnlySpan<byte> data)
+        {
+            return data;
+        }
+    }
+
+    public class EpkAesDecryptorFactory : IAesDecryptorFactory<EpkAesDecryptor>
+    {
+        public EpkAesDecryptor Create(Aes aes)
+        {
+            return new EpkAesDecryptor(aes);
+        }
+    }
 
     public class EpkServicesFactory
     {
@@ -28,7 +49,7 @@ namespace Yafex.FileFormats.Epk
 
         public AesDecryptor? CreateEpkDecryptor(ReadOnlySpan64<byte> data, CryptoResultChecker validator)
         {
-            return _keyRepo.CreateAesDecryptor(KEYS_ID, data, validator);
+            return _keyRepo.CreateAesDecryptor(KEYS_ID, new EpkAesDecryptorFactory(), data, validator);
         }
     }
 

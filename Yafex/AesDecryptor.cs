@@ -11,6 +11,11 @@ using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex;
 
+public interface IAesDecryptorFactory<T> where T : AesDecryptor
+{
+    T Create(Aes aes);
+}
+
 public class AesDecryptor
 {
     private static readonly ILog log = LogManager.GetLogger(typeof(AesDecryptor));
@@ -22,13 +27,19 @@ public class AesDecryptor
         this.Aes = aes;
     }
 
+    protected virtual ReadOnlySpan<byte> HandleUnalignedData(ReadOnlySpan<byte> data)
+    {
+        log.WarnFormat("Warning: skipping {0} unaligned bytes", data.Length);
+        return new Span<byte>();
+    }
+
     public Memory64<byte> Decrypt(ReadOnlySpan64<byte> data, long bufferSize)
     {
         var blockSizeMask = (Aes.BlockSize >> 3) - 1;
         var unalignedCount = data.Length & blockSizeMask;
+        var unalignedData = data.Slice(data.Length - unalignedCount);
         if(unalignedCount > 0)
         {
-            log.WarnFormat("Warning: skipping {0} unaligned bytes", unalignedCount);
             data = data.Slice(0, data.Length - unalignedCount);
         }
 
@@ -38,16 +49,23 @@ public class AesDecryptor
 
         ICryptoTransform decryptor = Aes.CreateDecryptor();
 
-        var outStream = new MemoryStream();
+        using var outStream = new MemoryStream();
         outStream.SetLength(bufferSize);
 
-        using (var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write))
+        using (var cs = new CryptoStream(outStream, decryptor, CryptoStreamMode.Write, leaveOpen: true))
         {
             foreach (var chunk in data.GetChunks())
             {
                 cs.Write(chunk);
             }
         }
+
+        if (unalignedData.Length > 0)
+        {
+            var trailingData = HandleUnalignedData((ReadOnlySpan<byte>)unalignedData);
+            outStream.Write(trailingData);
+        }
+
         return outStream.ToArray();
     }
 

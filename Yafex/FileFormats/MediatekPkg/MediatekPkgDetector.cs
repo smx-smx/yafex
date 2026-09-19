@@ -14,6 +14,36 @@ namespace Yafex.FileFormats.MediatekPkg;
 
 public record MediatekPkgDetectionResult(int Confidence, MediatekPkgContext? Context) : DetectionResult(Confidence);
 
+public class MediatekAesDecryptor : AesDecryptor
+{
+    public MediatekAesDecryptor(Aes aes) : base(aes)
+    {
+    }
+
+    protected override ReadOnlySpan<byte> HandleUnalignedData(ReadOnlySpan<byte> data)
+    {
+        var result = new Span<byte>(new byte[data.Length]);
+        data.CopyTo(result);
+
+        //deXOR unaligned data with the AES key.
+        var aesKey = Aes.Key;
+        for (int i = 0; i < data.Length; i++)
+        {
+            result[i] ^= aesKey[i % aesKey.Length];
+        }
+
+        return result;
+    }
+}
+
+public class MediatekAesDecryptorFactory : IAesDecryptorFactory<MediatekAesDecryptor>
+{
+    public MediatekAesDecryptor Create(Aes aes)
+    {
+        return new MediatekAesDecryptor(aes);
+    }
+}
+
 public class MediatekPkgDetector : IFormatDetector
 {
     private const string HEADER_KEY_ID = "mtkpkg-header-key";
@@ -57,7 +87,7 @@ public class MediatekPkgDetector : IFormatDetector
 
     private bool TryDecryptHeaderNew(Memory64<byte> bytes, out Memory64<PkgHeader> header)
     {
-        var decryptor = _keys.CreateAesDecryptor("mtkpkg-keys", bytes.Span, IsDecryptedHeader);
+        var decryptor = _keys.CreateAesDecryptor("mtkpkg-keys", new MediatekAesDecryptorFactory(), bytes.Span, IsDecryptedHeader);
         if(decryptor != null)
         {
             var decrypted = decryptor.Decrypt(bytes.Span);
