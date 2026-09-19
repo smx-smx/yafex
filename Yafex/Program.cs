@@ -65,8 +65,6 @@ namespace Yafex
         [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
 
-        private YafexVfs? fuseVfs = null;
-
         private void FuseUsageError()
         {
             Console.Error.WriteLine("Usage: fuse [filename] [mountpoint]");
@@ -191,18 +189,36 @@ namespace Yafex
         {
             Console.WriteLine("Firmex#");
 
-            if(_opts.ProgramMode == ProgramMode.Fuse)
-            {
-                fuseVfs = new YafexVfs();
-            }
-
             var host = BuildHost();
 
             host.Start();
             var extractor = host.Services.GetRequiredService<Extractor>();
+            var keysRepo = host.Services.GetRequiredService<KeysRepository>();
 
             using (MFile input = new MFile(_opts.InputFile))
             {
+                YafexVfs? fuseVfs = null;
+
+                if (_opts.ProgramMode == ProgramMode.Fuse)
+                {
+                    if (EpkVfs.TryCreate(input, keysRepo, out var epkVfs))
+                    {
+                        // lazy EPK mount: paks are read/decrypted on demand
+                        fuseVfs = epkVfs;
+                    }
+                    else
+                    {
+                        // generic materializing fallback for other formats
+                        fuseVfs = new YafexVfs();
+                    }
+                }
+
+                if (fuseVfs is EpkVfs)
+                {
+                    FuseInterop.Start(fuseVfs, _opts.DestDir);
+                    return;
+                }
+
                 var artifacts = extractor.Extract(fuseVfs?.Root, input);
                 var numArtifacts = 0;
                 foreach (var artifact in artifacts)

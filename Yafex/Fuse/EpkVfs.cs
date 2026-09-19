@@ -11,64 +11,62 @@
 using DiscUtils;
 using DiscUtils.SquashFs;
 
-using Smx.SharpIO;
-using Smx.SharpIO.Extensions;
-using Smx.SharpIO.Memory.Buffers;
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 
+using Smx.SharpIO.Extensions;
+using Smx.SharpIO.Memory.Buffers;
+
+using Yafex.FileFormats;
+using Yafex.FileFormats.Epk;
 using Yafex.FileFormats.EpkV2;
+using Yafex.FileFormats.EpkV3;
+using Yafex.Support;
 
 namespace Yafex.Fuse
 {
-    public class EpkDirectory : VfsNode, IVfsDir
+    /// <summary>
+    /// A virtual package file, backed by a lazy <see cref="PakStream"/>. No payload
+    /// is read or decrypted until a FUSE read request arrives.
+    /// </summary>
+    public class PakVfsFile : VfsNode, IVfsFile
     {
-        public EpkDirectory(string name, int mode = 0, long size = 0) : base(name, mode, size)
+        private readonly PakImage _image;
+
+        public PakVfsFile(PakImage image, int mode)
+            : base(image.Name, mode, image.Length)
         {
+            _image = image;
         }
-
-
-        public override VfsNodeType Type => VfsNodeType.Directory;
-    }
-
-    public class EpkFile : VfsNode, IVfsFile
-    {
-        private IDataSource source;
-
-        public EpkFile(IDataSource source, int mode = 0) : base(source.Name, mode, source.Data.Length)
-        {
-            this.source = source;
-        }
-
 
         public override VfsNodeType Type => VfsNodeType.File;
 
         public byte[]? Read(long offset, long count)
         {
-            Memory64<byte> data = source.Data;
-            if (offset > data.Length) return null;
-            var available = data.Length - offset;
-            var length = Math.Min(available, count);
-            return data.Slice(offset, length).ToArray();
+            using var stream = _image.OpenStream();
+            if (offset > stream.Length) return null;
+            stream.Seek(offset, System.IO.SeekOrigin.Begin);
+
+            var len = (int)Math.Min(count, stream.Length - offset);
+            var buf = new byte[len];
+
+            int total = 0;
+            while (total < len)
+            {
+                int n = stream.Read(buf, total, len - total);
+                if (n <= 0) break;
+                total += n;
+            }
+            if (total != len) return null;
+            return buf;
         }
 
-        public int Rename(string newName)
-        {
-            return -(int)PosixError.ENOTSUP;
-        }
-
-        public int Truncate(long length)
-        {
-            return -(int)PosixError.ENOTSUP;
-        }
-
-        public int Write(byte[] buffer, long offset, long count)
-        {
-            return -(int)PosixError.ENOTSUP;
-        }
+        public int Rename(string newName) => -(int)PosixError.ENOTSUP;
+        public int Truncate(long length) => -(int)PosixError.ENOTSUP;
+        public int Write(byte[] buffer, long offset, long count) => -(int)PosixError.ENOTSUP;
     }
 
     public class SquashfsDirNode : VfsNode, IVfsDir
@@ -83,127 +81,216 @@ namespace Yafex.Fuse
     public class SquashfsFileNode : VfsNode, IVfsFile
     {
         private readonly DiscFileInfo discNode;
+        private readonly object _gate;
 
-        public SquashfsFileNode(DiscFileInfo f, int mode)
+        public SquashfsFileNode(DiscFileInfo f, int mode, object gate)
             : base(f.Name, mode, f.Length)
         {
             this.discNode = f;
+            this._gate = gate;
         }
 
         public override VfsNodeType Type => VfsNodeType.File;
 
         public byte[]? Read(long offset, long count)
         {
-            using var stream = discNode.OpenRead();
-            if (offset > stream.Length) return null;
-            stream.Seek(offset, System.IO.SeekOrigin.Begin);
+            // DiscUtils' SquashFileSystemReader shares a single underlying stream,
+            // so concurrent opens/reads must be serialized.
+            lock (_gate)
+            {
+                using var stream = discNode.OpenRead();
+                if (offset > stream.Length) return null;
+                stream.Seek(offset, System.IO.SeekOrigin.Begin);
 
-            var available = stream.Length - offset;
-            var length = Math.Min(available, count);
+                var available = stream.Length - offset;
+                var length = Math.Min(available, count);
 
-            var buf = new byte[length];
+                var buf = new byte[length];
+                try
+                {
+                    stream.ReadExactly(buf);
+                }
+                catch (Exception)
+                {
+                    // signal I/O error
+                    return null;
+                }
+                return buf;
+            }
+        }
+
+        public int Rename(string newName) => -(int)PosixError.ENOTSUP;
+        public int Truncate(long length) => -(int)PosixError.ENOTSUP;
+        public int Write(byte[] buffer, long offset, long count) => -(int)PosixError.ENOTSUP;
+    }
+
+    /// <summary>
+    /// FUSE VFS that mounts an EPK2/EPK2Beta/EPK3 image directly from the backing
+    /// file, decrypting on demand in blocks. Nested filesystems (e.g. squashfs)
+    /// are exposed as subdirectories.
+    /// </summary>
+    public class EpkVfs : YafexVfs
+    {
+        private readonly MFile _input;
+        private readonly List<object> _openFilesystems = new List<object>();
+        private int _pakCount;
+
+        public int PakCount => _pakCount;
+
+        public EpkVfs(MFile input, KeysRepository keysRepo)
+        {
+            _input = input;
+
+            var blockSource = new MappedBlockSource(input.Data);
+
+            var epk2 = new Epk2Detector(keysRepo).Detect(input);
+            if (epk2 is Epk2DetectionResult<EPK_V2_HEADER> epk2r && epk2r.Succeded() && epk2r.Context != null)
+            {
+                BuildEpk2(epk2r.Context, blockSource);
+                return;
+            }
+
+            var beta = new Epk2BetaDetector(keysRepo).Detect(input);
+            if (beta is Epk2BetaDetectionResult betar && betar.Succeded() && betar.Context != null)
+            {
+                BuildEpk2Beta(betar.Context, blockSource);
+                return;
+            }
+
+            var epk3 = new Epk3NewDetector(keysRepo).Detect(input);
+            if (epk3 is Epk3NewDetectionResult epk3r && epk3r.Succeded() && epk3r.Context != null)
+            {
+                BuildEpk3New(epk3r.Context, blockSource);
+                return;
+            }
+
+            throw new NotSupportedException("Input is not a recognized EPK2/EPK2Beta/EPK3 firmware image");
+        }
+
+        public static bool TryCreate(MFile input, KeysRepository keysRepo, out EpkVfs vfs)
+        {
             try
             {
-                stream.ReadExactly(buf);
+                vfs = new EpkVfs(input, keysRepo);
+                return true;
+            }
+            catch (NotSupportedException)
+            {
+                vfs = null!;
+                return false;
+            }
+        }
+
+        private void BuildEpk2(EpkContext<EPK_V2_HEADER> ctx, MappedBlockSource source)
+        {
+            var hdr = ctx.Header;
+            var images = Epk2SegmentWalker.BuildPakImages(
+                source.Data.AsReadonlySpan(),
+                ctx,
+                hdr,
+                signatureSize: EPK_V2_STRUCTURE.SIGNATURE_SIZE,
+                pakStructureSize: Marshal.SizeOf<PAK_V2_STRUCTURE>(),
+                getHeaderBytes: d => PAK_V2_STRUCTURE.GetHeader(d)
+            );
+            AddImages(images.Select(i => i.Image), source);
+        }
+
+        private void BuildEpk2Beta(Epk2BetaContext ctx, MappedBlockSource source)
+        {
+            var hdr = ctx.Header;
+            var images = Epk2SegmentWalker.BuildPakImages(
+                source.Data.AsReadonlySpan(),
+                ctx,
+                hdr,
+                signatureSize: 0,
+                pakStructureSize: Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>(),
+                getHeaderBytes: d => PAK_V2_BETA_STRUCTURE.GetHeader(d)
+            );
+            AddImages(images.Select(i => i.Image), source);
+        }
+
+        private void BuildEpk3New(Epk3NewContext ctx, MappedBlockSource source)
+        {
+            var data = source.Data;
+            var epk = data.ReadStruct<EPK_V3_NEW_STRUCTURE>();
+            var image = new Epk3NewImage(ctx, data.AsReadonlySpan(), epk);
+            AddImages(image.Paks.Select(p => p.Image), source);
+        }
+
+        private void AddImages(IEnumerable<PakImage> images, IBlockSource source)
+        {
+            var rootDir = new YafexDirectory(_input.Name ?? "epk", Helpers.OctalLiteral(0755));
+            Root.AddNode(rootDir);
+
+            foreach (var image in images)
+            {
+                ++_pakCount;
+                AddPak(rootDir, image, source);
+            }
+        }
+
+        private void AddPak(IVfsNode parent, PakImage image, IBlockSource source)
+        {
+            image.Source = source;
+            parent.AddNode(new PakVfsFile(image, Helpers.OctalLiteral(0444)));
+
+            if (TryOpenSquashfs(image, out var reader))
+            {
+                var mountPoint = new YafexDirectory(
+                    Path.GetFileNameWithoutExtension(image.Name),
+                    Helpers.OctalLiteral(0755)
+                );
+                parent.AddNode(mountPoint);
+                BuildSquashfsTree(mountPoint, reader);
+            }
+        }
+
+        private bool TryOpenSquashfs(PakImage image, out SquashFileSystemReader reader)
+        {
+            reader = null!;
+            try
+            {
+                using var probe = image.OpenStream();
+                var magic = new byte[4];
+                if (probe.Read(magic, 0, 4) != 4) return false;
+                if (BitConverter.ToUInt32(magic, 0) != 0x73717368) return false; // hsqs
+
+                var stream = image.OpenStream();
+                var rdr = new SquashFileSystemReader(stream);
+                // keep the reader (and its stream) alive for the whole mount session
+                _openFilesystems.Add(rdr);
+                reader = rdr;
+                return true;
             }
             catch (Exception)
             {
-                // signal I/O error
-                return null;
+                return false;
             }
-            return buf;
         }
 
-        public int Rename(string newName)
+        private void BuildSquashfsTree(IVfsNode vfsNode, SquashFileSystemReader rdr)
         {
-            return -(int)PosixError.ENOTSUP;
+            var gate = new object();
+            BuildSquashfsTree(vfsNode, rdr.Root, gate);
         }
 
-        public int Truncate(long length)
-        {
-            return -(int)PosixError.ENOTSUP;
-        }
-
-        public int Write(byte[] buffer, long offset, long count)
-        {
-            return -(int)PosixError.ENOTSUP;
-        }
-    }
-
-    internal class EpkVfs : YafexVfs
-    {
-
-        public IVfsNode Root => _root;
-        private readonly EpkDirectory _root = new EpkDirectory(
-            "", Helpers.OctalLiteral(0755));
-
-
-        private void BuildSquashfsTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode)
+        private void BuildSquashfsTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
         {
             var dirs = dirNode.GetDirectories();
             foreach (var d in dirs)
             {
-                // $FIXME: disregarding original permissions
-                var subdir = new SquashfsDirNode(d.Name,
-                    Helpers.OctalLiteral(0755)
-                );
+                var subdir = new SquashfsDirNode(d.Name, Helpers.OctalLiteral(0755));
                 vfsNode.AddNode(subdir);
-                BuildSquashfsTree(subdir, d);
+                BuildSquashfsTree(subdir, d, gate);
             }
 
             var files = dirNode.GetFiles();
             foreach (var f in files)
             {
-                // $FIXME: disregarding original permissions
-                var subfile = new SquashfsFileNode(f, Helpers.OctalLiteral(0666));
+                var subfile = new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate);
                 vfsNode.AddNode(subfile);
-            }
-        }
-
-        private void HandlePak(IVfsNode parent, IDataSource ds)
-        {
-            // add file node
-            _root.AddNode(new EpkFile(ds, Helpers.OctalLiteral(0444)));
-
-            // check if we can process the artifact further
-            if (ds.Data.Length < 4) return;
-            var fourCC = ds.Data.Span.Slice(0, 4).Cast<uint>()[0];
-            if (fourCC == 0x73717368) // hsqs
-            {
-                try
-                {
-                    var mountPoint = new EpkDirectory(ds.Name, Helpers.OctalLiteral(0755));
-                    parent.AddNode(mountPoint);
-
-                    // $FIXME: leaking resource
-                    var rdr = new SquashFileSystemReader(new SpanStream(ds.Data));
-                    BuildSquashfsTree(mountPoint, rdr.Root);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("FAIL: " + ds.Name);
-                }
-            }
-        }
-
-        public EpkVfs(string epkPath)
-        {
-            var keysBundle = new KeyBundle(Path.Combine(@"C:\TEMP", "secrets.json"));
-            var keysRepo = new KeysRepository(keysBundle);
-
-            IFormatAddon a = new Epk2Addon(keysRepo);
-            var detector = a.CreateDetector(new Dictionary<string, string>());
-            var mf = new Yafex.Support.MFile(epkPath);
-            var res = detector.Detect(mf);
-
-            var extractor = a.CreateExtractor(res);
-            var output = extractor.Extract(mf);
-
-            foreach (var artifact in output)
-            {
-                if (artifact.Name == null) continue;
-                HandlePak(_root, artifact);
             }
         }
     }
 }
+

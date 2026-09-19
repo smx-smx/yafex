@@ -12,6 +12,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
+using log4net;
+
 namespace Yafex.Fuse
 {
     public enum PosixError : int
@@ -178,9 +180,17 @@ namespace Yafex.Fuse
     {
         public readonly fuse_operations ops;
 
+        private static readonly ILog log = LogManager.GetLogger(typeof(FuseFsBase));
+
         private readonly TextWriter os = Console.Error;
 
         private IVfs Vfs;
+
+        private int Fail(Exception ex, string context)
+        {
+            log.Error($"error in {context}", ex);
+            return -(int)PosixError.EIO;
+        }
 
         private void Trace(string message)
         {
@@ -222,57 +232,78 @@ namespace Yafex.Fuse
 
         private int read(string path, nint bufp, nint size, nint off, nint fi)
         {
-            Trace($"read: {path}");
-            var node = Vfs.LookupPath(path);
-            if (node == null) return -(int)PosixError.ENOENT;
-            if (node.Type != VfsNodeType.File || node is not IVfsFile file)
+            try
             {
-                return -(int)PosixError.EISDIR;
-            }
+                Trace($"read: {path}");
+                var node = Vfs.LookupPath(path);
+                if (node == null) return -(int)PosixError.ENOENT;
+                if (node.Type != VfsNodeType.File || node is not IVfsFile file)
+                {
+                    return -(int)PosixError.EISDIR;
+                }
 
-            var data = file.Read(off, size);
-            if (data == null)
+                var data = file.Read(off, size);
+                if (data == null)
+                {
+                    return -(int)PosixError.EIO;
+                }
+
+                Marshal.Copy(data, 0, bufp, data.Length);
+                return data.Length;
+            }
+            catch (Exception ex)
             {
-                return -(int)PosixError.EIO;
+                return Fail(ex, $"read({path})");
             }
-
-            Marshal.Copy(data, 0, bufp, data.Length);
-            return data.Length;
         }
 
         private int open(string path, nint fi)
         {
-            Trace($"open: {path}");
-            var node = Vfs.LookupPath(path);
-            if (node == null) return -(int)PosixError.ENOENT;
-            if (node.Type != VfsNodeType.File)
+            try
             {
-                return -(int)PosixError.EISDIR;
+                Trace($"open: {path}");
+                var node = Vfs.LookupPath(path);
+                if (node == null) return -(int)PosixError.ENOENT;
+                if (node.Type != VfsNodeType.File)
+                {
+                    return -(int)PosixError.EISDIR;
+                }
+                return 0;
             }
-            return 0;
+            catch (Exception ex)
+            {
+                return Fail(ex, $"open({path})");
+            }
         }
 
         private int getattr(string path, nint stbuf, nint fi)
         {
-            Trace($"getattr: {path}");
-
-            var node = Vfs.LookupPath(path);
-            if (node == null)
+            try
             {
-                return -(int)PosixError.ENOENT;
+                Trace($"getattr: {path}");
 
+                var node = Vfs.LookupPath(path);
+                if (node == null)
+                {
+                    return -(int)PosixError.ENOENT;
+
+                }
+
+                var stat = new fuse_stat()
+                {
+                    st_mode = (uint)node.Mode,
+                    st_size = (ulong)node.Size,
+                    // $FIXME
+                    st_nlink = (node.Type == VfsNodeType.Directory) ? 2u : 1u
+                };
+
+                Marshal.StructureToPtr(stat, stbuf, false);
+                return 0;
             }
-
-            var stat = new fuse_stat()
+            catch (Exception ex)
             {
-                st_mode = (uint)node.Mode,
-                st_size = (ulong)node.Size,
-                // $FIXME
-                st_nlink = (node.Type == VfsNodeType.Directory) ? 2u : 1u
-            };
-
-            Marshal.StructureToPtr(stat, stbuf, false);
-            return 0;
+                return Fail(ex, $"getattr({path})");
+            }
         }
 
         private nint init(nint conn, nint conf)
@@ -314,24 +345,31 @@ namespace Yafex.Fuse
 
         private int readdir(string path, nint buf, fuse_fill_dir filler, nint off, ref fuse_file_info fi)
         {
-            Trace($"readdir: {path}");
-
-            var node = Vfs.LookupPath(path);
-            if (node == null)
+            try
             {
-                return -(int)PosixError.ENOENT;
+                Trace($"readdir: {path}");
+
+                var node = Vfs.LookupPath(path);
+                if (node == null)
+                {
+                    return -(int)PosixError.ENOENT;
+                }
+
+                filler(buf, ".", 0, 0, 0);
+                filler(buf, "..", 0, 0, 0);
+
+                foreach (var itm in node.Tree)
+                {
+                    Trace($"child: {itm.Key}");
+                    filler(buf, itm.Key, 0, 0, 0);
+                }
+
+                return 0;
             }
-
-            filler(buf, ".", 0, 0, 0);
-            filler(buf, "..", 0, 0, 0);
-
-            foreach (var itm in node.Tree)
+            catch (Exception ex)
             {
-                Trace($"child: {itm.Key}");
-                filler(buf, itm.Key, 0, 0, 0);
+                return Fail(ex, $"readdir({path})");
             }
-
-            return 0;
         }
     }
 }
