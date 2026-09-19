@@ -57,18 +57,18 @@ namespace Yafex.FileFormats.Epk
 
         public AesDecryptor GetOrCreateDecryptor(string key, ReadOnlySpan64<byte> data, CryptoResultChecker checker)
         {
-            var decryptor = GetDecryptor(key);
+            if (decryptors.TryGetValue(key, out var decryptor))
+            {
+                return decryptor;
+            }
+
+            decryptor = ServiceFactory.CreateEpkDecryptor(data, checker);
             if (decryptor == null)
             {
-                decryptor = ServiceFactory.CreateEpkDecryptor(data, checker);
-                if(decryptor == null)
-                {
-                    throw new InvalidOperationException("Failed to create decryptor");
-                }
-                decryptors[key] = decryptor;
+                throw new InvalidOperationException("Failed to create decryptor");
             }
+            decryptors[key] = decryptor;
             return decryptor;
-
         }
     }
 }

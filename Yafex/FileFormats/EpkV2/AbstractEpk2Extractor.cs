@@ -16,6 +16,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Smx.SharpIO;
 using Yafex.Metadata;
+using Yafex.Support;
 using Smx.SharpIO.Memory.Buffers;
 
 namespace Yafex.FileFormats.EpkV2
@@ -77,26 +78,31 @@ namespace Yafex.FileFormats.EpkV2
         protected abstract ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data) where T : unmanaged;
         protected abstract int PakStructureSize { get; }
 
-        private Pak2DetectionData GetPak2Header(ReadOnlySpan64<byte> fileData, int offset)
+        private (string, string, IDataSource) HandlePak(
+            ReadOnlySpan64<byte> fileData,
+            Epk2PakImage pak,
+            string baseDir,
+            DataSourceFlags flags
+        )
         {
-            var pak2 = fileData.Slice(offset, Marshal.SizeOf<PAK_V2_STRUCTURE>());
+            var pakName = pak.Image.Name;
+            var outputBuffer = NewPakBuffer(pak, flags);
+            outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
 
-            var pakHeaderBytes = GetPak2HeaderBytes(pak2);
-            var handler = new Pak2Handler<THeader>(_ctx);
-
-            var pakResult = handler.Detect(pakHeaderBytes);
-            if (!pakResult.Succeded())
+            foreach (var seg in pak.Image.Segments)
             {
-                throw new Exception("Invalid PAK2 header, or decryption failed");
+                var content = Epk2SegmentWalker.ReadSegmentContent(seg, fileData);
+                outputBuffer.Write(content);
             }
 
-            return (Pak2DetectionData)pakResult.Context!;
+            var outputFile = outputBuffer.ToDataSource();
+            outputBuffer.Dispose();
+            return (pakName, outputFile.Name, outputFile);
         }
 
-        private MemoryDataSourceBuffer NewPakBuffer(PAK_V2_HEADER pakHdr)
+        private MemoryDataSourceBuffer NewPakBuffer(Epk2PakImage pak, DataSourceFlags flags)
         {
-            var flags = DataSourceFlags.Output;
-            var processFurther = pakHdr.ImageType switch
+            var processFurther = pak.Header.ImageType switch
             {
                 "crc3" => false,
                 "logo" => false,
@@ -108,82 +114,9 @@ namespace Yafex.FileFormats.EpkV2
                 flags |= DataSourceFlags.ProcessFurther;
             }
 
-            var buff = new MemoryDataSourceBuffer($"{pakHdr.ImageType}.pak", flags);
-            buff.AddMetadata(new OutputFileName($"{pakHdr.ImageType}.pak"));
+            var buff = new MemoryDataSourceBuffer(pak.Image.Name, flags);
+            buff.AddMetadata(new OutputFileName(pak.Image.Name));
             return buff;
-        }
-
-
-        private (string, string, IDataSource) HandlePak(
-            ReadOnlySpan64<byte> fileData,
-            int offset,
-            string baseDir,
-            out int numberOfSegments,
-            DataSourceFlags flags
-        )
-        {
-            string? pakName = null;
-
-            MemoryDataSource outputFile;
-            MemoryDataSourceBuffer? outputBuffer = null;
-
-            numberOfSegments = 0;
-
-            while (true)
-            {
-                var pak2 = GetPak2Header(fileData, offset);
-                bool needsDecryption = pak2.WasDecrypted;
-
-                var pakHdr = pak2.Header;
-                uint curSeg = pakHdr.segmentIndex;
-                if (curSeg == 0)
-                {
-                    logger.Info($"PAK '{pakHdr.ImageType}' contains {pakHdr.segmentCount} segment(s)");
-
-                    outputBuffer = NewPakBuffer(pakHdr);
-                    outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
-
-                    pakName = pakHdr.ImageType;
-                    numberOfSegments = (int)pakHdr.segmentCount;
-                }
-
-                if (outputBuffer == null)
-                {
-                    throw new InvalidDataException($"Expected chunk index 0, got {curSeg}");
-                }
-
-                var pakData = fileData.Slice(offset + PakStructureSize, pakHdr.segmentSize);
-                if (needsDecryption && _ctx.Services.Decryptor != null)
-                {
-                    pakData = _ctx.Services.Decryptor.Decrypt(pakData).Span;
-                }
-                outputBuffer.Write(pakData);
-
-                var build = pakHdr.devMode switch
-                {
-                    PakBuildMode.DEBUG => "DEBUG",
-                    PakBuildMode.RELEASE => "RELEASE",
-                    PakBuildMode.TEST => "TEST",
-                    _ => $"UNKNOWN 0x{pakHdr.devMode:X}"
-                };
-
-                logger.Info($"  segment #{curSeg + 1} (name='{pakHdr.ImageType}'," +
-                    $" version={pakHdr.SwVersion}," +
-                    $" platform='{pakHdr.ModelName}', offset='0x{offset:X}', size='{pakHdr.segmentSize} bytes'," +
-                    $" build={build})");
-
-                if (curSeg + 1 == pakHdr.segmentCount)
-                {
-                    outputFile = outputBuffer.ToDataSource();
-                    outputBuffer.Dispose();
-                    break;
-                }
-
-                offset += PakStructureSize + (int)pakHdr.segmentSize;
-            }
-
-            //outputFile.Directory = baseDir;
-            return (pakName!, outputFile.Name, outputFile);
         }
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
@@ -213,28 +146,31 @@ namespace Yafex.FileFormats.EpkV2
 
             var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
 
-            //var sigSize = EPK_V2_STRUCTURE.SIGNATURE_SIZE;
-            var sigSize = SignatureSize;
+            var images = Epk2SegmentWalker.BuildPakImages(
+                fileData.AsReadonlySpan(),
+                _ctx,
+                hdr,
+                signatureSize: SignatureSize,
+                pakStructureSize: PakStructureSize,
+                getHeaderBytes: d => GetPak2HeaderBytes(d)
+            );
 
-            int numSignatures = 1; //header signature
-            for (int curPak = 0; curPak < hdr.FileNum; curPak++)
+            int curPak = 0;
+            foreach (var pak in images)
             {
-                int pakLoc = (int)hdr.GetImageOffset(curPak) + (numSignatures * sigSize);
-
                 (string pakName,
                  string pakOutputPath,
-                 IDataSource pak) = HandlePak(
+                 IDataSource outputFile) = HandlePak(
                      fileData.Span,
-                     pakLoc,
+                     pak,
                      baseDir: fwVersion,
-                     out int numberOfSegments,
                      outputFlags
                 );
-                pak.SetChildOf(source);
-                numSignatures += numberOfSegments;
+                outputFile.SetChildOf(source);
 
                 logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
-                yield return pak;
+                ++curPak;
+                yield return outputFile;
             }
         }
     }

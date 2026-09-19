@@ -72,6 +72,8 @@ namespace Yafex.FileFormats.EpkV2
                     header = decryptor.Decrypt(hdrBytes).ReadStruct<EPK_V2_HEADER>();
                     var cryptedCtx = CreateContext(header);
                     cryptedCtx.AddDecryptor(EPK_V2_HEADER.EPK2_MAGIC, decryptor);
+                    // the EPK header key is also used for PAK payloads
+                    cryptedCtx.Services.Decryptor = decryptor;
                     ctx = cryptedCtx;
                 }
                 else
