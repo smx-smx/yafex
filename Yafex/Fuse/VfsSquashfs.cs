@@ -12,6 +12,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+using log4net;
+
 using DiscUtils;
 using DiscUtils.SquashFs;
 
@@ -50,6 +52,8 @@ public static class VfsSquashfs
         }
     }
 
+    private static readonly ILog log = LogManager.GetLogger(typeof(VfsSquashfs));
+
     public static void BuildTree(IVfsNode vfsNode, SquashFileSystemReader rdr)
     {
         var gate = new object();
@@ -58,13 +62,27 @@ public static class VfsSquashfs
 
     private static void BuildTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
     {
-        foreach (var d in dirNode.GetDirectories())
+        DiscDirectoryInfo[] dirs;
+        DiscFileInfo[] files;
+        try
+        {
+            dirs = dirNode.GetDirectories();
+            files = dirNode.GetFiles();
+        }
+        catch (Exception ex)
+        {
+            // hostile entries (e.g. symlink variants DiscUtils cannot parse):
+            // keep siblings, skip this branch
+            log.Warn($"skipping unreadable squashfs branch '{dirNode.FullName}'", ex);
+            return;
+        }
+        foreach (var d in dirs)
         {
             var subdir = new SquashfsDirNode(d.Name, Helpers.OctalLiteral(0755));
             vfsNode.AddNode(subdir);
             BuildTree(subdir, d, gate);
         }
-        foreach (var f in dirNode.GetFiles())
+        foreach (var f in files)
         {
             vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
         }

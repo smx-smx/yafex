@@ -29,6 +29,8 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
     private readonly object _gate = new();
     private bool _loaded;
 
+    private static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(LazyVfsDirectory));
+
     public LazyVfsDirectory(string name, int mode, Func<IEnumerable<IVfsNode>> factory)
         : base(name, mode, 0)
     {
@@ -42,11 +44,20 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
         lock (_gate)
         {
             if (_loaded) return;
-            foreach (var child in _factory())
-            {
-                AddNode(child);
-            }
             _loaded = true;
+            try
+            {
+                foreach (var child in _factory())
+                {
+                    AddNode(child);
+                }
+            }
+            catch (Exception ex)
+            {
+                // a single hostile subtree (e.g. squashfs symlinks DiscUtils
+                // cannot parse) must not break the mount: empty dir, logged
+                log.Error($"lazy expansion of '{Name}' failed", ex);
+            }
         }
     }
 }

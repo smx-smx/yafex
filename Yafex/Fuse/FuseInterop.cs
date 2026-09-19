@@ -108,7 +108,7 @@ namespace Yafex.Fuse
         [MarshalAs(UnmanagedType.LPStr)]
         string path,
         nint buf, fuse_fill_dir filler,
-        nint off, ref fuse_file_info fi);
+        nint off, nint fi, nint flags);
     public delegate int fuse_releasedir(
         [MarshalAs(UnmanagedType.LPStr)] string path,
         nint fi);
@@ -187,6 +187,11 @@ namespace Yafex.Fuse
         public fuse_read_buf read_buf;
         public fuse_flock flock;
         public fuse_fallocate fallocate;
+        // FUSE 3 tail flags (zero when unsupported)
+        public int flag_nullpath_ok;
+        public int flag_nopath;
+        public int flag_utime_omit_ok;
+        public int flag_reserved;
     }
 
     public static class Helpers
@@ -234,13 +239,24 @@ namespace Yafex.Fuse
         public static fuse_args Create(IList<string> argv,
             out nint outBuffer)
         {
+            return Create(argv, out outBuffer, Marshal.AllocHGlobal);
+        }
+
+        /// <summary>
+        /// Builds argv with a caller-provided allocator. REQUIRED when the buffer
+        /// is handed to native fuse_opt_parse/fuse_main: libfuse rebuilds argv with
+        /// realloc, so AllocHGlobal memory (different heap) AVs. Pass cygwin malloc.
+        /// </summary>
+        public static fuse_args Create(IList<string> argv,
+            out nint outBuffer, Func<nint, nint> allocator)
+        {
             int argc = argv.Count;
             // pointers (+ last NULL) + string data
             var pointers_size = IntPtr.Size * (argc + 1);
-            var strings_size = argv.Sum(a => a.Length + 1);
+            var strings_size = argv.Sum(a => Encoding.UTF8.GetByteCount(a) + 1);
 
 
-            var buf = Marshal.AllocHGlobal(pointers_size + strings_size);
+            var buf = allocator(pointers_size + strings_size);
             var ptr_base = buf;
             var str_base = buf + pointers_size;
 
@@ -268,8 +284,10 @@ namespace Yafex.Fuse
         }
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     public struct fuse_opt
     {
+        [MarshalAs(UnmanagedType.LPStr)]
         string? templ;
         uint offset;
         int value;
@@ -406,8 +424,41 @@ namespace Yafex.Fuse
             return null;
         }
 
+        private static void PreloadWinFsp()
+        {
+            // Cygwin's cygfuse talks to WinFsp; its DLL is not on PATH by default.
+            // Loading it once by full path makes it resident for cygfuse's delay-load.
+            var candidates = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"WinFsp\bin\winfsp-x64.dll"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WinFsp\bin\winfsp-x64.dll"),
+                Environment.GetEnvironmentVariable("WINFSP_BIN"),
+            };
+            foreach (var candidate in candidates)
+            {
+                if (string.IsNullOrEmpty(candidate) || !File.Exists(candidate)) continue;
+                try
+                {
+                    NativeLibrary.Load(candidate);
+                    return;
+                }
+                catch (Exception)
+                {
+                    // try next candidate
+                }
+            }
+        }
+
+        private delegate nint c_malloc(nint size);
+
+        private static c_malloc? _cygwinMalloc;
+
         private FuseInteropContext Initialize()
         {
+            // WinFsp's DLL is delay-loaded by cygfuse but lives outside the loader
+            // search path: preload it so the mount works without PATH tweaks.
+            PreloadWinFsp();
+
             var bindir = GetCygwinBinDir();
             if (bindir == null)
             {
@@ -417,13 +468,24 @@ namespace Yafex.Fuse
             var libPath = Path.Combine(bindir, CYGFUSE_LIB_NAME);
             if (!File.Exists(libPath))
             {
-                throw new Exception("Couldn't locate library " + CYGFUSE_LIB_NAME);
+                throw new Exception("Couldn't locate library " + libPath);
             }
 
             var libHandle = NativeLibrary.Load(libPath);
 
-            return new FuseInteropContext(libHandle);
+            // argv buffers handed to fuse must come from the cygwin heap:
+            // libfuse rebuilds argv with realloc.
+            if (_cygwinMalloc == null)
+            {
+                if (!NativeLibrary.TryLoad("cygwin1.dll", out var cygHandle)
+                    || !NativeLibrary.TryGetExport(cygHandle, "malloc", out var mallocPtr))
+                {
+                    throw new Exception("Couldn't resolve cygwin malloc");
+                }
+                _cygwinMalloc = Marshal.GetDelegateForFunctionPointer<c_malloc>(mallocPtr);
+            }
 
+            return new FuseInteropContext(libHandle);
         }
 
         public static void Start(YafexVfs vfs, string mountPoint)
@@ -439,7 +501,7 @@ namespace Yafex.Fuse
                 "-o", "VolumeSerialNumber=1234",
                 "-o", "umask=000",
                 mountPoint
-            }, out var args_buf);
+            }, out var args_buf, size => _cygwinMalloc!(size));
             var opts = fuse_opt.CreateOptionList(new List<fuse_opt>() { });
 
             if (ctx.fuse_opt_parse(ref args, 0, opts, 0) < 0)

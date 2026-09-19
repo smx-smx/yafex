@@ -343,7 +343,7 @@ namespace Yafex.Fuse
             return 0;
         }
 
-        private int readdir(string path, nint buf, fuse_fill_dir filler, nint off, ref fuse_file_info fi)
+        private int readdir(string path, nint buf, fuse_fill_dir filler, nint off, nint fi, nint flags)
         {
             try
             {

@@ -33,6 +33,7 @@ namespace Yafex
         Fuse,
         List,
         Probe,
+        Tree,
         Help
     }
 
@@ -137,6 +138,9 @@ namespace Yafex
                     case "--list":
                         programMode = ProgramMode.List;
                         break;
+                    case "--tree":
+                        programMode = ProgramMode.Tree;
+                        break;
                     case "--probe":
                         programMode = ProgramMode.Probe;
                         break;
@@ -195,6 +199,10 @@ namespace Yafex
                 throw new ArgumentException("Fuse mountpoint not specified");
             }
             if (programMode == ProgramMode.List && inputFile == null)
+            {
+                throw new ArgumentException("Input filename not specified");
+            }
+            if (programMode == ProgramMode.Tree && inputFile == null)
             {
                 throw new ArgumentException("Input filename not specified");
             }
@@ -265,6 +273,11 @@ namespace Yafex
                         RunList(host.Services.GetRequiredService<FormatFinder>(), input);
                         return;
                     }
+                    if (_opts.ProgramMode == ProgramMode.Tree)
+                    {
+                        RunTree(host.Services.GetRequiredService<FormatFinder>(), input);
+                        return;
+                    }
                 YafexVfs? fuseVfs = null;
                 var lazyVfs = false;
 
@@ -320,13 +333,11 @@ namespace Yafex
 
         private static void PrintHelp(FileFormatRepository repo)
         {
-            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--cat|--help]");
+            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--tree|--help]");
             Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
             Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
             Console.WriteLine("  --probe          test the file against all formats, show matches");
-            Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
-            Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
-            Console.WriteLine("  --probe          test the file against all formats, show matches");
+            Console.WriteLine("  --tree           show the VFS mount tree (lazy dirs populate on access)");
             Console.WriteLine("  -o fmt:opt=val   per-format option; -o global:spool_mb=<MB> streams big artifacts to disk (default 64)");
             Console.WriteLine("  keys: -k <path>, else $YAFEX_KEYS, else ./secrets.json (missing file = no keys, not fatal)");
             Console.WriteLine("Formats:");
@@ -372,6 +383,35 @@ namespace Yafex
                 return;
             }
             lister.List(input, result, Console.Out);
+        }
+
+        private static void RunTree(FormatFinder finder, IDataSource input)
+        {
+            var (addon, result) = finder.DetectFormatAddon(input);
+            if (addon == null || result == null || !result.Succeded())
+            {
+                Console.WriteLine("no format identified");
+                return;
+            }
+            var vfs = addon.CreateVfs(input, result);
+            if (vfs == null)
+            {
+                Console.WriteLine($"lazy VFS not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}");
+                return;
+            }
+            PrintTree(vfs.Root, "", Console.Out);
+        }
+
+        private static void PrintTree(IVfsNode node, string indent, TextWriter output)
+        {
+            node.EnsureLoaded();
+            var kind = node.Type == VfsNodeType.Directory ? "/" : $" ({node.Size} bytes)";
+            output.WriteLine($"{indent}{node.Name}{kind}");
+            if (node.Type != VfsNodeType.Directory) return;
+            foreach (var key in node.Tree.Keys.OrderBy(k => k))
+            {
+                PrintTree(node.Tree[key].Node, indent + "  ", output);
+            }
         }
 
         public static void Main(string[] args)
