@@ -54,11 +54,21 @@ namespace Yafex
 
         public MemoryDataSource ToDataSource()
         {
-            return new MemoryDataSource(mem.ToArray())
+            var ds = new MemoryDataSource(mem.ToArray())
             {
                 Name = name,
                 Flags = flags
             };
+            // metadata added to the buffer (output file/dir names, etc.)
+            // must survive materialization, or downstream writers skip the artifact
+            foreach (var bucket in Metadata.Values)
+            {
+                foreach (var md in bucket)
+                {
+                    ds.AddMetadata(md);
+                }
+            }
+            return ds;
         }
 
         public void Dispose()

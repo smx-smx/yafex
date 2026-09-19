@@ -94,6 +94,17 @@ namespace Yafex
             _metadata[typeof(T)] = bucket;
         }
 
+        public void AddMetadata(IArtifactMetadata metadata)
+        {
+            var t = metadata.GetType();
+            if (!_metadata.TryGetValue(t, out var bucket))
+            {
+                bucket = new List<IArtifactMetadata>();
+            }
+            bucket.Add(metadata);
+            _metadata[t] = bucket;
+        }
+
         public IEnumerable<T> GetMetadata<T>() where T : IArtifactMetadata
         {
             if (_metadata.TryGetValue(typeof(T), out var bucket))

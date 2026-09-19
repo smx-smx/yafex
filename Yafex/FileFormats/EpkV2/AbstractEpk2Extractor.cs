@@ -145,6 +145,9 @@ namespace Yafex.FileFormats.EpkV2
             logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
             var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
+            // absolute: Path.Combine drops the base when the second part is
+            // rooted, matching the EpkV1 convention (single-level fw dir)
+            var baseDir = Path.Combine(source.RequireBaseDirectory(), fwVersion);
 
             var images = Epk2SegmentWalker.BuildPakImages(
                 fileData.AsReadonlySpan(),
@@ -163,7 +166,7 @@ namespace Yafex.FileFormats.EpkV2
                  IDataSource outputFile) = HandlePak(
                      fileData.Span,
                      pak,
-                     baseDir: fwVersion,
+                     baseDir: baseDir,
                      outputFlags
                 );
                 outputFile.SetChildOf(source);

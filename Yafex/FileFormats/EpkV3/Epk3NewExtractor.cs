@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+using Yafex.Metadata;
 using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
@@ -53,9 +54,14 @@ namespace Yafex.FileFormats.EpkV3
 
             var decryptor = ctx.GetDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC);
 
+            var baseDir = Path.Combine(source.RequireBaseDirectory(), $"{hdr.EpkVersion}-{hdr.OtaId}");
+
+            var curPak = 0;
             foreach (var pak in image.Paks)
             {
                 var buff = new MemoryDataSourceBuffer(pak.Image.Name, DataSourceFlags.Output);
+                buff.AddMetadata(new OutputFileName(pak.Image.Name));
+                buff.AddMetadata(new OutputDirectoryName(baseDir));
 
                 foreach (var seg in pak.Image.Segments)
                 {
@@ -71,7 +77,13 @@ namespace Yafex.FileFormats.EpkV3
                     }
                 }
 
-                artifacts.Add(buff.ToDataSource());
+                var outputFile = buff.ToDataSource();
+                buff.Dispose();
+                outputFile.SetChildOf(source);
+
+                logger.Info($"#{curPak + 1}/{image.Paks.Count} saved PAK ({pak.Name}) to file {outputFile.Name}");
+                ++curPak;
+                artifacts.Add(outputFile);
             }
 
             return artifacts;
