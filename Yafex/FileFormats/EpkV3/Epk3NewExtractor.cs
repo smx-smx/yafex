@@ -6,9 +6,7 @@ using Smx.SharpIO.Memory.Buffers;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
-using Yafex.Metadata;
 using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
@@ -56,15 +54,12 @@ namespace Yafex.FileFormats.EpkV3
             var decryptor = ctx.GetDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC);
 
             var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
-            var inputBase = source.GetMetadata<BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-            var baseDir = inputBase != null ? Path.Combine(inputBase, fwVersion) : fwVersion;
+            var baseDir = ArtifactBuilder.VersionedDir(source, fwVersion);
 
             var curPak = 0;
             foreach (var pak in image.Paks)
             {
-                var buff = new MemoryDataSourceBuffer(pak.Image.Name, DataSourceFlags.Output);
-                buff.AddMetadata(new OutputFileName(pak.Image.Name));
-                buff.AddMetadata(new OutputDirectoryName(baseDir));
+                var buff = ArtifactBuilder.BeginBuffer(baseDir, pak.Image.Name, DataSourceFlags.Output);
 
                 foreach (var seg in pak.Image.Segments)
                 {
@@ -80,9 +75,7 @@ namespace Yafex.FileFormats.EpkV3
                     }
                 }
 
-                var outputFile = buff.ToDataSource();
-                buff.Dispose();
-                outputFile.SetChildOf(source);
+                var outputFile = ArtifactBuilder.Complete(buff, source, baseDir);
 
                 logger.Info($"#{curPak + 1}/{image.Paks.Count} saved PAK ({pak.Name}) to file {outputFile.Name}");
                 ++curPak;

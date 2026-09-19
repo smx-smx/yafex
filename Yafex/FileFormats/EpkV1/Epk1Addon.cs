@@ -31,6 +31,11 @@ namespace Yafex.FileFormats.EpkV1
             return new Epk1Extractor(result);
         }
 
+        public IFormatLister? CreateLister(DetectionResult result)
+        {
+            return result is Epk1DetectionResult typed ? new Epk1Lister(typed) : null;
+        }
+
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
             throw new NotImplementedException();

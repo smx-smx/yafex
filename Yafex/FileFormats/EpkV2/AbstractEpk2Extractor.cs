@@ -13,10 +13,8 @@ using Yafex.FileFormats.Epk;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using Smx.SharpIO;
-using Yafex.Metadata;
 using Yafex.Support;
 using Smx.SharpIO.Memory.Buffers;
 
@@ -76,10 +74,8 @@ namespace Yafex.FileFormats.EpkV2
             _ctx = result.Context;
         }
 
-        protected abstract ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data) where T : unmanaged;
-        protected abstract int PakStructureSize { get; }
-
-        private (string, string, IDataSource) HandlePak(
+        private static (string, string, IDataSource) HandlePak(
+            IDataSource parent,
             ReadOnlySpan64<byte> fileData,
             Epk2PakImage pak,
             string baseDir,
@@ -87,8 +83,7 @@ namespace Yafex.FileFormats.EpkV2
         )
         {
             var pakName = pak.Image.Name;
-            var outputBuffer = NewPakBuffer(pak, flags);
-            outputBuffer.AddMetadata(new OutputDirectoryName(baseDir));
+            var outputBuffer = ArtifactBuilder.BeginBuffer(baseDir, pak.Image.Name, WithPakFlags(pak, flags));
 
             foreach (var seg in pak.Image.Segments)
             {
@@ -96,12 +91,11 @@ namespace Yafex.FileFormats.EpkV2
                 outputBuffer.Write(content);
             }
 
-            var outputFile = outputBuffer.ToDataSource();
-            outputBuffer.Dispose();
+            var outputFile = ArtifactBuilder.Complete(outputBuffer, parent, baseDir);
             return (pakName, outputFile.Name, outputFile);
         }
 
-        private MemoryDataSourceBuffer NewPakBuffer(Epk2PakImage pak, DataSourceFlags flags)
+        private static DataSourceFlags WithPakFlags(Epk2PakImage pak, DataSourceFlags flags)
         {
             var processFurther = pak.Header.ImageType switch
             {
@@ -114,18 +108,13 @@ namespace Yafex.FileFormats.EpkV2
             {
                 flags |= DataSourceFlags.ProcessFurther;
             }
-
-            var buff = new MemoryDataSourceBuffer(pak.Image.Name, flags);
-            buff.AddMetadata(new OutputFileName(pak.Image.Name));
-            return buff;
+            return flags;
         }
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
         {
             return Extract(source, DataSourceFlags.Output);
         }
-
-        protected abstract int SignatureSize { get; }
 
         public IEnumerable<IDataSource> Extract(IDataSource source, DataSourceFlags outputFlags)
         {
@@ -146,18 +135,12 @@ namespace Yafex.FileFormats.EpkV2
             logger.Info($"Header length: 0x{hdr.GetImageOffset(0):X}");
 
             var fwVersion = $"{hdr.EpkVersion}-{hdr.OtaId}";
-            // absolute when the source has a base dir (EpkV1 convention,
-            // single-level fw dir); relative fallback for baseless sources
-            var inputBase = source.GetMetadata<BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-            var baseDir = inputBase != null ? Path.Combine(inputBase, fwVersion) : fwVersion;
+            var baseDir = ArtifactBuilder.VersionedDir(source, fwVersion);
 
             var images = Epk2SegmentWalker.BuildPakImages(
                 fileData.AsReadonlySpan(),
                 _ctx,
-                hdr,
-                signatureSize: SignatureSize,
-                pakStructureSize: PakStructureSize,
-                getHeaderBytes: d => GetPak2HeaderBytes(d)
+                hdr
             );
 
             int curPak = 0;
@@ -166,13 +149,12 @@ namespace Yafex.FileFormats.EpkV2
                 (string pakName,
                  string pakOutputPath,
                  IDataSource outputFile) = HandlePak(
+                     source,
                      fileData.Span,
                      pak,
                      baseDir: baseDir,
                      outputFlags
                 );
-                outputFile.SetChildOf(source);
-
                 logger.Info($"#{curPak + 1}/{_ctx.Header.FileNum} saved PAK ({pakName}) to file {pakOutputPath}");
                 ++curPak;
                 yield return outputFile;
@@ -185,30 +167,12 @@ namespace Yafex.FileFormats.EpkV2
         public Epk2Extractor(Epk2DetectionResult<EPK_V2_HEADER> result) : base(result)
         {
         }
-
-        protected override int SignatureSize => EPK_V2_STRUCTURE.SIGNATURE_SIZE;
-
-        protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
-
-        protected override ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data)
-        {
-            return PAK_V2_STRUCTURE.GetHeader(data);
-        }
     }
 
     public class Epk2BetaExtractor : AbstractEpk2Extractor<EPK_V2_BETA_HEADER>
     {
         public Epk2BetaExtractor(Epk2DetectionResult<EPK_V2_BETA_HEADER> result) : base(result)
         {
-        }
-
-        protected override int SignatureSize => 0;
-
-        protected override int PakStructureSize => Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>();
-
-        protected override ReadOnlySpan64<T> GetPak2HeaderBytes<T>(ReadOnlySpan64<T> data)
-        {
-            return PAK_V2_BETA_STRUCTURE.GetHeader(data);
         }
     }
 }

@@ -45,9 +45,10 @@ namespace Yafex.FileFormats
     /// A virtual file: an ordered list of <see cref="PakSegment"/>s whose logical content
     /// is the concatenation of each segment's content.
     /// </summary>
-    public class PakImage
+    public class PakImage : IVirtualFile
     {
         public string Name = "";
+        string IVirtualFile.Name => Name;
 
         public IBlockSource Source = null!;
 
@@ -64,6 +65,8 @@ namespace Yafex.FileFormats
         }
 
         public PakStream OpenStream() => new PakStream(this);
+
+        Stream IVirtualFile.OpenRead() => OpenStream();
     }
 
     /// <summary>

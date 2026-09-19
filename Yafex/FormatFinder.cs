@@ -94,5 +94,39 @@ namespace Yafex
 
             return (bestAddon, bestResult);
         }
+
+        /// <summary>
+        /// Tests the input against every registered format, returning all matches
+        /// with confidence &gt; 0 ordered by descending confidence. Detectors that
+        /// throw are skipped (logged) instead of aborting the probe.
+        /// </summary>
+        public List<(FileFormat Format, IFormatAddon Addon, DetectionResult Result)> ProbeAll(IDataSource source)
+        {
+            var hits = new List<(FileFormat Format, IFormatAddon Addon, DetectionResult Result)>();
+            foreach (var fmt in repo.GetRegisteredFormats())
+            {
+                if (!repo.TryGetAddonForFormat(fmt, out var addon) || addon == null)
+                {
+                    continue;
+                }
+                DetectionResult? result;
+                try
+                {
+                    result = Detect(fmt, source);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Detector for {Enum.GetName(fmt)} failed", ex);
+                    continue;
+                }
+                if (result == null || result.Confidence <= 0)
+                {
+                    continue;
+                }
+                hits.Add((fmt, addon, result));
+            }
+            hits.Sort((a, b) => b.Result.Confidence.CompareTo(a.Result.Confidence));
+            return hits;
+        }
     }
 }

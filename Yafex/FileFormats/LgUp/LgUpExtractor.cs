@@ -16,10 +16,6 @@ using System.Text;
 
 using log4net;
 
-using Smx.SharpIO.Memory.Buffers;
-
-using Yafex.Metadata;
-
 namespace Yafex.FileFormats.LgUp;
 
 public class LgUpExtractor : IFormatExtractor
@@ -37,7 +33,7 @@ public class LgUpExtractor : IFormatExtractor
     {
         var pkg = _ctx.Package;
         var file = source.Data.ToArray();
-        var topDir = $"lgup-v{pkg.Version}";
+        var topDir = ArtifactBuilder.VersionedDir(source, $"lgup-v{pkg.Version}");
 
         if (pkg.Exec.Length > 0)
         {
@@ -98,18 +94,12 @@ public class LgUpExtractor : IFormatExtractor
         }
     }
 
-    private static MemoryDataSource Artifact(
+    private static IDataSource Artifact(
         IDataSource source, string dir, string name, byte[] content, string label, bool processFurther = false)
     {
         var flags = DataSourceFlags.Output;
         if (processFurther) flags |= DataSourceFlags.ProcessFurther;
-        var buff = new MemoryDataSourceBuffer(name, flags);
-        buff.AddMetadata(new OutputFileName(name));
-        buff.AddMetadata(new OutputDirectoryName(dir));
-        buff.Write(content);
-        var ds = buff.ToDataSource();
-        buff.Dispose();
-        ds.SetChildOf(source);
+        var ds = ArtifactBuilder.FromBytes(source, dir, name, content, flags);
         log.InfoFormat("saved {0} to {1}", label, Path.Combine(dir, name));
         return ds;
     }

@@ -34,9 +34,9 @@ namespace Yafex.Fuse
     /// </summary>
     public class PakVfsFile : VfsNode, IVfsFile
     {
-        private readonly PakImage _image;
+        private readonly IVirtualFile _image;
 
-        public PakVfsFile(PakImage image, int mode)
+        public PakVfsFile(IVirtualFile image, int mode)
             : base(image.Name, mode, image.Length)
         {
             _image = image;
@@ -46,7 +46,7 @@ namespace Yafex.Fuse
 
         public byte[]? Read(long offset, long count)
         {
-            using var stream = _image.OpenStream();
+            using var stream = _image.OpenRead();
             if (offset > stream.Length) return null;
             stream.Seek(offset, System.IO.SeekOrigin.Begin);
 
@@ -187,10 +187,7 @@ namespace Yafex.Fuse
             var images = Epk2SegmentWalker.BuildPakImages(
                 source.Data.AsReadonlySpan(),
                 ctx,
-                hdr,
-                signatureSize: EPK_V2_STRUCTURE.SIGNATURE_SIZE,
-                pakStructureSize: Marshal.SizeOf<PAK_V2_STRUCTURE>(),
-                getHeaderBytes: d => PAK_V2_STRUCTURE.GetHeader(d)
+                hdr
             );
             AddImages(images.Select(i => i.Image), source);
         }
@@ -201,10 +198,7 @@ namespace Yafex.Fuse
             var images = Epk2SegmentWalker.BuildPakImages(
                 source.Data.AsReadonlySpan(),
                 ctx,
-                hdr,
-                signatureSize: 0,
-                pakStructureSize: Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>(),
-                getHeaderBytes: d => PAK_V2_BETA_STRUCTURE.GetHeader(d)
+                hdr
             );
             AddImages(images.Select(i => i.Image), source);
         }
@@ -232,64 +226,11 @@ namespace Yafex.Fuse
         private void AddPak(IVfsNode parent, PakImage image, IBlockSource source)
         {
             image.Source = source;
-            parent.AddNode(new PakVfsFile(image, Helpers.OctalLiteral(0444)));
-
-            if (TryOpenSquashfs(image, out var reader))
-            {
-                var mountPoint = new YafexDirectory(
-                    Path.GetFileNameWithoutExtension(image.Name),
-                    Helpers.OctalLiteral(0755)
-                );
-                parent.AddNode(mountPoint);
-                BuildSquashfsTree(mountPoint, reader);
-            }
-        }
-
-        private bool TryOpenSquashfs(PakImage image, out SquashFileSystemReader reader)
-        {
-            reader = null!;
-            try
-            {
-                using var probe = image.OpenStream();
-                var magic = new byte[4];
-                if (probe.Read(magic, 0, 4) != 4) return false;
-                if (BitConverter.ToUInt32(magic, 0) != 0x73717368) return false; // hsqs
-
-                var stream = image.OpenStream();
-                var rdr = new SquashFileSystemReader(stream);
-                // keep the reader (and its stream) alive for the whole mount session
-                _openFilesystems.Add(rdr);
-                reader = rdr;
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        private void BuildSquashfsTree(IVfsNode vfsNode, SquashFileSystemReader rdr)
-        {
-            var gate = new object();
-            BuildSquashfsTree(vfsNode, rdr.Root, gate);
-        }
-
-        private void BuildSquashfsTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
-        {
-            var dirs = dirNode.GetDirectories();
-            foreach (var d in dirs)
-            {
-                var subdir = new SquashfsDirNode(d.Name, Helpers.OctalLiteral(0755));
-                vfsNode.AddNode(subdir);
-                BuildSquashfsTree(subdir, d, gate);
-            }
-
-            var files = dirNode.GetFiles();
-            foreach (var f in files)
-            {
-                var subfile = new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate);
-                vfsNode.AddNode(subfile);
-            }
+            ++_pakCount;
+            VfsSquashfs.AddImage(
+                parent, image,
+                img => new PakVfsFile(img, Helpers.OctalLiteral(0444)),
+                _openFilesystems);
         }
     }
 }

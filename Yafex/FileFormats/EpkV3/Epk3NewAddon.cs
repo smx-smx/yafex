@@ -35,6 +35,13 @@ namespace Yafex.FileFormats.EpkV3
             return new Epk3NewExtractor(result);
         }
 
+        public IFormatLister? CreateLister(DetectionResult result)
+        {
+            return result is Epk3NewDetectionResult typed && typed.Context != null
+                ? new Epk3NewLister(typed)
+                : null;
+        }
+
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));

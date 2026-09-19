@@ -8,7 +8,6 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -31,34 +30,8 @@ public class LgUpDetector : IFormatDetector
         _args = args;
     }
 
-    private List<byte[]> CandidateKeys()
-    {
-        var keys = new List<byte[]>();
-        if (_args.TryGetValue("key", out var hex))
-        {
-            try
-            {
-                var raw = Convert.FromHexString(hex);
-                if (raw.Length is 16 or 24 or 32) keys.Add(raw);
-                else log.WarnFormat("lgup key option must be 16/24/32 bytes of hex");
-            }
-            catch (FormatException)
-            {
-                log.Warn("lgup key option is not valid hex");
-            }
-        }
-        try
-        {
-            foreach (var e in _keys.GetKeyCollection(KeysId))
-                keys.Add(e.key);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException || ex is InvalidDataException || ex is NullReferenceException)
-        {
-            // no lgup-keys collection configured; explicit -o lgup:key=... still works
-            log.Debug("no lgup-keys key collection available", ex);
-        }
-        return keys;
-    }
+    private List<byte[]> CandidateKeys() =>
+        KeyTrial.ResolveCandidateKeys(_args, _keys, KeysId);
 
     public DetectionResult Detect(IDataSource source)
     {

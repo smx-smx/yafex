@@ -31,10 +31,22 @@ public class LgUpAddon : IFormatAddon<LgUpDetectionResult>
         return new LgUpDetector(_keys, args);
     }
 
+    public IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
+    {
+        { "key", "AES key as 16/24/32 bytes of hex (tried before the lgup-keys bundle)" }
+    };
+
     public IFormatExtractor CreateExtractor(LgUpDetectionResult result)
     {
         if (result.Context == null) throw new ArgumentNullException(nameof(result.Context));
         return new LgUpExtractor(result.Context);
+    }
+
+    public IFormatLister? CreateLister(DetectionResult result)
+    {
+        return result is LgUpDetectionResult typed && typed.Context != null
+            ? new LgUpLister(typed)
+            : null;
     }
 
     public IVfsNode CreateVfsNode(IDataSource ds)

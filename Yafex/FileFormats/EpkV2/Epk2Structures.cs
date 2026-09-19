@@ -100,6 +100,12 @@ namespace Yafex.FileFormats.EpkV2
         uint FileNum { get; }
         uint FileSize { get; }
         uint GetImageOffset(int idx);
+
+        // layout traits shared by extractor, lazy VFS, and lister:
+        // single source of truth instead of three hardcoded call sites
+        static abstract int SignatureSize { get; }
+        static abstract int PakStructureSize { get; }
+        static abstract ReadOnlySpan64<T> GetPakHeaderBytes<T>(ReadOnlySpan64<T> data) where T : unmanaged;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -133,6 +139,11 @@ namespace Yafex.FileFormats.EpkV2
         {
             return imageLocations[idx].offset;
         }
+
+        static int IEpkV2Header.SignatureSize => 0;
+        static int IEpkV2Header.PakStructureSize => Marshal.SizeOf<PAK_V2_BETA_STRUCTURE>();
+        static ReadOnlySpan64<T> IEpkV2Header.GetPakHeaderBytes<T>(ReadOnlySpan64<T> data) =>
+            PAK_V2_BETA_STRUCTURE.GetHeader(data);
     }
 
 
@@ -167,6 +178,11 @@ namespace Yafex.FileFormats.EpkV2
         {
             return imageLocations[idx].ImageOffset;
         }
+
+        static int IEpkV2Header.SignatureSize => EPK_V2_STRUCTURE.SIGNATURE_SIZE;
+        static int IEpkV2Header.PakStructureSize => Marshal.SizeOf<PAK_V2_STRUCTURE>();
+        static ReadOnlySpan64<T> IEpkV2Header.GetPakHeaderBytes<T>(ReadOnlySpan64<T> data) =>
+            PAK_V2_STRUCTURE.GetHeader(data);
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 0, CharSet = CharSet.Ansi)]

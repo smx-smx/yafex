@@ -42,10 +42,7 @@ public class SquashProbeTests
         var ctx = ((Epk2DetectionResult<EPK_V2_HEADER>)res).Context!;
 
         var images = Epk2SegmentWalker.BuildPakImages(
-            mf.Data.AsReadonlySpan(), ctx, ctx.Header,
-            signatureSize: EPK_V2_STRUCTURE.SIGNATURE_SIZE,
-            pakStructureSize: 0x100,
-            getHeaderBytes: d => PAK_V2_STRUCTURE.GetHeader(d));
+            mf.Data.AsReadonlySpan(), ctx, ctx.Header);
 
         var basePak = images.First(i => i.Image.Name == "base.pak").Image;
         TestContext.Progress.WriteLine($"base.pak length = {basePak.Length}");

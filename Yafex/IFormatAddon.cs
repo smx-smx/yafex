@@ -23,6 +23,17 @@ namespace Yafex
         IVfsNode CreateVfsNode(IDataSource ds);
 
         IFormatExtractor CreateExtractor(DetectionResult result);
+
+        /// <summary>
+        /// On-the-fly lister, or null when the format has none. Default: unsupported.
+        /// </summary>
+        IFormatLister? CreateLister(DetectionResult result) => null;
+
+        /// <summary>
+        /// Documents `-o &lt;format&gt;:&lt;opt&gt;=&lt;val&gt;` options shown by --help.
+        /// Key = option name, value = one-line description.
+        /// </summary>
+        IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>();
     }
 
     public interface IFormatAddon<TResult> : IFormatAddon where TResult : DetectionResult

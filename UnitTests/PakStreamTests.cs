@@ -373,10 +373,7 @@ public class PakStreamTests
         var ctx = PlainContext(hdr);
         var span = new Memory64<byte>(file).AsReadonlySpan();
         var images = Epk2SegmentWalker.BuildPakImages(
-            span, ctx, hdr,
-            signatureSize: SIG,
-            pakStructureSize: 0x100,
-            getHeaderBytes: d => PAK_V2_STRUCTURE.GetHeader(d)
+            span, ctx, hdr
         );
 
         Assert.AreEqual(1, images.Count);

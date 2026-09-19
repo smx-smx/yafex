@@ -40,13 +40,11 @@ namespace Yafex.FileFormats.EpkV2
         private static Pak2DetectionData ReadPakHeader<THeader>(
             ReadOnlySpan64<byte> fileData,
             EpkContext<THeader> ctx,
-            int pakLoc,
-            int pakStructureSize,
-            Func<ReadOnlySpan64<byte>, ReadOnlySpan64<byte>> getHeaderBytes
-        ) where THeader : struct
+            int pakLoc
+        ) where THeader : struct, IEpkV2Header
         {
-            var pak2 = fileData.Slice(pakLoc, pakStructureSize);
-            var pakHeaderBytes = getHeaderBytes(pak2);
+            var pak2 = fileData.Slice(pakLoc, THeader.PakStructureSize);
+            var pakHeaderBytes = THeader.GetPakHeaderBytes(pak2);
             var handler = new Pak2Handler<THeader>(ctx);
 
             var pakResult = handler.Detect(pakHeaderBytes);
@@ -60,13 +58,12 @@ namespace Yafex.FileFormats.EpkV2
         public static List<Epk2PakImage> BuildPakImages<THeader>(
             ReadOnlySpan64<byte> fileData,
             EpkContext<THeader> ctx,
-            THeader hdr,
-            int signatureSize,
-            int pakStructureSize,
-            Func<ReadOnlySpan64<byte>, ReadOnlySpan64<byte>> getHeaderBytes
+            THeader hdr
         ) where THeader : struct, IEpkV2Header
         {
             var images = new List<Epk2PakImage>();
+            int signatureSize = THeader.SignatureSize;
+            int pakStructureSize = THeader.PakStructureSize;
 
             int numSignatures = 1; // header signature
             for (int curPak = 0; curPak < hdr.FileNum; curPak++)
@@ -79,7 +76,7 @@ namespace Yafex.FileFormats.EpkV2
 
                 while (true)
                 {
-                    var pak2 = ReadPakHeader(fileData, ctx, pakLoc, pakStructureSize, getHeaderBytes);
+                    var pak2 = ReadPakHeader<THeader>(fileData, ctx, pakLoc);
                     var pakHdr = pak2.Header;
 
                     if (segments.Count == 0)
