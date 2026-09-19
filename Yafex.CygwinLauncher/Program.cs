@@ -82,6 +82,56 @@ namespace Yafex.CygwinLauncher
             return GetModuleHandle("cygwin1") != IntPtr.Zero;
         }
 
+        sealed class TeeTextWriter : TextWriter
+        {
+            private readonly TextWriter _a;
+            private readonly TextWriter _b;
+
+            public override Encoding Encoding => _a.Encoding;
+
+            public TeeTextWriter(TextWriter a, TextWriter b)
+            {
+                _a = a;
+                _b = b;
+            }
+
+            public override void Write(char value)
+            {
+                _a.Write(value);
+                _b.Write(value);
+            }
+
+            public override void Write(char[] buffer, int index, int count)
+            {
+                _a.Write(buffer, index, count);
+                _b.Write(buffer, index, count);
+            }
+
+            public override void Write(string? value)
+            {
+                _a.Write(value);
+                _b.Write(value);
+            }
+
+            public override void WriteLine()
+            {
+                _a.WriteLine();
+                _b.WriteLine();
+            }
+
+            public override void WriteLine(string? value)
+            {
+                _a.WriteLine(value);
+                _b.WriteLine(value);
+            }
+
+            public override void Flush()
+            {
+                _a.Flush();
+                _b.Flush();
+            }
+        }
+
         public static int Entry(IntPtr args, int sizeBytes)
         {
             //Debugger.Launch();
@@ -101,13 +151,17 @@ namespace Yafex.CygwinLauncher
                     using (var stdin = new StreamReader(new CygwinInputStream(0)))
                     using (var stdout = new StreamWriter(new CygwinOutputStream(1)))
                     using (var stderr = new StreamWriter(new CygwinOutputStream(2)))
+                    using (var fileStream = new FileStream(
+                        Path.Combine(thisDir, "yafex-console.log"),
+                        FileMode.Create, FileAccess.Write, FileShare.Read))
+                    using (var fileLog = new StreamWriter(fileStream) { AutoFlush = true })
                     {
                         stdout.AutoFlush = true;
                         stderr.AutoFlush = true;
 
                         Console.SetIn(stdin);
-                        Console.SetOut(stdout);
-                        Console.SetError(stderr);
+                        Console.SetOut(new TeeTextWriter(stdout, fileLog));
+                        Console.SetError(new TeeTextWriter(stderr, fileLog));
 
                         /**
                          * catch and print unhandled exceptions
@@ -119,6 +173,9 @@ namespace Yafex.CygwinLauncher
                         }
                         catch (Exception ex)
                         {
+                            var crashLog = Path.Combine(thisDir, "crash.log");
+                            File.AppendAllText(crashLog,
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] UNHANDLED EXCEPTION\n{ex}\n\n");
                             Console.Error.WriteLine("==== UNHANDLED EXCEPTION");
                             Console.Error.WriteLine(ex.ToString());
                             throw;
