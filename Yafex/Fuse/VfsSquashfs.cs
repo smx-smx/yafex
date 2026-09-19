@@ -46,8 +46,9 @@ public static class VfsSquashfs
             reader = rdr;
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            log.Debug($"squashfs open of '{image.Name}' failed", ex);
             return false;
         }
     }
