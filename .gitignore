@@ -362,3 +362,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .vscode/
+
+# Yafex local-only artifacts (never commit)
+Yafex.CygwinLauncher/external/
+fuse_bridge/build/
+TestResults/
