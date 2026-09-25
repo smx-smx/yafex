@@ -85,7 +85,16 @@ public static class VfsSquashfs
         }
         foreach (var f in files)
         {
-            vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
+            try
+            {
+                vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
+            }
+            catch (Exception ex)
+            {
+                // hostile entries (e.g. dangling symlinks whose target cannot
+                // be resolved): keep siblings, skip the entry
+                log.Warn($"skipping unreadable squashfs entry '{f.FullName}'", ex);
+            }
         }
     }
 }
