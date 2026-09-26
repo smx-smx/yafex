@@ -45,6 +45,13 @@ public class MediatekPkgAddon : IFormatAddon<MediatekPkgDetectionResult>
         return new MediatekPkgExtractor(result.Context, _keys);
     }
 
+    public IFormatLister? CreateLister(DetectionResult result)
+    {
+        return result is MediatekPkgDetectionResult typed && typed.Context != null
+            ? new MediatekPkgLister(typed)
+            : null;
+    }
+
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));

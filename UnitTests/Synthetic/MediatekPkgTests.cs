@@ -11,6 +11,8 @@
 // Synthetic MediatekPkg tests (standard-key positive via in-memory bundle).
 // Fully in-memory: no disk, no samples, no bundle files on disk.
 using System;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 using NUnit.Framework;
@@ -63,5 +65,46 @@ public class MediatekPkgTests
             var res = det.Detect(Mem(Zeros(0x200)));
             Assert.AreEqual(0, res.Confidence);
         });
+    }
+
+    [Test]
+    public void Lister_OnePart_OutputsPakLine()
+    {
+        var key = new byte[16];
+        Random.Shared.NextBytes(key);
+        var iv = new byte[16];
+        Random.Shared.NextBytes(iv);
+        // header (encrypted) + standard digest + 1 plaintext part entry +
+        // data header, no payload (entries stay plaintext like real files)
+        var tailLen = PkgHeader.STANDARD_DIGEST_SIZE
+            + Unsafe.SizeOf<PartEntry>() + Unsafe.SizeOf<DataHeader>();
+        var plain = Zeros(Unsafe.SizeOf<PkgHeader>() + tailLen);
+        WriteAscii(plain, 0, "MTK!");
+        WriteAscii(plain, 4, PkgHeader.MTK_MAGIC);
+        int entryOff = Unsafe.SizeOf<PkgHeader>() + PkgHeader.STANDARD_DIGEST_SIZE;
+        WriteAscii(plain, entryOff, "cfig");
+        // encrypt header only; entries are plaintext on disk
+        var encHead = AesCbcEncryptNone(plain[..Unsafe.SizeOf<PkgHeader>()], key, iv);
+        var cipher = encHead.Concat(plain[Unsafe.SizeOf<PkgHeader>()..]).ToArray();
+        var bundle = new KeyBundle(new KeyDTO[]
+        {
+            new Aes128Cbc
+            {
+                Id = "mtkpkg-header-key",
+                KeyMaterial = Convert.ToHexString(key),
+                KeyIV = Convert.ToHexString(iv),
+            },
+        });
+        var keys = new KeysRepository(bundle);
+        var ds = Mem(cipher);
+        var det = (MediatekPkgDetectionResult)new MediatekPkgDetector(keys).Detect(ds);
+        Assert.AreEqual(100, det.Confidence);
+        var lister = new MediatekPkgAddon(keys).CreateLister(det);
+        Assert.NotNull(lister);
+        var sw = new StringWriter();
+        lister!.List(ds, det, sw);
+        var text = sw.ToString();
+        Assert.That(text, Does.Contain("MediatekPkg"));
+        Assert.That(text, Does.Contain("cfig.pak"));
     }
 }
