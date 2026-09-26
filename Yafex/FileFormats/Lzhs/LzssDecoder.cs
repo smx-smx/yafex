@@ -18,90 +18,68 @@ namespace Yafex.FileFormats.Lzhs
         const int F = 34;
         const int THRESHOLD = 2;
 
-        private RingBuffer<byte> ringBuf = new RingBuffer<byte>(N + F - 1, N - 1u);
-        private ModCounter bufPos = new ModCounter(0, N - 1u);
-
-        private IEnumerator<byte> it;
+        private readonly byte[] data;
 
         public LzssDecoder(IEnumerable<byte> data)
         {
-            ringBuf.Fill(0);
-            it = data.GetEnumerator();
+            // Materialize once: the old path chained per-byte iterators
+            // (MoveNext + yield per output byte) through this stage.
+            if (data is byte[] arr)
+            {
+                this.data = arr;
+            }
+            else
+            {
+                var buf = new List<byte>();
+                foreach (var b in data) buf.Add(b);
+                this.data = buf.ToArray();
+            }
         }
 
-        private LzssSequenceType[] ReadSequence(byte flag)
+        public byte[] DecodeToArray(int capacityHint = 0)
         {
-            var seq = new LzssSequenceType[8];
+            var ring = new byte[N];
+            int bufPos = 0;
+            var outBuf = new List<byte>(capacityHint > 0 ? capacityHint : data.Length);
+            int pos = 0;
 
-            // shift register
-            byte shr = flag;
-
-            for (int i = 0; i < 8; i++)
+            while (pos < data.Length)
             {
-                seq[i] = (shr & 1u) switch
+                byte flags = data[pos++];
+                for (int i = 0; i < 8; i++)
                 {
-                    0 => LzssSequenceType.POINTER,
-                    1 => LzssSequenceType.RAW
-                };
-                shr >>= 1;
+                    if (((flags >> i) & 1u) == 0)
+                    {
+                        // POINTER: length byte + 2 position bytes
+                        if (pos + 3 > data.Length) return outBuf.ToArray();
+                        int matchLen = data[pos];
+                        int matchPos = (data[pos + 1] << 8) | data[pos + 2];
+                        pos += 3;
+                        for (int k = 0; k <= matchLen + THRESHOLD; k++)
+                        {
+                            byte b = ring[(bufPos - matchPos) & (N - 1)];
+                            ring[bufPos] = b;
+                            bufPos = (bufPos + 1) & (N - 1);
+                            outBuf.Add(b);
+                        }
+                    }
+                    else
+                    {
+                        // RAW
+                        if (pos >= data.Length) return outBuf.ToArray();
+                        byte b = data[pos++];
+                        ring[bufPos] = b;
+                        bufPos = (bufPos + 1) & (N - 1);
+                        outBuf.Add(b);
+                    }
+                }
             }
-
-            return seq;
-        }
-
-        private bool TryReadByte(out byte b)
-        {
-            if (!it.MoveNext())
-            {
-                b = 0;
-                return false;
-            }
-            b = it.Current;
-            return true;
-        }
-
-        private IEnumerable<byte> DecodeRaw()
-        {
-            if (!TryReadByte(out byte b))
-            {
-                yield break;
-            }
-            ringBuf[bufPos++.value] = b;
-            yield return b;
-        }
-
-        private IEnumerable<byte> DecodePointer()
-        {
-            if (!TryReadByte(out byte matchLen)) yield break;
-            if (!TryReadByte(out byte b1)) yield break;
-            if (!TryReadByte(out byte b0)) yield break;
-
-            var matchPos = (b1 << 8) | b0;
-            for (int i = 0; i <= matchLen + THRESHOLD; i++)
-            {
-                byte b = ringBuf[(bufPos - matchPos).value];
-                ringBuf[bufPos++.value] = b;
-                yield return b;
-            }
+            return outBuf.ToArray();
         }
 
         public IEnumerable<byte> Decode()
         {
-            while (TryReadByte(out byte flags))
-            {
-                foreach (var i in ReadSequence(flags))
-                {
-                    switch (i)
-                    {
-                        case LzssSequenceType.POINTER:
-                            foreach (var b in DecodePointer()) yield return b;
-                            break;
-                        case LzssSequenceType.RAW:
-                            foreach (var b in DecodeRaw()) yield return b;
-                            break;
-                    }
-                }
-            }
+            return DecodeToArray();
         }
     }
 }

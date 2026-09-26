@@ -14,51 +14,44 @@ namespace Yafex.FileFormats.Lzhs
 {
     public class ArmThumbConvert
     {
-        private IEnumerator<byte> it;
+        private readonly byte[] data;
 
         public ArmThumbConvert(IEnumerable<byte> data)
         {
-            it = data.GetEnumerator();
-        }
-
-        private bool TryReadByte(out byte b)
-        {
-            if (!it.MoveNext())
+            // Materialize once: the old path allocated a byte[2] per
+            // instruction and yielded every byte through an iterator.
+            if (data is byte[] arr)
             {
-                b = 0;
-                return false;
+                this.data = arr;
             }
-            b = it.Current;
-            return true;
+            else
+            {
+                var buf = new List<byte>();
+                foreach (var b in data) buf.Add(b);
+                this.data = buf.ToArray();
+            }
         }
 
-        private byte[] InsnFetch()
+        private static bool IsValidThumbInsnSeq0(byte hi)
         {
-            if (!TryReadByte(out byte b0)) return new byte[0];
-            if (!TryReadByte(out byte b1)) return new byte[] { b0 };
-            return new byte[] { b0, b1 };
+            return (hi & 0xF8) == 0xF0;
         }
 
-        private bool IsValidThumbInsnSeq0(byte[] insn)
+        private static bool IsValidThumbInsnSeq1(byte hi)
         {
-            return insn.Length == 2 && (insn[1] & 0xF8) == 0xF0;
+            return (hi & 0xF8) == 0xF8;
         }
 
-        private bool IsValidThumbInsnSeq1(byte[] insn)
-        {
-            return insn.Length == 2 && (insn[1] & 0xF8) == 0xF8;
-        }
-
-        private byte[] TransformThumbPair(
-            byte[] insn1, byte[] insn2,
-            uint nowPos, uint curPos, bool encoding
-        )
+        private static void TransformThumbPair(
+            byte i10, byte i11, byte i20, byte i21,
+            uint nowPos, uint curPos, bool encoding,
+            byte[] output, int outPos)
         {
             var src = (
-                ((insn1[1] & 0x7) << 19)
-                | (insn1[0] << 11)
-                | ((insn2[1] & 0x7) << 8)
-                | insn2[0]
+                ((i11 & 0x7) << 19)
+                | (i10 << 11)
+                | ((i21 & 0x7) << 8)
+                | i20
             ) << 1;
 
             var dest = encoding switch
@@ -67,59 +60,65 @@ namespace Yafex.FileFormats.Lzhs
                 false => src - (nowPos + curPos + 4)
             } >> 1;
 
-            var data = new byte[] {
-                (byte)(dest >> 11),
-                (byte)(0xF0 | ((dest >> 19) & 0x7)),
-                (byte)dest,
-                (byte)(0xF8 | (dest >> 8) & 0x7)
-            };
-            return data;
+            output[outPos] = (byte)(dest >> 11);
+            output[outPos + 1] = (byte)(0xF0 | ((dest >> 19) & 0x7));
+            output[outPos + 2] = (byte)dest;
+            output[outPos + 3] = (byte)(0xF8 | (dest >> 8) & 0x7);
         }
 
-        private IEnumerable<byte> Convert(uint nowPos, bool encoding)
+        private byte[] ConvertToArray(uint nowPos, bool encoding)
         {
+            var output = new byte[data.Length];
+            int outPos = 0;
             uint pos = 0;
-            var curInsn = InsnFetch();
-            var nextInsn = InsnFetch();
-
-            while (true)
+            int i = 0;
+            while (i < data.Length)
             {
-                if (curInsn.Length < 2)
+                int remaining = data.Length - i;
+                if (remaining < 2)
                 {
-                    foreach (var b in curInsn) yield return b;
-                    yield break;
+                    output[outPos++] = data[i++];
+                    break;
                 }
-                if (nextInsn.Length < 2)
+                if (remaining < 4)
                 {
-                    foreach (var b in curInsn) yield return b;
-                    foreach (var b in nextInsn) yield return b;
-                    yield break;
+                    output[outPos++] = data[i++];
+                    output[outPos++] = data[i++];
+                    break;
                 }
 
-                if (IsValidThumbInsnSeq0(curInsn)
-                    && IsValidThumbInsnSeq1(nextInsn)
+                byte b0 = data[i], b1 = data[i + 1], b2 = data[i + 2], b3 = data[i + 3];
+                if (IsValidThumbInsnSeq0(b1)
+                    && IsValidThumbInsnSeq1(b3)
                 )
                 {
-                    var converted = TransformThumbPair(curInsn, nextInsn, nowPos, pos, encoding);
-                    foreach (var b in converted) yield return b;
-
-                    curInsn = InsnFetch();
-                    nextInsn = InsnFetch();
+                    TransformThumbPair(b0, b1, b2, b3, nowPos, pos, encoding, output, outPos);
+                    outPos += 4;
+                    i += 4;
                     pos += 4;
                 }
                 else
                 {
-                    foreach (var b in curInsn) yield return b;
-                    curInsn = nextInsn;
-                    nextInsn = InsnFetch();
+                    output[outPos++] = b0;
+                    output[outPos++] = b1;
+                    i += 2;
                     pos += 2;
                 }
             }
+            if (outPos == output.Length) return output;
+            var trimmed = new byte[outPos];
+            System.Array.Copy(output, trimmed, outPos);
+            return trimmed;
+        }
+
+        public byte[] DecodeToArray(uint nowPos)
+        {
+            return ConvertToArray(nowPos, false);
         }
 
         public IEnumerable<byte> Decode(uint nowPos)
         {
-            return Convert(nowPos, false);
+            return DecodeToArray(nowPos);
         }
     }
 }

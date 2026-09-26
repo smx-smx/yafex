@@ -48,88 +48,10 @@ namespace Yafex.FileFormats.Lzhs
 
     public record HuffmanSymbol(uint code, int length);
 
-    public abstract class HuffmanCacheBase
-    {
-        public HuffmanCacheBase(HuffmanSymbol[] table)
-        {
-            // prefill cache
-            foreach (var item in table.Select((sym, i) => (sym, i)))
-            {
-                Insert(item.sym, item.i);
-            }
-        }
-
-        private readonly Dictionary<uint, int> cache = new Dictionary<uint, int>();
-        protected abstract uint MakeKey(uint code, int length);
-
-        public void Insert(HuffmanSymbol sym, int idx)
-        {
-            var key = MakeKey(sym.code, sym.length);
-            cache[key] = idx;
-        }
-
-        public bool TryGetValue(HuffmanSymbol sym, out int idx)
-        {
-            var key = MakeKey(sym.code, sym.length);
-            return cache.TryGetValue(key, out idx);
-        }
-    }
-
-    public class HuffCharlenCache(HuffmanSymbol[] table) : HuffmanCacheBase(table)
-    {
-        protected override uint MakeKey(uint code, int length)
-        {
-            return (uint)(((length & 0xFu) << 13) | (code & 0x1FFFu));
-        }
-    }
-
-    public class HuffCharposCache(HuffmanSymbol[] table) : HuffmanCacheBase(table)
-    {
-        protected override uint MakeKey(uint code, int length)
-        {
-            return (uint)(((length & 0x7u) << 6) | (code & 0x3Fu));
-        }
-    }
-
-    public record RingBuffer<T>(int size, uint modMask)
-    {
-        private List<T> ringBuf = new List<T>();
-
-        public void Fill(T value)
-        {
-            ringBuf.Clear();
-            ringBuf.AddRange(Enumerable.Repeat(value, size));
-        }
-
-        public T this[int idx]
-        {
-            get => ringBuf[(int)(idx & modMask)];
-            set => ringBuf[(int)(idx & modMask)] = value;
-        }
-    }
-
-    public record ModCounter(int value, uint modMask)
-    {
-        public static ModCounter operator +(ModCounter a, int count)
-        {
-            return new ModCounter((int)((a.value + count) & a.modMask), a.modMask);
-        }
-
-        public static ModCounter operator -(ModCounter a, int count) => a + (-count);
-        public static ModCounter operator ++(ModCounter a) => a + 1;
-        public static ModCounter operator --(ModCounter a) => a - 1;
-    }
-
     public enum LzssSequenceType : byte
     {
         POINTER = 0,
         RAW = 1,
-    }
-
-    public class LzhsCache
-    {
-        public static readonly HuffCharlenCache CharLenCache = new HuffCharlenCache(LzhsTables.TblCharlen);
-        public static readonly HuffCharposCache CharposCache = new HuffCharposCache(LzhsTables.TblCharpos);
     }
 
     public class LzhsTables
@@ -164,24 +86,34 @@ namespace Yafex.FileFormats.Lzhs
     public class LzhsDecoder
     {
         public readonly LzhsHeader header;
-        private readonly LzhsChecksumPassThru checksum = new LzhsChecksumPassThru();
+        private byte checksumValue;
+        private bool decoded;
 
         private static unsafe LzhsHeader ReadHeader(ReadOnlySpan64<byte> data)
         {
             return data.Slice(0, LzhsHeader.SIZE).ReadStruct<LzhsHeader>();
         }
 
-        private IEnumerable<byte> data;
+        private readonly byte[] input;
 
         public LzhsDecoder(ReadOnlyMemory64<byte> data)
         {
             header = ReadHeader(data.Span);
-            this.data = data.ToEnumerable();
+            // Materialize the compressed window once: the old path walked the
+            // mmap'd chunks through Skip/Take LINQ per access.
+            var span = data.Span;
+            long avail = span.Length - Marshal.SizeOf<LzhsHeader>();
+            if (avail < 0) avail = 0;
+            long want = (long)header.CompressedSize;
+            if (want > avail) want = avail;
+            input = new byte[Marshal.SizeOf<LzhsHeader>() + want];
+            for (long i = 0; i < input.Length; i++) input[i] = span[i];
         }
 
         public bool VerifyChecksum()
         {
-            return checksum.Value == header.Checksum;
+            if (!decoded) DecodeToArray();
+            return checksumValue == header.Checksum;
         }
 
         private uint Pad(uint num, uint align = 16)
@@ -195,17 +127,36 @@ namespace Yafex.FileFormats.Lzhs
             return num + pad;
         }
 
+        /// <summary>Full block decode: Huffman tree -&gt; indexed LZSS ring -&gt;
+        /// indexed ARM-Thumb pass, checksum folded in. Byte-identical to the
+        /// old per-byte iterator pipeline at a fraction of the CPU/GC cost.
+        /// </summary>
+        public byte[] DecodeToArray()
+        {
+            int hdrSize = Marshal.SizeOf<LzhsHeader>();
+            var comp = new byte[input.Length - hdrSize];
+            Array.Copy(input, hdrSize, comp, 0, comp.Length);
+
+            var huffmanOut = new HuffmanDecoder(comp).DecodeToArray();
+            var lzssOut = new LzssDecoder(huffmanOut).DecodeToArray((int)header.UncompressedSize);
+            var final = new ArmThumbConvert(lzssOut).DecodeToArray(0);
+
+            int take = (int)header.UncompressedSize;
+            if (take > final.Length) take = final.Length;
+            byte sum = 0;
+            for (int i = 0; i < take; i++) sum += final[i];
+            checksumValue = sum;
+            decoded = true;
+
+            if (take == final.Length) return final;
+            var truncated = new byte[take];
+            Array.Copy(final, truncated, take);
+            return truncated;
+        }
+
         public IEnumerable<byte> AsEnumerable()
         {
-            var huffmanIn = data.Skip(Marshal.SizeOf<LzhsHeader>())
-                .Take((int)header.CompressedSize);
-
-            var huffmanOut = new HuffmanDecoder(huffmanIn).Decode();
-            var lzssOut = new LzssDecoder(huffmanOut).Decode();
-            var athumbOut = new ArmThumbConvert(lzssOut).Decode(0);
-            var output = athumbOut.Take((int)header.UncompressedSize);
-            var final = checksum.Update(output);
-            return final;
+            return DecodeToArray();
         }
     }
 }
