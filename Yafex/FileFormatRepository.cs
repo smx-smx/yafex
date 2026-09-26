@@ -23,6 +23,7 @@ using Yafex.FileFormats.LxBoot;
 using Yafex.FileFormats.Lzhs;
 using Yafex.FileFormats.LzhsFs;
 using Yafex.FileFormats.MediatekPkg;
+using Yafex.FileFormats.MediatekPkgOld;
 using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Nfwb;
 using Yafex.FileFormats.Partinfo;
@@ -87,6 +88,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, LxSecureBootAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, NfwbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MediatekPkgAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, MediatekPkgOldAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, LzhsFsAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, SddlSecAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, LgUpAddon>(key);

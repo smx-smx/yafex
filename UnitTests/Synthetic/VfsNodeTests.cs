@@ -24,6 +24,7 @@ using Yafex.FileFormats.LxBoot;
 using Yafex.FileFormats.Lzhs;
 using Yafex.FileFormats.LzhsFs;
 using Yafex.FileFormats.MediatekPkg;
+using Yafex.FileFormats.MediatekPkgOld;
 using Yafex.FileFormats.MStarPkg;
 using Yafex.FileFormats.Nfwb;
 using Yafex.FileFormats.Partinfo;
@@ -57,6 +58,7 @@ public class VfsNodeTests
             new LxSecureBootAddon(),
             new NfwbAddon(),
             new MediatekPkgAddon(keys),
+            new MediatekPkgOldAddon(keys),
             new LzhsFsAddon(),
             new SddlSecAddon(keys),
             new LgUpAddon(keys),
