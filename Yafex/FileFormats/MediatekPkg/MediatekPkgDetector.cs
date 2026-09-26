@@ -125,13 +125,23 @@ public class MediatekPkgDetector : IFormatDetector
         }
 
         /* It failed, but we want to check for Philips.
-		 * Philips has an additional 0x80 header before the normal PKG one
+		 * Philips has an additional 0x80 header before the normal PKG one,
+		 * which can be encrypted with either the standard or a custom key
+		 * (e.g. Philips Android TPM191E).
 		 */
         headerBytes = data.Slice(PHILIPS_EXTRA_HEADER_SIZE, headerSize);
         if(TryDecryptHeaderStandard(headerBytes, out hdr))
         {
             _ctx.Header = hdr;
             _ctx.Variant = MtkPkgVariant.Standard;
+            _ctx.Flags |= MtkPkgQuirks.Philips;
+            return new MediatekPkgDetectionResult(100, _ctx);
+        }
+
+        if(TryDecryptHeaderNew(headerBytes, out hdr))
+        {
+            _ctx.Header = hdr;
+            _ctx.Variant = MtkPkgVariant.New;
             _ctx.Flags |= MtkPkgQuirks.Philips;
             return new MediatekPkgDetectionResult(100, _ctx);
         }
