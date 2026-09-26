@@ -321,27 +321,48 @@ namespace Yafex.FileFormats
                 return _source.Read(segment.PhysicalDataOffset + segment.ContentOffset + segPos, buffer, offset, take);
             }
 
-            var d = segment.ContentOffset + segPos;
-            var blockStart = d & ~(AES_BLOCK_SIZE - 1);
-            var blockEnd = Math.Min((d + take + AES_BLOCK_SIZE - 1) & ~(AES_BLOCK_SIZE - 1L), segment.ContentOffset + segment.LogicalSize);
+            // AES covers whole blocks only; a trailing (length % 16) remainder
+            // is stored raw and read through directly (EPKv3 chunks).
+            long segTotal = segment.ContentOffset + segment.LogicalSize;
+            long encLen = segTotal & ~(AES_BLOCK_SIZE - 1);
 
-            bool cbc = segment.Decryptor.Aes.Mode == System.Security.Cryptography.CipherMode.CBC;
-            var discardPrefixBlocks = (cbc && blockStart > 0) ? 1 : 0;
-            var readStart = blockStart - (long)(discardPrefixBlocks * AES_BLOCK_SIZE);
-
-            var cipherLen = (int)(blockEnd - readStart);
-            var ciphertext = _source.Read(segment.PhysicalDataOffset + readStart, cipherLen);
-            if (ciphertext.Length != cipherLen)
+            long d = segment.ContentOffset + segPos;
+            int total = 0;
+            if (d < encLen)
             {
-                return 0;
+                int encTake = (int)Math.Min(take, encLen - d);
+                var blockStart = d & ~(AES_BLOCK_SIZE - 1);
+                var blockEnd = Math.Min((d + encTake + AES_BLOCK_SIZE - 1) & ~(AES_BLOCK_SIZE - 1L), encLen);
+
+                bool cbc = segment.Decryptor.Aes.Mode == System.Security.Cryptography.CipherMode.CBC;
+                var discardPrefixBlocks = (cbc && blockStart > 0) ? 1 : 0;
+                var readStart = blockStart - (long)(discardPrefixBlocks * AES_BLOCK_SIZE);
+
+                var cipherLen = (int)(blockEnd - readStart);
+                var ciphertext = _source.Read(segment.PhysicalDataOffset + readStart, cipherLen);
+                if (ciphertext.Length != cipherLen)
+                {
+                    return total;
+                }
+
+                var plaintext = new byte[cipherLen];
+                segment.Decryptor.DecryptBlocks(ciphertext, discardPrefixBlocks, plaintext);
+
+                var src = (int)(d - blockStart);
+                Array.Copy(plaintext, src, buffer, offset, encTake);
+
+                total += encTake;
+                d += encTake;
+                offset += encTake;
+                take -= encTake;
             }
-
-            var plaintext = new byte[cipherLen];
-            segment.Decryptor.DecryptBlocks(ciphertext, discardPrefixBlocks, plaintext);
-
-            var src = (int)(d - blockStart);
-            Array.Copy(plaintext, src, buffer, offset, take);
-            return take;
+            if (take > 0)
+            {
+                int n = _source.Read(segment.PhysicalDataOffset + d, buffer, offset, take);
+                if (n <= 0) return total;
+                total += n;
+            }
+            return total;
         }
 
         public override long Seek(long offset, SeekOrigin origin)

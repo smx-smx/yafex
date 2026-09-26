@@ -88,7 +88,7 @@ namespace Yafex.FileFormats.EpkV3
                 {
                     if (confidence > 40)
                     {
-                        log.Info("This could be a valid EPK2, but there's no matching AES key");
+                        log.Info("This could be a valid EPK3, but there's no matching AES key");
                     }
                     confidence = 0;
                 }

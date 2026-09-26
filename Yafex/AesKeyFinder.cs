@@ -81,7 +81,9 @@ namespace Yafex
         {
             var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
 
-            var keys = bundle.GetKeyCollection(_bundleId).Where(k => algos.Contains(k.keyAlgo));
+            var keys = bundle.GetKeyCollection(_bundleId)
+                .Where(k => algos.Contains(k.keyAlgo)
+                    && (k.key.Length == 16 || k.key.Length == 24 || k.key.Length == 32));
             foreach (var k in keys)
             {
                 logger.FineFormat("Trying {0} ({1})",

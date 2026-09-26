@@ -43,6 +43,43 @@ namespace Yafex.FileFormats.LxBoot
     {
         private readonly ILog logger = LogManager.GetLogger(typeof(LxSecureBootDetector));
 
+        // Compat with Smx.SharpIO 2.0-beta.3 (no TryRead* on SpanStream):
+        // check Remaining first, then Read* inside try/catch.
+        private static bool TryReadUInt32(SpanStream reader, out uint value)
+        {
+            value = 0;
+            try
+            {
+                if (reader.Remaining < sizeof(uint))
+                {
+                    return false;
+                }
+                value = reader.ReadUInt32();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool TryReadSpbcDescriptor(SpanStream reader, out SpbcDescriptor value)
+        {
+            value = default;
+            if (!TryReadUInt32(reader, out var unk0)) return false;
+            if (!TryReadUInt32(reader, out var loadAddress)) return false;
+            if (!TryReadUInt32(reader, out var unk1)) return false;
+            if (!TryReadUInt32(reader, out var unk2)) return false;
+            value = new SpbcDescriptor
+            {
+                unk0 = unk0,
+                LoadAddress = loadAddress,
+                unk1 = unk1,
+                unk2 = unk2,
+            };
+            return true;
+        }
+
         private bool IsKnownMagic(string magic)
         {
             switch (magic)
@@ -101,7 +138,7 @@ namespace Yafex.FileFormats.LxBoot
             {
                 var res = reader.PerformAt(offset, () =>
                 {
-                    if(!reader.TryReadUInt32(out var dw))
+                    if(!TryReadUInt32(reader, out var dw))
                     {
                         return null;
                     }
@@ -114,8 +151,8 @@ namespace Yafex.FileFormats.LxBoot
                 return res != null;
             };
 
-            if(!reader.TryReadUInt32(out var dw1)
-            || !reader.TryReadUInt32(out var dw2))
+            if(!TryReadUInt32(reader, out var dw1)
+            || !TryReadUInt32(reader, out var dw2))
             {
                 return DetectionResult.Fail;
             }
@@ -155,7 +192,7 @@ namespace Yafex.FileFormats.LxBoot
             {
                 return Enumerable.Range(0, 2)
                     .Select(_ => {
-                        var res = reader.TryReadStruct(out SpbcDescriptor descr);
+                        var res = TryReadSpbcDescriptor(reader, out SpbcDescriptor descr);
                         return (res, descr);
                     })
                     .ToList();

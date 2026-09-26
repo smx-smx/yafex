@@ -28,11 +28,15 @@ namespace Yafex
 
         public Aes GetAes(PaddingMode paddingMode = PaddingMode.None)
         {
-            var blockSize = key.Length * 8;
+            // AES block size is fixed at 128 bits; only the key size varies.
+            if (key.Length != 16 && key.Length != 24 && key.Length != 32)
+            {
+                throw new InvalidDataException($"Invalid AES key length: {key.Length} bytes");
+            }
 
             var aes = Aes.Create();
-            aes.BlockSize = blockSize;
-            aes.KeySize = blockSize;
+            aes.BlockSize = 128;
+            aes.KeySize = key.Length * 8;
             aes.Key = key;
             if (keyMode == CipherMode.CBC)
             {

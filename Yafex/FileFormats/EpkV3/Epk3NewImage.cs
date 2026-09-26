@@ -81,14 +81,15 @@ namespace Yafex.FileFormats.EpkV3
 
                     long dataSize = sizeof(uint) + chunk.segmentInfo.segmentSize;
                     long chunkDataStart = cur + EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE;
-                    long alignedLen = dataSize & ~0x0FL;
 
                     image.Segments.Add(new PakSegment
                     {
                         PhysicalDataOffset = chunkDataStart,
                         EncryptedSize = dataSize,
                         ContentOffset = 4,
-                        LogicalSize = Math.Max(0, alignedLen - 4),
+                        // Full payload: AES covers whole blocks, trailing
+                        // (dataSize % 16) bytes are stored raw (see ReadSegment).
+                        LogicalSize = dataSize - sizeof(uint),
                         WasDecrypted = true,
                         Decryptor = decryptor
                     });
