@@ -279,11 +279,61 @@ namespace Yafex.Support
                 }
             }
 
+            // No swapping needed on this host; return as-is. This also avoids
+            // StructureToPtr failures on garbage (encrypted) data during probing.
+            bool needsSwap(Type t)
+            {
+                foreach (var field in t.GetFields())
+                {
+                    if (field.IsDefined(typeof(EndianAttribute), false))
+                    {
+                        Endianness fieldEndianess = ((EndianAttribute)field.GetCustomAttributes(typeof(EndianAttribute), false)[0]).Endianness;
+                        if (
+                            (fieldEndianess == Endianness.BigEndian && BitConverter.IsLittleEndian) ||
+                            (fieldEndianess == Endianness.LittleEndian && !BitConverter.IsLittleEndian)
+                        )
+                        {
+                            return true;
+                        }
+                    }
+                    else if (
+                      (structEndianness == Endianness.BigEndian && BitConverter.IsLittleEndian) ||
+                      (structEndianness == Endianness.LittleEndian && !BitConverter.IsLittleEndian)
+                  )
+                    {
+                        // byte-size fields never need swapping; check others
+                        try
+                        {
+                            if (FieldSize(field) > 1) return true;
+                        }
+                        catch
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            if (!needsSwap(type))
+            {
+                return data;
+            }
+
             var sz = Marshal.SizeOf(data);
             var mem = Marshal.AllocHGlobal(sz);
             try
             {
-                Marshal.StructureToPtr(data, mem, false);
+                try
+                {
+                    Marshal.StructureToPtr(data, mem, false);
+                }
+                catch (ArgumentException)
+                {
+                    // garbage (encrypted) data with unencodable strings:
+                    // return unswapped so detectors can Fail gracefully
+                    return data;
+                }
                 var bytes = new byte[sz];
                 Marshal.Copy(mem, bytes, 0, sz);
 

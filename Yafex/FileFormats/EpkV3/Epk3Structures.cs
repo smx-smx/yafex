@@ -136,7 +136,7 @@ namespace Yafex.FileFormats.EpkV3
         public EPK_V3_HEADER epkHeader;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 384)]
-        public byte[] crc32Info;
+        public UInt32[] crc32Info;
 
         public UInt32 reserved;
 

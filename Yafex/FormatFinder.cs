@@ -71,7 +71,7 @@ namespace Yafex
                         result = Detect(fmt, source);
                     } catch(Exception ex)
                     {
-                        log.Error($"Detector for {Enum.GetName(fmt)} failed", ex);
+                        log.Debug($"Detector for {Enum.GetName(fmt)} failed", ex);
                     }
 
                     if (result == null)
@@ -116,7 +116,7 @@ namespace Yafex
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Detector for {Enum.GetName(fmt)} failed", ex);
+                    log.Debug($"Detector for {Enum.GetName(fmt)} failed", ex);
                     continue;
                 }
                 if (result == null || result.Confidence <= 0)

@@ -10,6 +10,7 @@
 #endregion
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -47,24 +48,62 @@ namespace Yafex.FileFormats.EpkV3
         {
             var hdr = ctx.Header;
             var decryptor = ctx.GetDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC);
+            bool isOld = ctx.Variant == Epk3Variant.OLD;
 
-            var packageInfoOffset = Marshal.OffsetOf<EPK_V3_NEW_STRUCTURE>(nameof(epk.packageInfo)).ToInt32();
+            // Old: head | 128B sig | list(size) | chunks
+            // New: head | 256B sig+list(size incl sig?) | chunks (existing behavior, verified)
+            int packageInfoOffset;
+            int signatureSize;
+            long chunksStart;
+            if (isOld)
+            {
+                packageInfoOffset = Marshal.SizeOf<EPK_V3_HEAD_STRUCTURE>()
+                    + EPK_V3_HEAD_STRUCTURE.SIGNATURE_SIZE;
+                signatureSize = EPK_V3_HEAD_STRUCTURE.SIGNATURE_SIZE;
+                chunksStart = (long)packageInfoOffset + hdr.packageInfoSize;
+            }
+            else
+            {
+                packageInfoOffset = Marshal.OffsetOf<EPK_V3_NEW_STRUCTURE>(nameof(epk.packageInfo)).ToInt32();
+                signatureSize = EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE;
+                chunksStart = (long)packageInfoOffset + signatureSize + hdr.packageInfoSize;
+            }
             var packageInfoBytes = data.Slice(packageInfoOffset, hdr.packageInfoSize);
             var decrypted = decryptor.Decrypt(packageInfoBytes);
 
-            var listHeader = decrypted.ReadStruct<PAK_V3_NEW_LISTHEADER>();
-            PakInfoMagic = listHeader.pakInfoMagic;
+            uint packageInfoCount;
+            int listHeaderSize;
+            if (isOld)
+            {
+                var oldList = decrypted.ReadStruct<PAK_V3_LISTHEADER>();
+                packageInfoCount = oldList.packageInfoCount;
+                listHeaderSize = Marshal.SizeOf<PAK_V3_LISTHEADER>();
+                PakInfoMagic = 0;
+            }
+            else
+            {
+                var listHeader = decrypted.ReadStruct<PAK_V3_NEW_LISTHEADER>();
+                PakInfoMagic = listHeader.pakInfoMagic;
+                packageInfoCount = listHeader.packageInfoCount;
+                listHeaderSize = Marshal.SizeOf<PAK_V3_NEW_LISTHEADER>();
+            }
 
-            var packages = GetPackageInfoPackages(decrypted, (int)listHeader.packageInfoCount)
+            // sanity: corrupt decrypts yield huge counts -> fail fast, no OOM
+            if (packageInfoCount > 10000
+                || (long)listHeaderSize + (long)packageInfoCount * Marshal.SizeOf<PAK_V3_HEADER>() > decrypted.Length)
+            {
+                throw new InvalidDataException(
+                    $"EPK3 packageInfoCount {packageInfoCount} out of range (variant {(isOld ? "old" : "new")})");
+            }
+
+            var packages = GetPackageInfoPackages(decrypted, (int)packageInfoCount, listHeaderSize)
                 .GroupBy(p => p.packageName.AsString(Encoding.ASCII))
                 .ToDictionary(
                     g => g.Key,
                     g => g.Select(p => p).ToList()
                 );
 
-            long cur = packageInfoOffset
-                + EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE
-                + hdr.packageInfoSize;
+            long cur = chunksStart;
 
             foreach (var pak in packages)
             {
@@ -80,7 +119,7 @@ namespace Yafex.FileFormats.EpkV3
                     if (firstIndex + i >= segmentCount) break;
 
                     long dataSize = sizeof(uint) + chunk.segmentInfo.segmentSize;
-                    long chunkDataStart = cur + EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE;
+                    long chunkDataStart = cur + signatureSize;
 
                     image.Segments.Add(new PakSegment
                     {
@@ -94,7 +133,7 @@ namespace Yafex.FileFormats.EpkV3
                         Decryptor = decryptor
                     });
 
-                    cur += EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE + dataSize;
+                    cur += signatureSize + dataSize;
                     ++i;
                 }
 
@@ -110,9 +149,9 @@ namespace Yafex.FileFormats.EpkV3
             }
         }
 
-        private IEnumerable<PAK_V3_HEADER> GetPackageInfoPackages(Memory64<byte> packageInfo, int packageInfoCount)
+        private IEnumerable<PAK_V3_HEADER> GetPackageInfoPackages(Memory64<byte> packageInfo, int packageInfoCount, int listHeaderSize)
         {
-            var listOffset = Marshal.SizeOf<PAK_V3_NEW_LISTHEADER>();
+            var listOffset = listHeaderSize;
             var sizeOfPak = Marshal.SizeOf<PAK_V3_HEADER>();
             for (int i = 0; i < packageInfoCount; i++)
             {

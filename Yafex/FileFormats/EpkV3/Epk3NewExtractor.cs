@@ -39,7 +39,7 @@ namespace Yafex.FileFormats.EpkV3
 
             var epk = fileData.ReadStruct<EPK_V3_NEW_STRUCTURE>();
             var image = new Epk3NewImage(ctx, span, epk);
-            if (image.PakInfoMagic != hdr.pakInfoMagic)
+            if (ctx.Variant != Epk3Variant.OLD && image.PakInfoMagic != hdr.pakInfoMagic)
             {
                 var msg = string.Format("{0} mismatch! (expected:{1:X}, actual: {2:X})",
                         nameof(hdr.pakInfoMagic),

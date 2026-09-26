@@ -14,6 +14,7 @@ using Yafex.FileFormats.Epk;
 using Yafex.Support;
 
 using System;
+using System.Runtime.InteropServices;
 using System.Text;
 using Smx.SharpIO.Memory.Buffers;
 
@@ -51,12 +52,14 @@ namespace Yafex.FileFormats.EpkV3
             return Encoding.ASCII.GetString(bytes) == EPK_V3_NEW_HEADER.EPK3_MAGIC;
         }
 
-        private Epk3NewContext CreateContext(EPK_V3_NEW_HEADER? header)
+        private Epk3NewContext CreateContext(EPK_V3_NEW_HEADER? header, Epk3Variant variant = Epk3Variant.NEW)
         {
-            return new Epk3NewContext(
+            var ctx = new Epk3NewContext(
                 serviceFactory,
                 new EpkServices(),
                 header.HasValue ? header.Value : default);
+            ctx.Variant = variant;
+            return ctx;
         }
 
         public DetectionResult Detect(IDataSource source)
@@ -81,16 +84,36 @@ namespace Yafex.FileFormats.EpkV3
                 {
                     var decrypted = decryptor.Decrypt(hdrBytes).ReadStruct<EPK_V3_NEW_HEADER>();
                     confidence = 100;
-                    ctx = CreateContext(decrypted);
+                    ctx = CreateContext(decrypted, Epk3Variant.NEW);
                     ctx.AddDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC, decryptor);
                 }
                 else
                 {
-                    if (confidence > 40)
+                    // Fall back to old (128B signature) layout, e.g. webOS 1 (2014)
+                    var oldHdrBytes = data.Slice(
+                        EPK_V3_HEAD_STRUCTURE.SIGNATURE_SIZE,
+                        Marshal.SizeOf<EPK_V3_HEADER>());
+                    var oldDecryptor = serviceFactory.CreateEpkDecryptor(oldHdrBytes, ValidateEpk3Header);
+                    if (oldDecryptor != null)
                     {
-                        log.Info("This could be a valid EPK3, but there's no matching AES key");
+                        // map shared prefix (magic, version, otaId, sizes) into new header
+                        var rawOld = oldDecryptor.Decrypt(oldHdrBytes).ToArray();
+                        var rawNew = new byte[Marshal.SizeOf<EPK_V3_NEW_HEADER>()];
+                        Array.Copy(rawOld, rawNew, Math.Min(rawOld.Length, 44));
+                        var mapped = ((ReadOnlySpan<byte>)rawNew).ReadStruct<EPK_V3_NEW_HEADER>();
+                        confidence = 100;
+                        ctx = CreateContext(mapped, Epk3Variant.OLD);
+                        ctx.AddDecryptor(EPK_V3_NEW_HEADER.EPK3_MAGIC, oldDecryptor);
+                        log.Info("EPK3 old (128B signature) variant detected");
                     }
-                    confidence = 0;
+                    else
+                    {
+                        if (confidence > 40)
+                        {
+                            log.Info("This could be a valid EPK3, but there's no matching AES key");
+                        }
+                        confidence = 0;
+                    }
                 }
             }
             return new Epk3NewDetectionResult(confidence, ctx);
