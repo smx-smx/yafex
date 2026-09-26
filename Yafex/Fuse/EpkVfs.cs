@@ -22,6 +22,7 @@ using Smx.SharpIO.Memory.Buffers;
 
 using Yafex.FileFormats;
 using Yafex.FileFormats.Epk;
+using Yafex.FileFormats.EpkV1;
 using Yafex.FileFormats.EpkV2;
 using Yafex.FileFormats.EpkV3;
 using Yafex.Support;
@@ -125,7 +126,7 @@ namespace Yafex.Fuse
     }
 
     /// <summary>
-    /// FUSE VFS that mounts an EPK2/EPK2Beta/EPK3 image directly from the backing
+    /// FUSE VFS that mounts an EPK1/EPK2/EPK2Beta/EPK3 image directly from the backing
     /// file, decrypting on demand in blocks. Nested filesystems (e.g. squashfs)
     /// are exposed as subdirectories.
     /// </summary>
@@ -142,6 +143,13 @@ namespace Yafex.Fuse
             _input = input;
 
             var blockSource = new MappedBlockSource(input.Data);
+
+            var epk1 = new Epk1Detector().Detect(input);
+            if (epk1 is Epk1DetectionResult epk1r && epk1r.Succeded() && epk1r.EpkType != Epk1Type.New)
+            {
+                BuildEpk1(epk1r.EpkType, blockSource);
+                return;
+            }
 
             var epk2 = new Epk2Detector(keysRepo).Detect(input);
             if (epk2 is Epk2DetectionResult<EPK_V2_HEADER> epk2r && epk2r.Succeded() && epk2r.Context != null)
@@ -164,7 +172,7 @@ namespace Yafex.Fuse
                 return;
             }
 
-            throw new NotSupportedException("Input is not a recognized EPK2/EPK2Beta/EPK3 firmware image");
+            throw new NotSupportedException("Input is not a recognized EPK1/EPK2/EPK2Beta/EPK3 firmware image");
         }
 
         public static bool TryCreate(MFile input, KeysRepository keysRepo, out EpkVfs vfs)
@@ -179,6 +187,25 @@ namespace Yafex.Fuse
                 vfs = null!;
                 return false;
             }
+        }
+
+        private void BuildEpk1(Epk1Type epkType, MappedBlockSource source)
+        {
+            var images = Epk1Walker.EnumeratePaks(source.Data, epkType)
+                .Select(entry =>
+                {
+                    var image = new PakImage { Name = $"{entry.Name}.pak" };
+                    image.Segments.Add(new PakSegment
+                    {
+                        PhysicalDataOffset = entry.Offset,
+                        EncryptedSize = entry.Size,
+                        ContentOffset = 0,
+                        LogicalSize = entry.Size,
+                        WasDecrypted = false,
+                    });
+                    return (image, (Func<string>?)(() => $"package: {entry.Name}\noffset: 0x{entry.Offset:X}\nsize: {entry.Size}"));
+                });
+            AddImages(images, source);
         }
 
         private void BuildEpk2(EpkContext<EPK_V2_HEADER> ctx, MappedBlockSource source)

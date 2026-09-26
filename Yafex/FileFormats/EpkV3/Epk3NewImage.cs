@@ -118,17 +118,22 @@ namespace Yafex.FileFormats.EpkV3
                 {
                     if (firstIndex + i >= segmentCount) break;
 
-                    long dataSize = sizeof(uint) + chunk.segmentInfo.segmentSize;
+                    // New chunks: sig + u32 index + payload (index verified on extract).
+                    // Old chunks: sig + payload, no index prefix (see epk2extract).
+                    long dataSize = isOld
+                        ? chunk.segmentInfo.segmentSize
+                        : sizeof(uint) + chunk.segmentInfo.segmentSize;
                     long chunkDataStart = cur + signatureSize;
+                    int contentOffset = isOld ? 0 : sizeof(uint);
 
                     image.Segments.Add(new PakSegment
                     {
                         PhysicalDataOffset = chunkDataStart,
                         EncryptedSize = dataSize,
-                        ContentOffset = 4,
+                        ContentOffset = contentOffset,
                         // Full payload: AES covers whole blocks, trailing
                         // (dataSize % 16) bytes are stored raw (see ReadSegment).
-                        LogicalSize = dataSize - sizeof(uint),
+                        LogicalSize = dataSize - contentOffset,
                         WasDecrypted = true,
                         Decryptor = decryptor
                     });
