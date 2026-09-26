@@ -10,6 +10,7 @@
 #endregion
 using log4net;
 
+using System;
 using System.IO;
 
 namespace Yafex.FileFormats.Lzhs
@@ -31,20 +32,28 @@ namespace Yafex.FileFormats.Lzhs
             {
                 hdr = new LzhsHeader(data.Span);
             }
-            catch (InvalidDataException)
+            catch (Exception ex) when (ex is InvalidDataException || ex is ArgumentOutOfRangeException || ex is ArgumentException)
             {
                 return new SimpleDetectionResult(0);
             }
 
-            var decoder = new LzhsDecoder(data);
+            try
+            {
+                var decoder = new LzhsDecoder(data);
 
-            foreach (var item in decoder.AsEnumerable()) ;
-            if (decoder.VerifyChecksum())
-            {
-                return new SimpleDetectionResult(50);
+                foreach (var item in decoder.AsEnumerable()) ;
+                if (decoder.VerifyChecksum())
+                {
+                    return new SimpleDetectionResult(50);
+                }
+                else
+                {
+                    return new SimpleDetectionResult(0);
+                }
             }
-            else
+            catch (Exception ex) when (ex is InvalidDataException || ex is ArgumentOutOfRangeException || ex is ArgumentException)
             {
+                log.Debug("LZHS probe failed", ex);
                 return new SimpleDetectionResult(0);
             }
         }

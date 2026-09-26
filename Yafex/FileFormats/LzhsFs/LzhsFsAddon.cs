@@ -31,7 +31,7 @@ namespace Yafex.FileFormats.LzhsFs
 
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
-            throw new NotImplementedException();
+            return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
     }
 }

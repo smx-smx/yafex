@@ -16,7 +16,7 @@ using System.Linq;
 
 namespace Yafex.FileFormats.LzhsFs
 {
-    internal class LzhsFsDetector : IFormatDetector
+    public class LzhsFsDetector : IFormatDetector
     {
         public LzhsFsDetector()
         {

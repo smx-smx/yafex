@@ -3,8 +3,6 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
-    public record Epk2BetaDetectionResult(int Confidence, Epk2BetaContext? Context) : DetectionResult(Confidence);
-
     public class Epk2BetaDetector : EpkDetector, IFormatDetector
     {
         public Epk2BetaDetector(KeysRepository keysRepo) : base(keysRepo)
@@ -22,7 +20,7 @@ namespace Yafex.FileFormats.EpkV2
                 confidence += 100;
                 ctx = new Epk2BetaContext(serviceFactory, new EpkServices(), hdr);
             }
-            return new Epk2BetaDetectionResult(confidence, ctx);
+            return new Epk2DetectionResult<EPK_V2_BETA_HEADER>(confidence, ctx);
         }
     }
 }

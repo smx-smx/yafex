@@ -18,7 +18,7 @@ using log4net;
 
 namespace Yafex.FileFormats.SddlSec
 {
-	internal class SddlSecExtractor : IFormatExtractor
+	public class SddlSecExtractor : IFormatExtractor
 	{
         private readonly SddlSecContext _ctx;
         private static readonly ILog log = LogManager.GetLogger(nameof(SddlSecExtractor));

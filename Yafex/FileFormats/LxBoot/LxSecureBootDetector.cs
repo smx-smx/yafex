@@ -84,9 +84,10 @@ namespace Yafex.FileFormats.LxBoot
         {
             switch (magic)
             {
-                // chip revision
-                case "H\x13A0":
-                case "M\x14B0":
+                // chip revision (NOTE: "\x13A0" would parse as U+13A0;
+                // split the escape so the labels stay 4 chars)
+                case "H\x13" + "A0":
+                case "M\x14" + "B0":
                 // platform
                 case "M\x16PR":
                 case "O\x18PR":
@@ -128,7 +129,7 @@ namespace Yafex.FileFormats.LxBoot
                     .Let(v =>
                     {
                         var buf = new byte[4];
-                        BinaryPrimitives.WriteUInt32BigEndian(buf, v);
+                        BinaryPrimitives.WriteUInt32LittleEndian(buf, v);
                         return buf;
                     })
                     .Let(b => Encoding.ASCII.GetString(b));

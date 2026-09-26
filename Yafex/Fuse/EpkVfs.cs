@@ -151,9 +151,9 @@ namespace Yafex.Fuse
             }
 
             var beta = new Epk2BetaDetector(keysRepo).Detect(input);
-            if (beta is Epk2BetaDetectionResult betar && betar.Succeded() && betar.Context != null)
+            if (beta is Epk2DetectionResult<EPK_V2_BETA_HEADER> betar && betar.Succeded() && betar.Context is Epk2BetaContext betaCtx)
             {
-                BuildEpk2Beta(betar.Context, blockSource);
+                BuildEpk2Beta(betaCtx, blockSource);
                 return;
             }
 
