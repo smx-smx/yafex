@@ -158,6 +158,15 @@ namespace Yafex
         }
 
 
+        /// <summary>
+        /// Builds a bundle from already-loaded entries without touching disk.
+        /// Used by tests and tools that synthesize keys in memory.
+        /// </summary>
+        public KeyBundle(IEnumerable<KeyDTO> keys)
+        {
+            _keySecrets = keys.ToDictionary(x => x.Id, x => x);
+        }
+
         public KeyBundle(string filePath)
         {
             using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
