@@ -32,4 +32,25 @@ public class SpanExtensionsTests
         Assert.AreEqual("Hello World", mem32.AsString(Encoding.UTF8));
         Assert.AreEqual("Hello World", mem64.AsString(Encoding.UTF8));
     }
+
+    [Test]
+    public void TestReadStruct_ShortBuffer_ThrowsManaged()
+    {
+        // used to overread natively (SIGSEGV on tiny nested artifacts)
+        var tiny = new byte[80];
+        Assert.Throws<ArgumentOutOfRangeException>(() => ((ReadOnlySpan<byte>)tiny).ReadStruct<BigStruct>());
+        Assert.Throws<ArgumentOutOfRangeException>(ReadShortSpan64);
+    }
+
+    private static void ReadShortSpan64()
+    {
+        ReadOnlySpan64<byte> tiny64 = new byte[80];
+        tiny64.ReadStruct<BigStruct>();
+    }
+
+    [InlineArray(256)]
+    private struct BigStruct
+    {
+        private byte _element0;
+    }
 }
