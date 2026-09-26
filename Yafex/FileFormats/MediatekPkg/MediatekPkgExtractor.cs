@@ -161,7 +161,7 @@ public class MediatekPkgExtractor : IFormatExtractor
             ? Unsafe.SizeOf<DataHeader>()
             : 0;
 
-        var basedir = Path.Combine(source.RequireBaseDirectory(), Header.ProductName);
+        var basedir = ArtifactBuilder.VersionedDir(source, Header.ProductName);
         source.AddMetadata(new BaseDirectoryPath(basedir));
 
         var iPart = 0;
