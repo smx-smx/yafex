@@ -101,6 +101,10 @@ public class MediatekPkgExtractor : IFormatExtractor
 
     private string? ReadOptionalOtaId(Memory<byte> meta)
     {
+        if (meta.Length < 4)
+        {
+            return null;
+        }
         var st = new SpanStream(meta);
         var endOrLength = st.ReadBytes(4);
         if(endOrLength.AsString(Encoding.ASCII) == MTK_MAGIC_PAD)
@@ -108,22 +112,34 @@ public class MediatekPkgExtractor : IFormatExtractor
             return null;
         }
         var otaIdLength = BinaryPrimitives.ReadInt32LittleEndian(endOrLength);
+        if (otaIdLength <= 0 || otaIdLength > st.Length - st.Position)
+        {
+            return null;
+        }
         var otaId = st.ReadBytes(otaIdLength).AsString(Encoding.ASCII);
         return otaId;
     }
 
     private Memory64<byte> ReadMtkMetadata(Memory64<byte> data, out string? otaId)
     {
+        otaId = null;
+        // metadata is best-effort: short/corrupt tails must not kill extraction
+        if (data.Length < Unsafe.SizeOf<iMtkHeader>())
+        {
+            return data;
+        }
         var st = new SpanStream(data);
         var iMtk = st.PerformAt(st.Position, st.ReadStruct<iMtkHeader>);
 
-        otaId = null;
-
         if (iMtk.Magic == MTK_MAGIC_META)
         {
+            if (iMtk.Length > st.Length - Unsafe.SizeOf<iMtkHeader>())
+            {
+                return data;
+            }
             st.Position += Unsafe.SizeOf<iMtkHeader>();
 
-            var metaData = st.ReadBytes(iMtk.Length);
+            var metaData = st.ReadBytes((int)iMtk.Length);
             otaId = ReadOptionalOtaId(metaData);
         }
 
