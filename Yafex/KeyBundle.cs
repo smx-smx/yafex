@@ -130,6 +130,28 @@ namespace Yafex
             return typedItem;
         }
 
+        /// <summary>Reads a <see cref="RawKeyDTO"/> entry as raw (key, iv)
+        /// bytes. Returns false when the id is missing or not a raw entry.</summary>
+        public bool TryGetRaw(string id, out byte[] key, out byte[] iv)
+        {
+            key = [];
+            iv = [];
+            try
+            {
+                var dto = GetItem<RawKeyDTO>(id);
+                key = Convert.FromHexString(dto.KeyMaterial);
+                if (dto.KeyIV != null)
+                {
+                    iv = Convert.FromHexString(dto.KeyIV);
+                }
+                return true;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is FormatException)
+            {
+                return false;
+            }
+        }
+
         public IEnumerable<KeyEntry> GetKeyCollection(string id)
         {
             if (!_keySecrets.TryGetValue(id, out var item))

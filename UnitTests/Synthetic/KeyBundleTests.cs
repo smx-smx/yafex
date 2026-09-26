@@ -49,4 +49,25 @@ public class KeyBundleTests
         Assert.AreEqual(1, entries.Count());
         Assert.IsFalse(repo.TryGetKey("missing", out _));
     }
+
+    [Test]
+    public void InMemory_RawKeysResolve()
+    {
+        var bundle = new KeyBundle(new KeyDTO[]
+        {
+            new RawKeyDTO { Id = "old-hdr", KeyMaterial = "09291094", KeyIV = "757CBE04" },
+            new RawKeyDTO { Id = "old-iv", KeyMaterial = "727CBE04" },
+            new Aes128Ecb { Id = "aes", KeyMaterial = new string('A', 32) },
+        });
+        var repo = new KeysRepository(bundle);
+        Assert.IsTrue(repo.TryGetRaw("old-hdr", out var key, out var iv));
+        CollectionAssert.AreEqual(Convert.FromHexString("09291094"), key);
+        CollectionAssert.AreEqual(Convert.FromHexString("757CBE04"), iv);
+        Assert.IsTrue(repo.TryGetRaw("old-iv", out key, out iv));
+        Assert.AreEqual(4, key.Length);
+        Assert.IsEmpty(iv);
+        Assert.IsFalse(repo.TryGetRaw("missing", out _, out _));
+        // aes entries are not raw entries
+        Assert.IsFalse(repo.TryGetRaw("aes", out _, out _));
+    }
 }

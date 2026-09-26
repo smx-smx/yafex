@@ -26,12 +26,25 @@ public class KeyCollectionDTO : KeyDTO
     public List<KeyDTO> Keys { get; set; } = new List<KeyDTO>();
 }
 
+/// <summary>Arbitrary non-AES key material (hex), with optional hex IV.
+/// For ciphers like the MTK PKG old Feistel whose keys are not valid AES
+/// key lengths and must bypass the AES-only <see cref="KeyEntry"/> path.</summary>
+public class RawKeyDTO : KeyDTO
+{
+    [JsonPropertyName("key")]
+    public required string KeyMaterial { get; set; }
+
+    [JsonPropertyName("iv")]
+    public string? KeyIV { get; set; }
+}
+
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(KeyCollectionDTO), "collection")]
 [JsonDerivedType(typeof(Aes128Ecb), "aes-128-ecb")]
 [JsonDerivedType(typeof(Aes256Ecb), "aes-256-ecb")]
 [JsonDerivedType(typeof(Aes128Cbc), "aes-128-cbc")]
 [JsonDerivedType(typeof(Aes256Cbc), "aes-256-cbc")]
+[JsonDerivedType(typeof(RawKeyDTO), "raw")]
 public class KeyDTO
 {
     [JsonPropertyName("id")]

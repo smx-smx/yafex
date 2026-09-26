@@ -42,6 +42,14 @@ public class KeysRepository
         return _keyBundle.GetItem<T>(id);
     }
 
+    public bool TryGetRaw(string id, out byte[] key, out byte[] iv)
+    {
+        key = [];
+        iv = [];
+        if (_keyBundle == null) return false;
+        return _keyBundle.TryGetRaw(id, out key, out iv);
+    }
+
     public IEnumerable<KeyEntry> GetKeyCollection(string id)
     {
         return _keyBundle.GetKeyCollection(id);
