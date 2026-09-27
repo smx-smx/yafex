@@ -37,6 +37,7 @@ namespace Yafex
         Cramfs,
         Squashfs3,
         Squashfs4,
-        Nfsb
+        Nfsb,
+        UImage
     }
 }

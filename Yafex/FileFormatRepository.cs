@@ -37,6 +37,7 @@ using Yafex.FileFormats.Cramfs;
 using Yafex.FileFormats.Nfsb;
 using Yafex.FileFormats.Squashfs;
 using Yafex.FileFormats.Squashfs3;
+using Yafex.FileFormats.UImage;
 
 namespace Yafex
 {
@@ -106,6 +107,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, Squashfs4Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, Squashfs3Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, NfsbAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, UImageAddon>(key);
         }
     }
 }
