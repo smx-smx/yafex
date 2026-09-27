@@ -43,6 +43,7 @@ namespace Yafex
         Jffs2,
         Idb,
         Sym,
-        IntelHex
+        IntelHex,
+        MtkBoot
     }
 }

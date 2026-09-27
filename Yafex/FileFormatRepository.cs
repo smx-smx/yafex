@@ -39,6 +39,7 @@ using Yafex.FileFormats.Idb;
 using Yafex.FileFormats.IntelHex;
 using Yafex.FileFormats.Jffs2;
 using Yafex.FileFormats.Lz4;
+using Yafex.FileFormats.MtkBoot;
 using Yafex.FileFormats.Nfsb;
 using Yafex.FileFormats.Sym;
 using Yafex.FileFormats.Squashfs;
@@ -120,6 +121,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, IdbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, SymAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, IntelHexAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, MtkBootAddon>(key);
         }
     }
 }
