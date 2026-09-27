@@ -191,6 +191,9 @@ namespace Yafex.Fuse
 
         private void BuildEpk1(Epk1Type epkType, MappedBlockSource source)
         {
+            // walker yields header offsets; payload follows the PakHeader,
+            // mirroring Epk1Extractor
+            int headerSize = Marshal.SizeOf<PakHeader>();
             var images = Epk1Walker.EnumeratePaks(source.Data, epkType)
                 .Select(entry =>
                 {
@@ -198,8 +201,8 @@ namespace Yafex.Fuse
                     image.Segments.Add(new PakSegment
                     {
                         PhysicalDataOffset = entry.Offset,
-                        EncryptedSize = entry.Size,
-                        ContentOffset = 0,
+                        EncryptedSize = headerSize + entry.Size,
+                        ContentOffset = headerSize,
                         LogicalSize = entry.Size,
                         WasDecrypted = false,
                     });

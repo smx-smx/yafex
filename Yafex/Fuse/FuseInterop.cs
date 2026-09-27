@@ -490,6 +490,15 @@ namespace Yafex.Fuse
 
         public static void Start(YafexVfs vfs, string mountPoint)
         {
+            if (OperatingSystem.IsLinux())
+            {
+                FuseLinuxInterop.Start(vfs, mountPoint);
+                return;
+            }
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("FUSE mount is supported on Windows (WinFsp/Cygwin) and Linux (libfuse3)");
+            }
             var fuse = new FuseInterop();
 
             var ctx = fuse.Initialize();
