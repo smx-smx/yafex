@@ -97,6 +97,7 @@ public static class ContentExpanders
     {
         new SquashfsExpander(),
         new GzipExpander(),
+        new FatExpander(),
         new LzhsFsExpander(),
         new LzhsExpander(),
     };
@@ -187,6 +188,45 @@ public sealed class GzipExpander : IContentExpander
         {
             var inflated = new GzipVirtualFile(stem, file);
             return new IVfsNode[] { new PakVfsFile(inflated, Helpers.OctalLiteral(0444)) };
+        });
+    }
+}
+
+public sealed class FatExpander : IContentExpander
+{
+    public string Name => "fat";
+
+    public bool Matches(IVirtualFile file)
+    {
+        try
+        {
+            using var probe = file.OpenRead();
+            if (probe.Length < 512) return false;
+            var bpb = new byte[512];
+            int off = 0;
+            while (off < bpb.Length)
+            {
+                int n = probe.Read(bpb, off, bpb.Length - off);
+                if (n <= 0) return false;
+                off += n;
+            }
+            return VfsFat.IsBpb(bpb);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
+    {
+        return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
+        {
+            if (!VfsFat.TryOpen(file, keepAlive, out var fs))
+            {
+                throw new InvalidDataException("fat open failed");
+            }
+            return VfsExt.BuildLazyTree(fs);
         });
     }
 }

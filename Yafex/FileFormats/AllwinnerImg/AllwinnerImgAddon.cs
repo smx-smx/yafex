@@ -37,4 +37,18 @@ public class AllwinnerImgAddon : IFormatAddon
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));
     }
+
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        if (source is not Support.MFile input) return null;
+        if (result is not AllwinnerImgDetectionResult r || r.Context == null) return null;
+        try
+        {
+            return AllwinnerVfs.Create(input, r.Context);
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
+    }
 }

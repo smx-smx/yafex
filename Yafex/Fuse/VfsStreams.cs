@@ -253,3 +253,78 @@ public sealed class AesCbcDecryptStream : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
+
+/// <summary>Seekable RC6-ECB decrypt window over a stored region (Allwinner
+/// LiveSuit payloads). ECB blocks are independent, so arbitrary reads only
+/// touch their covering blocks; a short tail passes through untouched.</summary>
+public sealed class Rc6EcbDecryptStream : Stream
+{
+    private readonly IDataSource _source;
+    private readonly long _regionStart;
+    private readonly long _length;
+    private readonly uint[] _subkeys;
+    private long _position;
+
+    public Rc6EcbDecryptStream(IDataSource source, long regionStart, long length, byte[] key)
+    {
+        _source = source;
+        _regionStart = regionStart;
+        _length = length;
+        _subkeys = Yafex.FileFormats.AllwinnerImg.AwCrypto.ExpandSubkeys(key);
+        _position = 0;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
+    public override bool CanWrite => false;
+    public override long Length => _length;
+    public override long Position { get => _position; set => Seek(value, SeekOrigin.Begin); }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        if (_position >= _length) return 0;
+        count = (int)Math.Min(count, _length - _position);
+
+        long absStart = _position;
+        long absEnd = absStart + count;
+        long firstBlock = absStart / 16;
+        long lastBlock = (absEnd - 1) / 16;
+
+        var block = new byte[16];
+        int total = 0;
+        for (long b = firstBlock; b <= lastBlock; b++)
+        {
+            long blockAbs = b * 16;
+            long copyFrom = Math.Max(absStart, blockAbs) - blockAbs;
+            long copyTo = Math.Min(absEnd, blockAbs + 16) - blockAbs;
+            var cipher = _source.Data.Slice(_regionStart + blockAbs, 16).ToArray();
+            if (cipher.Length != 16) break;
+            Array.Copy(cipher, block, 16);
+            Yafex.FileFormats.AllwinnerImg.AwCrypto.DecryptBlock(block, 0, _subkeys);
+            for (long i = copyFrom; i < copyTo; i++)
+            {
+                buffer[offset + total++] = block[i];
+            }
+        }
+        _position += total;
+        return total;
+    }
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        var target = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _position + offset,
+            SeekOrigin.End => _length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(offset)),
+        };
+        if (target < 0 || target > _length) throw new IOException("seek out of range");
+        _position = target;
+        return target;
+    }
+
+    public override void Flush() { }
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+}

@@ -40,6 +40,9 @@ public static class AwCrypto
     private static uint Rotl(uint v, int n) => (v << (n & 31)) | (v >> ((32 - n) & 31));
     private static uint Rotr(uint v, int n) => (v >> (n & 31)) | (v << ((32 - n) & 31));
 
+    /// <summary>Precomputes the 44 subkeys for streaming block decryption.</summary>
+    public static uint[] ExpandSubkeys(byte[] key) => ExpandKey(key);
+
     private static uint[] ExpandKey(byte[] key)
     {
         if (key.Length != 32) throw new ArgumentException("RC6 key must be 32 bytes", nameof(key));
