@@ -32,6 +32,7 @@ using Yafex.FileFormats.SddlSec;
 using Yafex.FileFormats.LgUp;
 using Yafex.FileFormats.AllwinnerImg;
 using Yafex.FileFormats.Msd11;
+using Yafex.FileFormats.Lzo;
 
 namespace Yafex
 {
@@ -96,6 +97,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, LgUpAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, AllwinnerImgAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, Msd11Addon>(key);
+            services.AddKeyedSingleton<IFormatAddon, LgLzoAddon>(key);
         }
     }
 }

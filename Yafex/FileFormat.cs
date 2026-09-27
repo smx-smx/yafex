@@ -32,6 +32,7 @@ namespace Yafex
         SddlSec,
         LgUp,
         AllwinnerImg,
-        Msd11
+        Msd11,
+        LgLzo
     }
 }

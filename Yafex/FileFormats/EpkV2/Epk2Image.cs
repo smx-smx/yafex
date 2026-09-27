@@ -93,7 +93,10 @@ namespace Yafex.FileFormats.EpkV2
                         PhysicalDataOffset = dataStart,
                         EncryptedSize = segSize,
                         ContentOffset = 0,
-                        LogicalSize = pak2.WasDecrypted ? (segSize & ~0x0FL) : segSize,
+                        // Full stored size: AES covers whole 16-byte blocks only;
+                        // a trailing (size % 16) remainder is stored raw and
+                        // passed through at read time (same split as PakStream).
+                        LogicalSize = segSize,
                         WasDecrypted = pak2.WasDecrypted,
                         Decryptor = pak2.WasDecrypted
                             ? ctx.GetDecryptor(PAK_V2_HEADER.PAK_MAGIC)
@@ -124,14 +127,29 @@ namespace Yafex.FileFormats.EpkV2
         /// <summary>
         /// Reads the logical content of a segment back from the source.
         /// Used by the standalone extractor to materialize output.
+        /// AES covers whole 16-byte blocks only; a trailing remainder is
+        /// stored raw and appended verbatim (mirrors PakStream.ReadSegment).
         /// </summary>
         public static byte[] ReadSegmentContent(PakSegment seg, ReadOnlySpan64<byte> fileData)
         {
             if (seg.WasDecrypted && seg.Decryptor != null)
             {
+                long segTotal = seg.ContentOffset + seg.LogicalSize;
+                long encLen = segTotal & ~0x0FL;
                 var encrypted = fileData.Slice(seg.PhysicalDataOffset, seg.EncryptedSize);
-                var decrypted = seg.Decryptor.Decrypt(encrypted);
-                return decrypted.Slice(seg.ContentOffset, seg.LogicalSize).ToArray();
+                if (encLen > seg.ContentOffset)
+                {
+                    var cipherPrefix = encrypted.Slice(0, encLen);
+                    var decrypted = seg.Decryptor.Decrypt(cipherPrefix);
+                    var head = decrypted.Slice(seg.ContentOffset, encLen - seg.ContentOffset).ToArray();
+                    if (segTotal == encLen) return head;
+                    var tail = encrypted.Slice(encLen, segTotal - encLen).ToArray();
+                    var full = new byte[head.Length + tail.Length];
+                    Array.Copy(head, full, head.Length);
+                    Array.Copy(tail, 0, full, head.Length, tail.Length);
+                    return full;
+                }
+                return encrypted.Slice(seg.ContentOffset, seg.LogicalSize).ToArray();
             }
             return fileData.Slice(seg.PhysicalDataOffset + seg.ContentOffset, seg.LogicalSize).ToArray();
         }

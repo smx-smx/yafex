@@ -102,6 +102,7 @@ public static class ContentExpanders
         new LzhsExpander(),
         new GptExpander(),
         new VdfsExpander(),
+        new LgLzoExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
