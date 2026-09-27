@@ -110,6 +110,7 @@ public static class ContentExpanders
         new Lz4pExpander(),
         new Jffs2Expander(),
         new IdbExpander(),
+        new SymExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

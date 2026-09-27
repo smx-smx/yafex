@@ -41,6 +41,7 @@ namespace Yafex
         UImage,
         Lz4p,
         Jffs2,
-        Idb
+        Idb,
+        Sym
     }
 }
