@@ -345,4 +345,128 @@ public class Squashfs3Tests
         img[0] = 0xFF;
         Assert.Throws<IOException>(() => Open(img));
     }
+
+    private static void PutU16BE(List<byte> b, ushort v)
+    {
+        b.Add((byte)(v >> 8));
+        b.Add((byte)v);
+    }
+
+    private static void PutU32BE(List<byte> b, uint v)
+    {
+        b.Add((byte)(v >> 24));
+        b.Add((byte)(v >> 16));
+        b.Add((byte)(v >> 8));
+        b.Add((byte)v);
+    }
+
+    private static void PutU64BE(List<byte> b, ulong v)
+    {
+        PutU32BE(b, (uint)(v >> 32));
+        PutU32BE(b, (uint)v);
+    }
+
+    // Minimal big-endian v3.0 image: stored (uncompressed) metablocks and one
+    // stored data block. Exercises BE magic, superblock, inode/dir bitfields.
+    private static byte[] BuildImageBE()
+    {
+        var payload = Hello;
+        var img = new List<byte>();
+        img.AddRange(new byte[119]); // superblock placeholder
+
+        long dataStart = img.Count;
+        img.AddRange(payload);
+
+        // inode table content: root dir + one reg file
+        var itab = new List<byte>();
+        // root dir base: type=1, mode=0x1ED (MSB-first packing)
+        PutU32BE(itab, (1u << 28) | (0x1EDu << 16));
+        PutU32BE(itab, 0x4F791449);
+        PutU32BE(itab, 1);
+        PutU32BE(itab, 2);
+        const uint dirSize = 9 + 5 + 5; // header + one entry
+        PutU32BE(itab, (dirSize + 3) << 13); // file_size:19, offset:13 = 0
+        PutU32BE(itab, 0); // start_block
+        PutU32BE(itab, 1);
+        // reg file base: type=2, mode=0x1A4
+        const int regOff = 28;
+        PutU32BE(itab, (2u << 28) | (0x1A4u << 16));
+        PutU32BE(itab, 0x4F791449);
+        PutU32BE(itab, 1);
+        PutU64BE(itab, (ulong)dataStart);
+        PutU32BE(itab, 0xFFFFFFFFu);
+        PutU32BE(itab, 0);
+        PutU32BE(itab, (uint)payload.Length);
+        PutU32BE(itab, (uint)payload.Length | (1u << 24)); // stored
+        // dir content: 1 entry -> (blk 0, off regOff)
+        var dtab = new List<byte>();
+        dtab.Add(0); // count - 1
+        PutU32BE(dtab, 0); // start_block
+        PutU32BE(dtab, 0);
+        dtab.Add((byte)(regOff >> 5)); // offset:13 MSB-first
+        dtab.Add((byte)(((regOff & 0x1F) << 3) | 2)); // offset low + type
+        dtab.Add(4); // nameLen - 1
+        PutU16BE(dtab, 0);
+        dtab.AddRange(Encoding.ASCII.GetBytes("a.txt"));
+
+        long itabOff = img.Count;
+        PutU16BE(img, (ushort)(itab.Count | (1 << 15))); // stored metablock
+        img.AddRange(itab);
+        long dtabOff = img.Count;
+        PutU16BE(img, (ushort)(dtab.Count | (1 << 15)));
+        img.AddRange(dtab);
+        long uidOff = img.Count;
+        PutU32BE(img, 1000);
+        long guidOff = img.Count;
+        PutU32BE(img, 100);
+
+        var sb = new List<byte>();
+        sb.AddRange(Encoding.ASCII.GetBytes("sqsh"));
+        PutU32BE(sb, 2); // inodes
+        for (int i = 0; i < 5; i++) PutU32BE(sb, 0); // compat
+        PutU16BE(sb, 3); // major
+        PutU16BE(sb, 1); // minor (3.1)
+        PutU16BE(sb, (ushort)BlockSize);
+        PutU16BE(sb, Blog);
+        sb.Add(0); sb.Add(1); sb.Add(1); // flags/uids/guids
+        PutU32BE(sb, 0x4F791449); // mkfs
+        PutU64BE(sb, 0); // root
+        PutU32BE(sb, (uint)BlockSize);
+        PutU32BE(sb, 0); // fragments
+        PutU32BE(sb, 0); // compat
+        PutU64BE(sb, 0); // bytes_used (patched)
+        PutU64BE(sb, (ulong)uidOff);
+        PutU64BE(sb, (ulong)guidOff);
+        PutU64BE(sb, (ulong)itabOff);
+        PutU64BE(sb, (ulong)dtabOff);
+        PutU64BE(sb, (ulong)(dtabOff + 2 + dtab.Count)); // frag == end
+        PutU64BE(sb, (ulong)(dtabOff + 2 + dtab.Count)); // lookup == end
+        if (sb.Count != 119) throw new Exception($"superblock size {sb.Count}");
+        for (int i = 0; i < 119; i++) img[i] = sb[i];
+        var used = (ulong)img.Count;
+        for (int i = 0; i < 8; i++) img[63 + i] = (byte)(used >> (56 - 8 * i));
+
+        return img.ToArray();
+    }
+
+    [Test]
+    public void BigEndian_RootListsAndReads()
+    {
+        using var fs = Open(BuildImageBE());
+        var names = fs.Root.GetFiles().Select(f => f.Name).ToList();
+        CollectionAssert.AreEqual(new[] { "a.txt" }, names);
+        var f = fs.Root.GetFiles().First(x => x.Name == "a.txt");
+        CollectionAssert.AreEqual(Hello, ReadAll(f));
+    }
+
+    [Test]
+    public void BigEndian_DetectorHits90()
+    {
+        var hit = new MemoryDataSource(BuildImageBE()) { Name = "t.sqsh" };
+        var result = (Yafex.FileFormats.Squashfs3.Squashfs3DetectionResult)
+            new Yafex.FileFormats.Squashfs3.Squashfs3Detector().Detect(hit);
+        Assert.IsTrue(result.Succeded());
+        Assert.AreEqual(90, result.Confidence);
+        Assert.IsTrue(result.BigEndian);
+    }
 }

@@ -20,7 +20,7 @@ using log4net;
 
 namespace Yafex.FileFormats.Squashfs3;
 
-public record Squashfs3DetectionResult(int Confidence, byte[]? Image) : DetectionResult(Confidence);
+public record Squashfs3DetectionResult(int Confidence, byte[]? Image, bool BigEndian = false) : DetectionResult(Confidence);
 
 public class Squashfs3Detector : IFormatDetector
 {
@@ -31,15 +31,18 @@ public class Squashfs3Detector : IFormatDetector
             var data = source.Data;
             if (data.Length < 119) return DetectionResult.Fail;
             var prefix = data.Slice(0, 32).ToArray();
-            if (BitConverter.ToUInt32(prefix, 0) != Squashfs3FileSystem.Magic) return DetectionResult.Fail;
-            if (BitConverter.ToUInt16(prefix, 28) != Squashfs3FileSystem.MajorVersion) return DetectionResult.Fail;
+            if (!Squashfs3FileSystem.HasMagic(prefix, out bool bigEndian)) return DetectionResult.Fail;
+            ushort major = bigEndian
+                ? (ushort)((prefix[28] << 8) | prefix[29])
+                : BitConverter.ToUInt16(prefix, 28);
+            if (major != Squashfs3FileSystem.MajorVersion) return DetectionResult.Fail;
             var bytes = data.ToArray();
             using var stream = new MemoryStream(bytes, writable: false);
             using var fs = new Squashfs3FileSystem(stream);
             // force the root open while validating
             var root = fs.Root;
             if (root == null) return DetectionResult.Fail;
-            return new Squashfs3DetectionResult(90, bytes);
+            return new Squashfs3DetectionResult(90, bytes, bigEndian);
         }
         catch (Exception)
         {
