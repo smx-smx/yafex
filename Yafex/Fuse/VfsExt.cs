@@ -14,6 +14,7 @@ using System.IO;
 
 using log4net;
 
+using DiscUtils;
 using DiscUtils.Ext;
 
 namespace Yafex.Fuse;
@@ -22,7 +23,8 @@ namespace Yafex.Fuse;
 /// Shared ext4 helpers for any VFS: probe an <see cref="IVirtualFile"/> for an
 /// ext2/3/4 image (superblock magic at +0x438, rev >= 0) and expose its tree
 /// as VFS nodes. Reads go through the virtual file, so nested filesystems
-/// never require extraction.
+/// never require extraction. Subdirectories stay lazy (one level per access)
+/// because backing streams may be expensive to seek (e.g. LZHS restart).
 /// </summary>
 public static class VfsExt
 {
@@ -63,4 +65,47 @@ public static class VfsExt
     }
 
     private static readonly ILog log = LogManager.GetLogger(typeof(VfsExt));
+
+    /// <summary>Root-level children; subdirectories expand on first access.</summary>
+    public static List<IVfsNode> BuildLazyTree(DiscFileSystem fs)
+    {
+        return ListChildren(fs.Root, new object());
+    }
+
+    private static List<IVfsNode> ListChildren(DiscDirectoryInfo dir, object gate)
+    {
+        var nodes = new List<IVfsNode>();
+        DiscDirectoryInfo[] dirs;
+        DiscFileInfo[] files;
+        try
+        {
+            dirs = dir.GetDirectories();
+            files = dir.GetFiles();
+        }
+        catch (Exception ex)
+        {
+            // hostile branch: keep siblings, skip it
+            log.Warn($"skipping unreadable ext branch '{dir.FullName}'", ex);
+            return nodes;
+        }
+        foreach (var d in dirs)
+        {
+            var captured = d;
+            nodes.Add(new LazyVfsDirectory(captured.Name, Helpers.OctalLiteral(0755),
+                () => ListChildren(captured, gate)));
+        }
+        foreach (var f in files)
+        {
+            try
+            {
+                // generic DiscFileInfo wrapper (named for its first user)
+                nodes.Add(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
+            }
+            catch (Exception ex)
+            {
+                log.Warn($"skipping unreadable ext entry '{f.FullName}'", ex);
+            }
+        }
+        return nodes;
+    }
 }
