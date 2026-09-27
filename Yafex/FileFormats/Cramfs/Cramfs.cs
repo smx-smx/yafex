@@ -17,11 +17,12 @@ using System.Text;
 namespace Yafex.FileFormats.Cramfs;
 
 /// <summary>
-/// Little-endian cramfs reader, including the LG extensions found in EPK2
-/// payloads (e.g. lgap.pak after LZO decompression).
+/// cramfs reader (little- and big-endian), including the LG extensions found
+/// in EPK payloads (e.g. lgap.pak after LZO decompression, LE; the bigendian
+/// EPK1 lgap, BE).
 /// </summary>
 /// <remarks>
-/// On-disk layout (all little-endian): superblock (magic 0x28cd3d45, size,
+/// On-disk layout: superblock (magic 0x28cd3d45 LE / 0x453dcd28 BE, size,
 /// flags, future, "Compressed ROMFS", fsid, name), root inode at offset 64,
 /// then inodes and data. Each inode is 12 bytes packed
 /// (mode:16, uid:16, size:24, gid:8, namelen:6, offset:26, where offset is a
@@ -66,19 +67,44 @@ public sealed class CramfsReader
     public const int RootOffset = 64;
 
     private readonly byte[] _data;
+    private readonly bool _bigEndian;
 
     public uint DeclaredSize { get; }
     public uint Flags { get; }
     public string VolumeName { get; }
     public byte RootGid { get; }
+    public bool BigEndian => _bigEndian;
     public CramfsInode Root { get; }
 
-    public CramfsReader(byte[] data)
+    /// <summary>Magic sniff shared by the detector and the mount expander.</summary>
+    public static bool HasMagic(byte[] prefix, out bool bigEndian)
+    {
+        bigEndian = false;
+        if (prefix.Length < 4)
+        {
+            return false;
+        }
+        uint le = BitConverter.ToUInt32(prefix, 0);
+        if (le == Magic)
+        {
+            return true;
+        }
+        // big-endian magic reads byte-swapped on a little-endian host
+        if (le == 0x453DCD28u)
+        {
+            bigEndian = true;
+            return true;
+        }
+        return false;
+    }
+
+    public CramfsReader(byte[] data, bool bigEndian = false)
     {
         _data = data;
+        _bigEndian = bigEndian;
         if (data.Length < 76)
             throw new InvalidDataException("too small for cramfs");
-        if (ReadU32(0) != Magic)
+        if (!HasMagic(data, out bool be) || be != bigEndian)
             throw new InvalidDataException("not a cramfs image");
         DeclaredSize = ReadU32(4);
         Flags = ReadU32(8);
@@ -94,7 +120,12 @@ public sealed class CramfsReader
     {
         if (offset < 0 || offset + 4 > _data.Length)
             throw new InvalidDataException("cramfs read out of range");
-        return BitConverter.ToUInt32(_data, (int)offset);
+        uint v = BitConverter.ToUInt32(_data, (int)offset);
+        if (!_bigEndian)
+        {
+            return v;
+        }
+        return ((v & 0xFF) << 24) | ((v & 0xFF00) << 8) | ((v & 0xFF0000) >> 8) | ((v & 0xFF000000) >> 24);
     }
 
     private CramfsInode ReadInode(long offset, string name)
@@ -104,14 +135,27 @@ public sealed class CramfsReader
         uint w0 = ReadU32(offset);
         uint w1 = ReadU32(offset + 4);
         uint w2 = ReadU32(offset + 8);
+        if (!_bigEndian)
+        {
+            return new CramfsInode
+            {
+                Mode = (ushort)(w0 & 0xFFFF),
+                Uid = (ushort)(w0 >> 16),
+                Size24 = w1 & 0xFFFFFF,
+                Gid = (byte)(w1 >> 24),
+                NameLengthUnits = (int)(w2 & 0x3F),
+                DataOffset = (w2 >> 6) << 2,
+                Name = name,
+            };
+        }
         return new CramfsInode
         {
-            Mode = (ushort)(w0 & 0xFFFF),
-            Uid = (ushort)(w0 >> 16),
-            Size24 = w1 & 0xFFFFFF,
-            Gid = (byte)(w1 >> 24),
-            NameLengthUnits = (int)(w2 & 0x3F),
-            DataOffset = (w2 >> 6) << 2,
+            Mode = (ushort)(w0 >> 16),
+            Uid = (ushort)(w0 & 0xFFFF),
+            Size24 = (w1 >> 8) & 0xFFFFFF,
+            Gid = (byte)(w1 & 0xFF),
+            NameLengthUnits = (int)(w2 >> 26),
+            DataOffset = (w2 & 0x3FFFFFF) << 2,
             Name = name,
         };
     }

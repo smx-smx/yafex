@@ -15,7 +15,7 @@ using System.Linq;
 
 namespace Yafex.FileFormats.Cramfs;
 
-public record CramfsDetectionResult(int Confidence, byte[]? Image) : DetectionResult(Confidence);
+public record CramfsDetectionResult(int Confidence, byte[]? Image, bool BigEndian = false) : DetectionResult(Confidence);
 
 public class CramfsDetector : IFormatDetector
 {
@@ -26,11 +26,11 @@ public class CramfsDetector : IFormatDetector
             var data = source.Data;
             if (data.Length < 76) return DetectionResult.Fail;
             var prefix = data.Slice(0, 32).ToArray();
-            if (BitConverter.ToUInt32(prefix, 0) != CramfsReader.Magic) return DetectionResult.Fail;
+            if (!CramfsReader.HasMagic(prefix, out bool bigEndian)) return DetectionResult.Fail;
             // full validation (signature, root): needs the whole image
             var bytes = data.ToArray();
-            var reader = new CramfsReader(bytes);
-            return new CramfsDetectionResult(90, bytes);
+            var reader = new CramfsReader(bytes, bigEndian);
+            return new CramfsDetectionResult(90, bytes, bigEndian);
         }
         catch (Exception)
         {
@@ -42,15 +42,17 @@ public class CramfsDetector : IFormatDetector
 public class CramfsLister : IFormatLister
 {
     private readonly byte[] _image;
+    private readonly bool _bigEndian;
 
     public CramfsLister(CramfsDetectionResult result)
     {
         _image = result.Image!;
+        _bigEndian = result.BigEndian;
     }
 
     public void List(IDataSource source, DetectionResult result, TextWriter output)
     {
-        var reader = new CramfsReader(_image);
+        var reader = new CramfsReader(_image, _bigEndian);
         output.WriteLine($"Cramfs ({source.Name}, {reader.DeclaredSize} bytes):");
         Walk(reader, reader.Root, "", output);
     }
@@ -74,15 +76,17 @@ public class CramfsLister : IFormatLister
 public class CramfsExtractor : IFormatExtractor
 {
     private readonly byte[] _image;
+    private readonly bool _bigEndian;
 
     public CramfsExtractor(CramfsDetectionResult result)
     {
         _image = result.Image!;
+        _bigEndian = result.BigEndian;
     }
 
     public IEnumerable<IDataSource> Extract(IDataSource source)
     {
-        var reader = new CramfsReader(_image);
+        var reader = new CramfsReader(_image, _bigEndian);
         foreach (var (path, content) in Walk(reader, reader.Root, ""))
         {
             // flat output: hierarchy stays visible via --list/--tree and mount.

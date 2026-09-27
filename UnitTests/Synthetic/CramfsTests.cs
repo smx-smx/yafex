@@ -24,6 +24,8 @@ using Yafex;
 using Yafex.FileFormats.Cramfs;
 using Yafex.FileFormats.Lzo;
 
+using static UnitTests.Synthetic;
+
 namespace UnitTests;
 
 [TestFixture]
@@ -260,5 +262,77 @@ public class CramfsTests
         var img = BuildImage();
         img[0] = 0xFF;
         Assert.Throws<InvalidDataException>(() => new CramfsReader(img));
+    }
+
+    private static void PutU32BE(List<byte> b, uint v)
+    {
+        b.Add((byte)(v >> 24));
+        b.Add((byte)(v >> 16));
+        b.Add((byte)(v >> 8));
+        b.Add((byte)v);
+    }
+
+    private static byte[] BuildImageBE(byte[] payload)
+    {
+        var blk = ZlibWrap(payload);
+        // root dir: one file entry (12 + 2*4 name bytes)
+        const int dataOff = 76 + 20;
+        var img = new List<byte>();
+        img.AddRange(new byte[] { 0x28, 0xCD, 0x3D, 0x45 }); // BE magic
+        PutU32BE(img, 0); // size patched later
+        PutU32BE(img, 3);
+        PutU32BE(img, 0);
+        img.AddRange(Encoding.ASCII.GetBytes("Compressed ROMFS"));
+        img.AddRange(new byte[16]);
+        var nm = new byte[16];
+        Encoding.ASCII.GetBytes("betest").CopyTo(nm, 0);
+        img.AddRange(nm);
+        // root inode: mode, size24=20, gid, nl=0, offset=76
+        PutU32BE(img, 0x41ED0000u);
+        PutU32BE(img, 0x00001405u);
+        PutU32BE(img, (uint)(76 >> 2));
+        // file entry: mode, size, gid, nl=2, offset=dataOff
+        PutU32BE(img, 0x81A40000u);
+        PutU32BE(img, ((uint)payload.Length << 8) | 5u);
+        PutU32BE(img, (2u << 26) | (uint)(dataOff >> 2));
+        var nameBytes = new byte[8];
+        Encoding.ASCII.GetBytes("a.txt").CopyTo(nameBytes, 0);
+        img.AddRange(nameBytes);
+        // block pointer (END offset) + block
+        PutU32BE(img, (uint)(dataOff + 4 + blk.Length));
+        img.AddRange(blk);
+        var bytes = img.ToArray();
+        var sizeBE = new byte[4];
+        sizeBE[0] = (byte)(bytes.Length >> 24);
+        sizeBE[1] = (byte)(bytes.Length >> 16);
+        sizeBE[2] = (byte)(bytes.Length >> 8);
+        sizeBE[3] = (byte)bytes.Length;
+        Array.Copy(sizeBE, 0, bytes, 4, 4);
+        return bytes;
+    }
+
+    [Test]
+    public void BigEndian_DetectsAndReads()
+    {
+        var img = BuildImageBE(Hello);
+        Assert.IsTrue(CramfsReader.HasMagic(img, out bool be));
+        Assert.IsTrue(be);
+        var fs = new CramfsReader(img, bigEndian: true);
+        Assert.IsTrue(fs.BigEndian);
+        var names = fs.ReadDirectory(fs.Root).Select(e => e.Name).ToList();
+        CollectionAssert.AreEqual(new[] { "a.txt" }, names);
+        var a = Find(fs, fs.Root, "a.txt");
+        Assert.AreEqual((uint)Hello.Length, fs.FileSize(a));
+        CollectionAssert.AreEqual(Hello, fs.ReadFile(a));
+    }
+
+    [Test]
+    public void BigEndian_DetectorHits90()
+    {
+        var mem = Mem(BuildImageBE(Hello), "t.cramfs");
+        var res = (CramfsDetectionResult)new CramfsAddon().CreateDetector(
+            new System.Collections.Generic.Dictionary<string, string>()).Detect(mem);
+        Assert.AreEqual(90, res.Confidence);
+        Assert.IsTrue(res.BigEndian);
     }
 }

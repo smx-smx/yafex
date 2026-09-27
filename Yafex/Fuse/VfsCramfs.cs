@@ -84,7 +84,7 @@ public sealed class CramfsExpander : IContentExpander
             using var probe = file.OpenRead();
             var magic = new byte[4];
             if (probe.Read(magic, 0, 4) != 4) return false;
-            return BitConverter.ToUInt32(magic, 0) == CramfsReader.Magic;
+            return CramfsReader.HasMagic(magic, out _);
         }
         catch (Exception)
         {
@@ -97,7 +97,11 @@ public sealed class CramfsExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var image = ReadAll(file);
-            var reader = new CramfsReader(image);
+            if (!CramfsReader.HasMagic(image, out bool bigEndian))
+            {
+                throw new InvalidDataException("not a cramfs image");
+            }
+            var reader = new CramfsReader(image, bigEndian);
             keepAlive.Add(reader);
             keepAlive.Add(image);
             var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
