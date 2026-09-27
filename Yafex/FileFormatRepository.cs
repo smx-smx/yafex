@@ -35,6 +35,7 @@ using Yafex.FileFormats.Msd11;
 using Yafex.FileFormats.Lzo;
 using Yafex.FileFormats.Cramfs;
 using Yafex.FileFormats.Gzip;
+using Yafex.FileFormats.Jffs2;
 using Yafex.FileFormats.Lz4;
 using Yafex.FileFormats.Nfsb;
 using Yafex.FileFormats.Squashfs;
@@ -112,6 +113,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, UImageAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, GzipAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, Lz4pAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, Jffs2Addon>(key);
         }
     }
 }

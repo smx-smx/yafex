@@ -39,6 +39,7 @@ namespace Yafex
         Squashfs4,
         Nfsb,
         UImage,
-        Lz4p
+        Lz4p,
+        Jffs2
     }
 }

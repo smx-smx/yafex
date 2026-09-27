@@ -108,6 +108,7 @@ public static class ContentExpanders
         new NfsbExpander(),
         new UImageExpander(),
         new Lz4pExpander(),
+        new Jffs2Expander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
