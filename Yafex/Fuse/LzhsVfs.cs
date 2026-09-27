@@ -317,8 +317,29 @@ public sealed class LzhsFsExpander : IContentExpander
             {
                 return tree;
             }
+            if (TryOpenExt(inflated, keepAlive, out var extTree))
+            {
+                return extTree;
+            }
             return new IVfsNode[] { new PakVfsFile(inflated, Helpers.OctalLiteral(0444)) };
         });
+    }
+
+    private static bool TryOpenExt(IVirtualFile inflated, ICollection<object> keepAlive, out List<IVfsNode> tree)
+    {
+        tree = new List<IVfsNode>();
+        try
+        {
+            if (!VfsExt.TryOpen(inflated, keepAlive, out var fs)) return false;
+            var tmp = new YafexDirectory(inflated.Name, Helpers.OctalLiteral(0755));
+            VfsSquashfs.BuildTree(tmp, fs);
+            foreach (var kv in tmp.Tree) tree.Add(kv.Value.Node);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private static bool TryOpenSquashfs(IVirtualFile inflated, ICollection<object> keepAlive, out List<IVfsNode> tree)
@@ -379,6 +400,10 @@ public sealed class LzhsExpander : IContentExpander
             {
                 return tree;
             }
+            if (TryOpenExt(inflated, keepAlive, out var extTree))
+            {
+                return extTree;
+            }
             return new IVfsNode[] { new PakVfsFile(inflated, Helpers.OctalLiteral(0444)) };
         });
     }
@@ -407,6 +432,23 @@ public sealed class LzhsExpander : IContentExpander
             if (!VfsSquashfs.TryOpen(inflated, keepAlive, out var reader)) return false;
             var tmp = new YafexDirectory(inflated.Name, Helpers.OctalLiteral(0755));
             VfsSquashfs.BuildTree(tmp, reader);
+            foreach (var kv in tmp.Tree) tree.Add(kv.Value.Node);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryOpenExt(IVirtualFile inflated, ICollection<object> keepAlive, out List<IVfsNode> tree)
+    {
+        tree = new List<IVfsNode>();
+        try
+        {
+            if (!VfsExt.TryOpen(inflated, keepAlive, out var fs)) return false;
+            var tmp = new YafexDirectory(inflated.Name, Helpers.OctalLiteral(0755));
+            VfsSquashfs.BuildTree(tmp, fs);
             foreach (var kv in tmp.Tree) tree.Add(kv.Value.Node);
             return true;
         }

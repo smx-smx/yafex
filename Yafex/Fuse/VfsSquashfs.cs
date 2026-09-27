@@ -55,10 +55,10 @@ public static class VfsSquashfs
 
     private static readonly ILog log = LogManager.GetLogger(typeof(VfsSquashfs));
 
-    public static void BuildTree(IVfsNode vfsNode, SquashFileSystemReader rdr)
+    public static void BuildTree(IVfsNode vfsNode, DiscFileSystem fs)
     {
         var gate = new object();
-        BuildTree(vfsNode, rdr.Root, gate);
+        BuildTree(vfsNode, fs.Root, gate);
     }
 
     private static void BuildTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
