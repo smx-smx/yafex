@@ -40,6 +40,7 @@ namespace Yafex
         Nfsb,
         UImage,
         Lz4p,
-        Jffs2
+        Jffs2,
+        Idb
     }
 }
