@@ -100,6 +100,8 @@ public static class ContentExpanders
         new FatExpander(),
         new LzhsFsExpander(),
         new LzhsExpander(),
+        new GptExpander(),
+        new VdfsExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
@@ -453,6 +455,104 @@ public sealed class RangeVirtualFile : IVirtualFile
     public string Name { get; }
     public long Length { get; }
     public Stream OpenRead() => new DataSourceRangeStream(_source, _offset, Length);
+}
+
+/// <summary>A byte window of another virtual file, exposed lazily (partition
+/// slices, stored member regions). Backing streams open per read.</summary>
+public sealed class SliceVirtualFile : IVirtualFile
+{
+    private readonly IVirtualFile _source;
+    private readonly long _offset;
+
+    public SliceVirtualFile(string name, IVirtualFile source, long offset, long length)
+    {
+        Name = name;
+        _source = source;
+        _offset = offset;
+        Length = length;
+    }
+
+    public string Name { get; }
+    public long Length { get; }
+    public Stream OpenRead() => new SliceStream(_source, _offset, Length);
+}
+
+/// <summary>Windowed read-only stream over an <see cref="IVirtualFile"/>.</summary>
+public sealed class SliceStream : Stream
+{
+    private readonly IVirtualFile _source;
+    private readonly long _base;
+    private readonly long _length;
+    private long _position;
+    private Stream? _current;
+    private long _currentStart = -1;
+
+    public SliceStream(IVirtualFile source, long offset, long length)
+    {
+        _source = source;
+        _base = offset;
+        _length = length;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => true;
+    public override bool CanWrite => false;
+    public override long Length => _length;
+    public override long Position { get => _position; set => Seek(value, SeekOrigin.Begin); }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        if (_position >= _length) return 0;
+        count = (int)Math.Min(count, _length - _position);
+        var stream = StreamAt(_position);
+        int n = stream.Read(buffer, offset, count);
+        _position += n;
+        _currentStart = _position;
+        return n;
+    }
+
+    private Stream StreamAt(long pos)
+    {
+        // Sequential reads ride the open backing stream; any gap reopens
+        // (cheap) and seeks (the backing file is randomly accessible).
+        if (_current == null || pos < _currentStart)
+        {
+            _current?.Dispose();
+            _current = _source.OpenRead();
+            _current.Seek(_base + pos, SeekOrigin.Begin);
+            _currentStart = pos;
+        }
+        else if (pos > _currentStart)
+        {
+            _current.Seek(_base + pos, SeekOrigin.Begin);
+            _currentStart = pos;
+        }
+        return _current;
+    }
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        var target = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _position + offset,
+            SeekOrigin.End => _length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+        };
+        if (target < 0 || target > _length) throw new IOException("seek out of range");
+        _position = target;
+        return target;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _current?.Dispose();
+        base.Dispose(disposing);
+    }
+
+    public override void Flush() { }
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
 /// <summary>

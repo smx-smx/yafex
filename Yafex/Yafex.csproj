@@ -27,6 +27,7 @@
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.SquashFs/DiscUtils.SquashFs.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Ext/DiscUtils.Ext.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Fat/DiscUtils.Fat.csproj" />
+    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Vdfs/DiscUtils.Vdfs.csproj" />
     <PackageReference Include="log4net" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
