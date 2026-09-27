@@ -170,8 +170,12 @@ namespace Yafex.Fuse
             return -(int)PosixError.EIO;
         }
 
+        private static readonly bool TraceEnabled =
+            string.Equals(Environment.GetEnvironmentVariable("YAFEX_FUSE_TRACE"), "1", StringComparison.Ordinal);
+
         private static void Trace(string message)
         {
+            if (!TraceEnabled) return;
             Console.Error.WriteLine(message);
             Console.Error.Flush();
         }
