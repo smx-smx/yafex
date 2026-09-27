@@ -111,6 +111,7 @@ public static class ContentExpanders
         new Jffs2Expander(),
         new IdbExpander(),
         new SymExpander(),
+        new IntelHexExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

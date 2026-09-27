@@ -36,6 +36,7 @@ using Yafex.FileFormats.Lzo;
 using Yafex.FileFormats.Cramfs;
 using Yafex.FileFormats.Gzip;
 using Yafex.FileFormats.Idb;
+using Yafex.FileFormats.IntelHex;
 using Yafex.FileFormats.Jffs2;
 using Yafex.FileFormats.Lz4;
 using Yafex.FileFormats.Nfsb;
@@ -118,6 +119,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, Jffs2Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, IdbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, SymAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, IntelHexAddon>(key);
         }
     }
 }

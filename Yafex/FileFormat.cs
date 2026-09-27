@@ -42,6 +42,7 @@ namespace Yafex
         Lz4p,
         Jffs2,
         Idb,
-        Sym
+        Sym,
+        IntelHex
     }
 }
