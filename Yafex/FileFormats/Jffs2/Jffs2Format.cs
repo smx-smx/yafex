@@ -28,6 +28,15 @@ public class Jffs2Detector : IFormatDetector
             var data = source.Data;
             if (data.Length < 12) return DetectionResult.Fail;
             var bytes = data.ToArray();
+            // cheap gate first (magic at offset 0, like the reference tool);
+            // the full open below is the strong validation
+            using (var head = new MemoryStream(bytes, writable: false))
+            {
+                if (!Jffs2FileSystem.Detect(head))
+                {
+                    return DetectionResult.Fail;
+                }
+            }
             // full open while validating (images are small config parts)
             using var stream = new MemoryStream(bytes, writable: false);
             using var fs = new Jffs2FileSystem(stream);
