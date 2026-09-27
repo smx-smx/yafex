@@ -66,6 +66,16 @@ public static class VfsExt
 
     private static readonly ILog log = LogManager.GetLogger(typeof(VfsExt));
 
+    private static string Sanitized(string name)
+    {
+        var chars = name.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            if (chars[i] < 0x20 || chars[i] == 0x7F) chars[i] = '?';
+        }
+        return new string(chars);
+    }
+
     /// <summary>Root-level children; subdirectories expand on first access.</summary>
     public static List<IVfsNode> BuildLazyTree(DiscFileSystem fs)
     {
@@ -91,6 +101,14 @@ public static class VfsExt
         foreach (var d in dirs)
         {
             var captured = d;
+            // NUL cannot cross the kernel boundary (readdir truncates and
+            // lookups can never match); skip such entries so their truncated
+            // shadows can't hide healthy siblings
+            if (captured.Name.Contains('\0'))
+            {
+                log.Warn($"skipping NUL-named ext entry '{Sanitized(captured.Name)}'");
+                continue;
+            }
             nodes.Add(new LazyVfsDirectory(captured.Name, Helpers.OctalLiteral(0755),
                 () => ListChildren(captured, gate)));
         }
@@ -98,6 +116,11 @@ public static class VfsExt
         {
             try
             {
+                if (f.Name.Contains('\0'))
+                {
+                    log.Warn($"skipping NUL-named ext entry '{Sanitized(f.Name)}'");
+                    continue;
+                }
                 // generic DiscFileInfo wrapper (named for its first user)
                 nodes.Add(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
             }
