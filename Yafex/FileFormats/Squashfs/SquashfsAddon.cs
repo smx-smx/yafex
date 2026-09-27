@@ -33,5 +33,29 @@ namespace Yafex.FileFormats.Squashfs
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            try
+            {
+                var vfs = new SquashfsVfs();
+                var rootDir = new YafexDirectory(input.Name ?? "squashfs", Helpers.OctalLiteral(0755));
+                vfs.Root.AddNode(rootDir);
+                var image = new RangeVirtualFile(rootDir.Name, input, 0, input.Data.Length);
+                if (!VfsSquashfs.TryOpen(image, vfs.KeepAlive, out var reader)) return null;
+                VfsSquashfs.BuildTree(rootDir, reader);
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private sealed class SquashfsVfs : YafexVfs
+        {
+            public readonly System.Collections.Generic.List<object> KeepAlive = new();
+        }
     }
 }

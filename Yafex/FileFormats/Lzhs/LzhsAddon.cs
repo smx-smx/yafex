@@ -33,5 +33,24 @@ namespace Yafex.FileFormats.Lzhs
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            try
+            {
+                VfsMount.TryRoot(input, "lzhs", out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                var image = new RangeVirtualFile(input.Name ?? "image.lzhs", input, 0, input.Data.Length);
+                VfsBuilder.AddImage(root, image, VfsImageViews.All, keepAlive,
+                    raw: image,
+                    describe: () => $"LZHS stream: {input.Data.Length} bytes");
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }

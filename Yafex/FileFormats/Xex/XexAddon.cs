@@ -33,5 +33,22 @@ namespace Yafex.FileFormats.Xex
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            try
+            {
+                VfsMount.TryRoot(input, "xex", out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                VfsMount.AddRange(root, input, input.Name ?? "image.xex", 0, input.Data.Length,
+                    $"XEX2 image: {input.Data.Length} bytes", keepAlive);
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }
