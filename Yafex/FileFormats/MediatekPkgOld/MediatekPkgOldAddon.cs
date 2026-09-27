@@ -11,6 +11,7 @@
 using System.Collections.Generic;
 
 using Yafex.Fuse;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.MediatekPkgOld;
 
@@ -45,5 +46,12 @@ public class MediatekPkgOldAddon : IFormatAddon<MediatekPkgOldDetectionResult>
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));
+    }
+
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        if (source is not MFile input) return null;
+        if (result is not MediatekPkgOldDetectionResult typed) return null;
+        return MtkVfs.CreateOld(input, _keys, typed);
     }
 }
