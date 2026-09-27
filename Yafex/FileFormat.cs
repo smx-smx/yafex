@@ -33,6 +33,7 @@ namespace Yafex
         LgUp,
         AllwinnerImg,
         Msd11,
-        LgLzo
+        LgLzo,
+        Cramfs
     }
 }

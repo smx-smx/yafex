@@ -88,15 +88,14 @@ public class LgLzoExtractor : IFormatExtractor
         var outName = baseName.EndsWith(".pak", StringComparison.OrdinalIgnoreCase)
             ? baseName[..^4] + ".unlzo"
             : baseName + ".unlzo";
-        var basedir = ArtifactBuilder.VersionedDir(source, baseName);
-        source.AddMetadata(new Metadata.BaseDirectoryPath(basedir));
+        // flat next to the parent: the parent dir is already versioned, and a
+        // "lgap.pak/" subdir would collide with the pak file itself
         var artifact = new MemoryDataSource(plain)
         {
             Name = outName
         };
         artifact.SetChildOf(source);
         artifact.AddMetadata(new Metadata.OutputFileName(outName));
-        artifact.AddMetadata(new Metadata.OutputDirectoryName(basedir));
         artifact.Flags |= DataSourceFlags.ProcessFurther;
         yield return artifact;
     }
