@@ -34,6 +34,7 @@ using Yafex.FileFormats.AllwinnerImg;
 using Yafex.FileFormats.Msd11;
 using Yafex.FileFormats.Lzo;
 using Yafex.FileFormats.Cramfs;
+using Yafex.FileFormats.Gzip;
 using Yafex.FileFormats.Nfsb;
 using Yafex.FileFormats.Squashfs;
 using Yafex.FileFormats.Squashfs3;
@@ -108,6 +109,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, Squashfs3Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, NfsbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UImageAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, GzipAddon>(key);
         }
     }
 }

@@ -12,6 +12,8 @@ using System;
 using System.IO;
 using System.Text;
 
+using Yafex.Support;
+
 namespace Yafex.FileFormats.UImage;
 
 /// <summary>
@@ -42,31 +44,9 @@ public static class UImage
         return ((uint)buf[off] << 24) | ((uint)buf[off + 1] << 16) | ((uint)buf[off + 2] << 8) | buf[off + 3];
     }
 
-    private static readonly uint[] CrcTable = BuildCrcTable();
-
-    private static uint[] BuildCrcTable()
-    {
-        var t = new uint[256];
-        for (uint i = 0; i < 256; i++)
-        {
-            uint c = i;
-            for (int k = 0; k < 8; k++)
-            {
-                c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            }
-            t[i] = c;
-        }
-        return t;
-    }
-
     public static uint Crc32(byte[] buf, int off, int len)
     {
-        uint c = 0xFFFFFFFFu;
-        for (int i = 0; i < len; i++)
-        {
-            c = CrcTable[(c ^ buf[off + i]) & 0xFF] ^ (c >> 8);
-        }
-        return c ^ 0xFFFFFFFFu;
+        return Support.Crc32.Compute(buf, off, len);
     }
 
     public static bool HasHeader(byte[] prefix)
