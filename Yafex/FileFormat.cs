@@ -31,6 +31,7 @@ namespace Yafex
         MediatekPkgOld,
         SddlSec,
         LgUp,
-        AllwinnerImg
+        AllwinnerImg,
+        Msd11
     }
 }
