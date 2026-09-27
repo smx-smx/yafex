@@ -97,6 +97,8 @@ public static class ContentExpanders
     {
         new SquashfsExpander(),
         new GzipExpander(),
+        new LzhsFsExpander(),
+        new LzhsExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
