@@ -43,7 +43,7 @@ public class AllwinnerImgExtractor : IFormatExtractor
         log.Info($"Parts: {parts.Count}");
 
         var imageName = (source as MFile)?.Name ?? "allwinner";
-        var basedir = Path.Combine(source.RequireBaseDirectory(), imageName);
+        var basedir = ArtifactBuilder.VersionedDir(source, imageName);
         source.AddMetadata(new BaseDirectoryPath(basedir));
 
         int i = 0;
