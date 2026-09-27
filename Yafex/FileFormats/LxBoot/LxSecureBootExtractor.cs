@@ -8,7 +8,10 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
+using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using Yafex.Support;
@@ -23,9 +26,40 @@ namespace Yafex.FileFormats.LxBoot
             this.ctx = ctx;
         }
 
+        private static byte[] Slice(IDataSource source, long offset, long count)
+        {
+            if (offset < 0 || count < 0 || offset + count > source.Data.Length)
+            {
+                throw new InvalidDataException("LXSecureBoot slice out of range");
+            }
+            return source.Data.Slice(offset, count).ToArray();
+        }
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
         {
+            if (ctx.SpbcVariant == SpbcVariant.Bare)
+            {
+                if (!LxSecureBootDetector.TryReadBareSecondStage(source.Data, out uint size))
+                {
+                    throw new InvalidDataException("bad bare LL header");
+                }
+                var baseName = source.Name ?? "lxboot";
+                foreach (var ext in new[] { ".pak", ".bin", ".lr" })
+                {
+                    if (baseName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    {
+                        baseName = baseName[..^ext.Length];
+                        break;
+                    }
+                }
+                // raw stage image: leaf, no further processing (it would
+                // re-detect as itself)
+                var artifact = ArtifactBuilder.Flat(source, baseName + ".bin", Slice(source, 0, size));
+                artifact.Flags |= DataSourceFlags.Output;
+                yield return artifact;
+                yield break;
+            }
+
             var data = source.Data;
 
             var firstOffset = ctx.SpbcDescriptors.First().LoadAddress & 0xFFFF;
@@ -37,26 +71,26 @@ namespace Yafex.FileFormats.LxBoot
                 ? secondStageOffset
                 : (uint)data.Length;
 
-            var firstStage = new MemoryDataSource(
-                data.Slice(firstOffset, (long)(firstEnd - firstOffset))
-            )
-            {
-                Flags = DataSourceFlags.Output,
-                Name = "secureboot_0.bin"
-            };
-
-            yield return firstStage;
+            var first = ArtifactBuilder.Flat(source, "secureboot_0.bin",
+                Slice(source, firstOffset, (long)(firstEnd - firstOffset)));
+            first.Flags |= DataSourceFlags.Output;
+            yield return first;
 
             if (isSecondStage)
             {
                 var header = data.ReadStruct<LxBootHeader>((long)secondStageOffset);
-                yield return new MemoryDataSource(
-                    data.Slice((long)secondStageOffset, header.Size)
-                )
+                if (header.Magic != 0x4C4C5F42 && header.Magic != 0x425F4C4C)
                 {
-                    Flags = DataSourceFlags.Output,
-                    Name = "secureboot_1.bin"
-                };
+                    throw new InvalidDataException("bad LL second-stage magic");
+                }
+                if (header.Size < 16 || (long)secondStageOffset + header.Size > data.Length)
+                {
+                    throw new InvalidDataException("bad LL second-stage size");
+                }
+                var second = ArtifactBuilder.Flat(source, "secureboot_1.bin",
+                    Slice(source, (long)secondStageOffset, header.Size));
+                second.Flags |= DataSourceFlags.Output;
+                yield return second;
             }
         }
     }

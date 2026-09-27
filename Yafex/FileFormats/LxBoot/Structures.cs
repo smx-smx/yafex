@@ -29,4 +29,7 @@ namespace Yafex.FileFormats.LxBoot
         public uint LoadAddress { get; set; }
         public uint Size { get; set; }
     }
+    // NOTE: this layout ({branch, magic "LL_B"/"B_LL", load, size}) is
+    // independently documented as LLHeader in smx-smx/sb_verify (no license
+    // stated there, so nothing was copied; Yafex's struct predates it).
 }

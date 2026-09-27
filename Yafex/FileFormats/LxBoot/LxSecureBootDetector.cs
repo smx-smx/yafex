@@ -36,7 +36,10 @@ namespace Yafex.FileFormats.LxBoot
     {
         Unknown = 0,
         Old = 1,
-        New = 2
+        New = 2,
+        // Bare second-stage image (branch + LL/B_LL header at offset 0,
+        // no SPBC wrapper): e.g. webos lxboot.pak.
+        Bare = 3
     }
 
     internal class LxSecureBootDetector : IFormatDetector
@@ -101,6 +104,44 @@ namespace Yafex.FileFormats.LxBoot
 
         private const uint LLB_MAGIC = 0x4C4C5F42;
         private const uint BLL_MAGIC = 0x425F4C4C;
+
+        /// <summary>
+        /// Bare LL second stage at offset 0: ARM branch, LL/B_LL magic,
+        /// fitting size. Header layout ({branch, magic, load, size}) matches
+        /// smx-smx/sb_verify's LLHeader documentation.
+        /// </summary>
+        internal static bool TryReadBareSecondStage(Memory64<byte> data, out uint size)
+        {
+            size = 0;
+            try
+            {
+                if (data.Length < 16)
+                {
+                    return false;
+                }
+                var head = data.Slice(0, 16).ToArray();
+                uint branch = BitConverter.ToUInt32(head, 0);
+                uint magic = BitConverter.ToUInt32(head, 4);
+                size = BitConverter.ToUInt32(head, 12);
+                if ((branch >> 24) != 0xEA)
+                {
+                    return false;
+                }
+                if (magic != LLB_MAGIC && magic != BLL_MAGIC)
+                {
+                    return false;
+                }
+                if (size < 16 || (long)size > data.Length)
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         private long FindSecondStage(Memory64<byte> data, uint startOffset)
         {
@@ -172,6 +213,17 @@ namespace Yafex.FileFormats.LxBoot
             else if (readU4string(0x240, out sicMagic) && sicMagic == SIC_MAGIC)
             {
                 variant = SpbcVariant.New;
+            }
+            else if (TryReadBareSecondStage(data, out uint bareSize))
+            {
+                var bareCtx = new LxSecureBootContext
+                {
+                    SpbcVariant = SpbcVariant.Bare,
+                    SpbcDescriptors = new System.Collections.Generic.List<SpbcDescriptor>(),
+                    SpbcSecondStageOffset = 0,
+                };
+                logger.InfoFormat("bare LL second stage, size 0x{0:X}", bareSize);
+                return new LxSecureBootDetectionResult(60, bareCtx);
             }
             else
             {

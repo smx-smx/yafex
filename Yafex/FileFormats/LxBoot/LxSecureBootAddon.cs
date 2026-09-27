@@ -33,6 +33,15 @@ namespace Yafex.FileFormats.LxBoot
             return new LxSecureBootExtractor(result.Context);
         }
 
+        public IFormatLister? CreateLister(DetectionResult result)
+        {
+            if (result is not LxSecureBootDetectionResult typed || typed.Context == null)
+            {
+                return null;
+            }
+            return new LxSecureBootLister(typed.Context);
+        }
+
         public IFormatExtractor CreateExtractor<T>(T result) where T : DetectionResult
         {
             throw new System.NotImplementedException();
@@ -50,12 +59,22 @@ namespace Yafex.FileFormats.LxBoot
             try
             {
                 var ctx = typed.Context;
+                VfsMount.TryRoot(input, "lxsecureboot", out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                if (ctx.SpbcVariant == SpbcVariant.Bare)
+                {
+                    if (!LxSecureBootDetector.TryReadBareSecondStage(input.Data, out uint size))
+                    {
+                        return null;
+                    }
+                    VfsMount.AddRange(root, input, "lxboot.bin", 0, size,
+                        "bare LL second stage", keepAlive);
+                    return vfs;
+                }
                 var firstOffset = (long)(ctx.SpbcDescriptors.First().LoadAddress & 0xFFFF);
                 long firstEnd = ctx.SpbcSecondStageOffset is uint second
                     ? second
                     : input.Data.Length;
-                VfsMount.TryRoot(input, "lxsecureboot", out var vfs, out var root);
-                var keepAlive = new System.Collections.Generic.List<object>();
                 VfsMount.AddRange(root, input, "secureboot_0.bin", firstOffset, firstEnd - firstOffset,
                     $"variant: {ctx.SpbcVariant}", keepAlive);
                 if (ctx.SpbcSecondStageOffset is uint secondStage)

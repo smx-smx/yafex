@@ -11,6 +11,7 @@
 // Synthetic LxSecureBoot tests (old + new variants, no keys).
 // Fully in-memory: no disk, no samples.
 using System.Collections.Generic;
+using System.Linq;
 
 using NUnit.Framework;
 
@@ -74,5 +75,66 @@ public class LxSecureBootTests
             var res = det.Detect(Mem(new byte[4]));
             Assert.IsFalse(res.Succeded());
         });
+    }
+
+    private static byte[] BareLlSynthetic()
+    {
+        var buf = Zeros(64);
+        // ARM branch, "LL_B", load, size=48
+        buf[0] = 0x06; buf[1] = 0x00; buf[2] = 0x00; buf[3] = 0xEA;
+        buf[4] = (byte)'L'; buf[5] = (byte)'L'; buf[6] = (byte)'_'; buf[7] = (byte)'B';
+        WriteU32LE(buf, 8, 0x78100000);
+        WriteU32LE(buf, 12, 48);
+        return buf;
+    }
+
+    [Test]
+    public void BareLl_Detects60()
+    {
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var res = (LxSecureBootDetectionResult)det.Detect(Mem(BareLlSynthetic()));
+        Assert.AreEqual(60, res.Confidence);
+        Assert.AreEqual(SpbcVariant.Bare, res.Context!.SpbcVariant);
+    }
+
+    [Test]
+    public void BareLl_ExtractsStage()
+    {
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var mem = Mem(BareLlSynthetic(), "lxboot.pak");
+        var res = (LxSecureBootDetectionResult)det.Detect(mem);
+        var artifacts = new LxSecureBootExtractor(res.Context!).Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("lxboot.bin", artifacts[0].Name);
+        Assert.AreEqual(48, artifacts[0].Data.ToArray().Length);
+    }
+
+    [Test]
+    public void BareLl_BadMagic_Fails()
+    {
+        var buf = BareLlSynthetic();
+        buf[4] = (byte)'X';
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var res = det.Detect(Mem(buf));
+        Assert.IsFalse(res.Succeded());
+    }
+
+    [Test]
+    public void Spbc_ExtractsViaFlat()
+    {
+        // Old-variant synthetic: descriptors zeroed, no second stage found
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var mem = Mem(LxBootSynthetic(false), "boot.pak");
+        var res = (LxSecureBootDetectionResult)det.Detect(mem);
+        var artifacts = new LxSecureBootExtractor(res.Context!).Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("secureboot_0.bin", artifacts[0].Name);
+        // writable: file name metadata present (base dir comes from Program)
+        Assert.AreEqual("secureboot_0.bin",
+            artifacts[0].GetMetadata<Yafex.Metadata.OutputFileName>().First().FileName);
     }
 }
