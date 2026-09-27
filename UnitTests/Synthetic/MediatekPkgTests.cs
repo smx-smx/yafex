@@ -11,6 +11,7 @@
 // Synthetic MediatekPkg tests (standard-key positive via in-memory bundle).
 // Fully in-memory: no disk, no samples, no bundle files on disk.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -69,8 +70,7 @@ public class MediatekPkgTests
 
     [Test]
     public void Lister_OnePart_OutputsPakLine()
-    {
-        var key = new byte[16];
+    {        var key = new byte[16];
         Random.Shared.NextBytes(key);
         var iv = new byte[16];
         Random.Shared.NextBytes(iv);
@@ -106,5 +106,54 @@ public class MediatekPkgTests
         var text = sw.ToString();
         Assert.That(text, Does.Contain("MediatekPkg"));
         Assert.That(text, Does.Contain("cfig.pak"));
+    }
+
+    [Test]
+    public void Lister_NewVariant_WalksDataHeaderStride()
+    {
+        // New-variant parts also stride Size + DataHeader (48); a lister
+        // using Size alone re-reads part 1 forever and never reaches part 2.
+        var key = new byte[16];
+        Random.Shared.NextBytes(key);
+        var iv = new byte[16];
+        Random.Shared.NextBytes(iv);
+        var plain = Zeros(Unsafe.SizeOf<PkgHeader>() + PkgHeader.NEW_DIGEST_SIZE
+            + 2 * (Unsafe.SizeOf<PartEntry>() + Unsafe.SizeOf<DataHeader>()));
+        WriteAscii(plain, 0, "MTK!");
+        WriteAscii(plain, 4, PkgHeader.MTK_MAGIC);
+        int entryOff = Unsafe.SizeOf<PkgHeader>() + PkgHeader.NEW_DIGEST_SIZE;
+        WriteAscii(plain, entryOff, "sysm");
+        WriteAscii(plain, entryOff + Unsafe.SizeOf<PartEntry>() + Unsafe.SizeOf<DataHeader>(), "zz9_");
+        var encHead = AesCbcEncryptNone(plain[..Unsafe.SizeOf<PkgHeader>()], key, iv);
+        var cipher = encHead.Concat(plain[Unsafe.SizeOf<PkgHeader>()..]).ToArray();
+        var bundle = new KeyBundle(new KeyDTO[]
+        {
+            new KeyCollectionDTO
+            {
+                Id = "mtkpkg-keys",
+                Keys = new List<KeyDTO>
+                {
+                    new Aes128Cbc
+                    {
+                        KeyMaterial = Convert.ToHexString(key),
+                        KeyIV = Convert.ToHexString(iv),
+                    },
+                },
+            },
+        });
+        var keys = new KeysRepository(bundle);
+        var ds = Mem(cipher);
+        var det = (MediatekPkgDetectionResult)new MediatekPkgDetector(keys).Detect(ds);
+        Assert.AreEqual(100, det.Confidence);
+        Assert.AreEqual(MtkPkgVariant.New, det.Context!.Variant);
+        var lister = new MediatekPkgAddon(keys).CreateLister(det);
+        Assert.NotNull(lister);
+        var sw = new StringWriter();
+        lister!.List(ds, det, sw);
+        var newText = sw.ToString();
+        Assert.That(newText, Does.Contain("sysm.pak"));
+        Assert.That(newText, Does.Contain("zz9_.pak"));
+        // header + exactly 2 parts: any stride error multiplies lines
+        Assert.AreEqual(3, newText.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     }
 }
