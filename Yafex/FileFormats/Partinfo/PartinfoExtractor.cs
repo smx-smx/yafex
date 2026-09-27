@@ -29,20 +29,7 @@ namespace Yafex.FileFormats.Partinfo
 
         private PartinfoTable GetPartinfoTable(ReadOnlySpan64<byte> data)
         {
-            switch (ctx.PartinfoType)
-            {
-                case PartinfoType.MtdInfo:
-                    var mtd_pi = data.ReadStruct<MtdInfo.PartmapInfo>();
-                    return PartinfoTable.FromMtdInfo(mtd_pi);
-                case PartinfoType.PartinfoV1:
-                    var p1_pi = data.ReadStruct<PartinfoV1.PartmapInfo>();
-                    return PartinfoTable.FromPartinfoV1(p1_pi);
-                case PartinfoType.PartinfoV2:
-                    var p2_pi = data.ReadStruct<PartinfoV2.PartmapInfo>();
-                    return PartinfoTable.FromPartinfoV2(p2_pi);
-                default:
-                    throw new NotSupportedException("Unsupported partinfo type");
-            }
+            return PartinfoTable.Parse(data, ctx.PartinfoType);
         }
 
         private static readonly string[] HEADER_FMT = new string[]{

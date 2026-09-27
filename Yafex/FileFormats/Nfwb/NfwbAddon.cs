@@ -1,3 +1,5 @@
+using Smx.SharpIO;
+
 using System;
 using System.Collections.Generic;
 
@@ -22,6 +24,32 @@ namespace Yafex.FileFormats.Nfwb
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
+        }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            try
+            {
+                var data = input.Data;
+                var stream = new Smx.SharpIO.SpanStream(data);
+                var hdr = stream.ReadStruct<Header>();
+                VfsMount.TryRoot(input, hdr.FirmwareNameString, out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                for (long i = 0; i < hdr.partCount && i < 100000; i++)
+                {
+                    var entry = stream.ReadStruct<PartEntry>();
+                    VfsMount.AddRange(root, input, $"{entry.partitionID}.bin",
+                        entry.offset, entry.size,
+                        $"partition: {entry.partitionID}\nfirmware: {hdr.FirmwareNameString} {hdr.FirmwareVersion}",
+                        keepAlive);
+                }
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 }

@@ -33,5 +33,29 @@ namespace Yafex.FileFormats.Partinfo
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            if (result is not PartinfoDetectionResult typed || typed.Context == null) return null;
+            try
+            {
+                var table = PartinfoTable.Parse(input.Data.Span, typed.Context.PartinfoType);
+                VfsMount.TryRoot(input, "partinfo", out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                foreach (var part in table.partitions)
+                {
+                    VfsMount.AddRange(root, input, $"{part.name}.bin",
+                        (long)part.offset, (long)part.size,
+                        $"partition: {part.name}\nfile: {part.filename}\nversion: {part.sw_ver}",
+                        keepAlive);
+                }
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }

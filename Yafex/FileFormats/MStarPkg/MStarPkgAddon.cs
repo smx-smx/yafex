@@ -10,6 +10,7 @@
 #endregion
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 using Yafex.Fuse;
 
@@ -32,6 +33,28 @@ namespace Yafex.FileFormats.MStarPkg
         public IVfsNode CreateVfsNode(IDataSource ds)
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
+        }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            try
+            {
+                var script = System.Text.Encoding.ASCII.GetString(
+                    input.Data.Span.Slice(0, MStarPkgDetector.MBOOT_SCRIPT_SIZE).ToArray());
+                VfsMount.TryRoot(input, "mstar", out var vfs, out var root);
+                var keepAlive = new System.Collections.Generic.List<object>();
+                foreach (var part in MStarScript.Parse(script))
+                {
+                    VfsMount.AddRange(root, input, $"{part.Name}.pak",
+                        part.Offset, part.Size, part.ToString(), keepAlive);
+                }
+                return vfs;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 }

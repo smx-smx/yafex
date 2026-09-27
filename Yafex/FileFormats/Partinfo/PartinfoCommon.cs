@@ -9,10 +9,13 @@
  */
 #endregion
 using Smx.SharpIO;
+using Smx.SharpIO.Memory.Buffers;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Yafex.Support;
 
 namespace Yafex.FileFormats.Partinfo
 {
@@ -140,6 +143,21 @@ namespace Yafex.FileFormats.Partinfo
         public IList<PartinfoPartition> partitions = new List<PartinfoPartition>();
 
         private PartinfoTable() { }
+
+        public static PartinfoTable Parse(Smx.SharpIO.Memory.Buffers.ReadOnlySpan64<byte> data, PartinfoType type)
+        {
+            switch (type)
+            {
+                case PartinfoType.MtdInfo:
+                    return FromMtdInfo(data.ReadStruct<MtdInfo.PartmapInfo>());
+                case PartinfoType.PartinfoV1:
+                    return FromPartinfoV1(data.ReadStruct<PartinfoV1.PartmapInfo>());
+                case PartinfoType.PartinfoV2:
+                    return FromPartinfoV2(data.ReadStruct<PartinfoV2.PartmapInfo>());
+                default:
+                    throw new NotSupportedException("Unsupported partinfo type");
+            }
+        }
 
         public static PartinfoTable FromMtdInfo(MtdInfo.PartmapInfo table)
         {
