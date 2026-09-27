@@ -201,16 +201,18 @@ public sealed class MtkPartFile : IVirtualFile
             if (_key != null)
             {
                 // decrypt just enough to parse the metadata prefix; any
-                // short/corrupt region falls back to raw mode below
+                // short/corrupt region falls back to raw mode below.
+                // Only the 8-byte iMtK header is needed (the length word);
+                // meta content itself is never read at resolve time.
                 try
                 {
-                    var probe = DecryptWindowLocal(0, (int)Math.Min(headLen + 16, _regionLength));
+                    var probe = DecryptWindowLocal(0, (int)Math.Min(headLen + 8, _regionLength));
                     int off = headLen;
                     if (probe.Length >= off + 8
                         && Encoding.ASCII.GetString(probe, off, 4) == MetaMagic)
                     {
                         int mlen = BitConverter.ToInt32(probe, off + 4);
-                        if (mlen >= 0 && off + 8 + mlen <= probe.Length)
+                        if (mlen >= 0 && mlen <= (1 << 20) && (long)off + 8 + mlen <= _regionLength)
                         {
                             metaLen = 8 + mlen;
                         }
@@ -223,13 +225,13 @@ public sealed class MtkPartFile : IVirtualFile
             }
             else if (!_encrypted)
             {
-                var probe = ReadRaw(0, (int)Math.Min(headLen + 16, _regionLength));
+                var probe = ReadRaw(0, (int)Math.Min(headLen + 8, _regionLength));
                 int off = headLen;
                 if (probe.Length >= off + 8
                     && Encoding.ASCII.GetString(probe, off, 4) == MetaMagic)
                 {
                     int mlen = BitConverter.ToInt32(probe, off + 4);
-                    if (mlen >= 0 && off + 8 + mlen <= probe.Length)
+                    if (mlen >= 0 && mlen <= (1 << 20) && (long)off + 8 + mlen <= _regionLength)
                     {
                         metaLen = 8 + mlen;
                     }

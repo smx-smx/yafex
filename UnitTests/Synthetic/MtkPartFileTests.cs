@@ -134,4 +134,22 @@ public class MtkPartFileTests
         Assert.AreEqual(payload.Length, file.Length);
         CollectionAssert.AreEqual(payload, ReadAll(file));
     }
+
+    [Test]
+    public void LongMeta_StrippedWithoutReadingIt()
+    {
+        // 56-byte meta (like 3rdw): the resolve probe only needs the
+        // 8-byte iMtK header, never the meta content
+        var payload = RandomBytes(32, 27);
+        var region = new byte[48 + 8 + 56 + payload.Length];
+        Encoding.ASCII.GetBytes("iMtK").CopyTo(region, 48);
+        BitConverter.GetBytes(56).CopyTo(region, 52);
+        for (int i = 0; i < 56; i++) region[56 + i] = (byte)(0xA0 + i);
+        Array.Copy(payload, 0, region, 48 + 8 + 56, payload.Length);
+        var ds = Mem(region);
+        var file = new MtkPartFile("p.pak", ds, 0, region.Length,
+            encrypted: false, oldVariant: false, new MtkKeyState(EmptyKeys()));
+        Assert.AreEqual(payload.Length, file.Length);
+        CollectionAssert.AreEqual(payload, ReadAll(file));
+    }
 }
