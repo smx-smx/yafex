@@ -88,11 +88,17 @@ namespace Yafex.FileFormats.SddlSec
 			}
 		}
 
-		public (EntryHeader, Memory64<byte>) GetFile(SpanStream dataStream)
+		internal (EntryHeader Header, long DataOffset) ReadEntryHeader(SpanStream dataStream)
 		{
 			var entryHeaderEncrypted = dataStream.ReadBytes(EntryHeader.PADDED_SIZE);
 			var entryHeaderBytes = Decryptor.Decrypt(entryHeaderEncrypted);
 			var entryHeader = entryHeaderBytes.Cast<byte, EntryHeader>().Span[0];
+			return (entryHeader, dataStream.Position);
+		}
+
+		public (EntryHeader, Memory64<byte>) GetFile(SpanStream dataStream)
+		{
+			var (entryHeader, _) = ReadEntryHeader(dataStream);
 
 			var entryDataEncrypted = dataStream.ReadBytes(entryHeader.FileSize);
 			var entryData = Decryptor.Decrypt(entryDataEncrypted);

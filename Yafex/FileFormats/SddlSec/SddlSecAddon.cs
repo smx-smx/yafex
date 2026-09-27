@@ -30,5 +30,12 @@ namespace Yafex.FileFormats.SddlSec
         {
             return new YafexFile(ds, Helpers.OctalLiteral(0444));
         }
+
+        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        {
+            if (source is not Support.MFile input) return null;
+            if (result is not SddlSecDetectionResult typed) return null;
+            return SddlVfs.Create(input, _keys, typed);
+        }
     }
 }
