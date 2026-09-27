@@ -139,14 +139,18 @@ public class VfsVdfsTests
         head[16] = 1; // height
         Array.Copy(head, 0, img, 6 * Block, Node);
 
-        // Leaf node 1 (meta iblock 4): root + file + subdir.
+        // Leaf node 1 (meta iblock 4): root + file + subdir + an orphan
+        // record under a dead parent (read-write images accumulate these;
+        // traversal must never surface them).
         var root = Cat(Key(0, 1, 1, "root"), FolderValue(0x41ED));
         var file = Cat(Key(1, 100, 2, "hello.txt"), FileValue(0x81A4, InlineContent));
         var sub = Cat(Key(1, 2, 1, "sub"), FolderValue(0x41ED));
+        var ghost = Cat(Key(999, 555, 2, "ghost.txt"), FileValue(0x81A4, InlineContent));
         PutU16(root, 6, (ushort)root.Length);
         PutU16(file, 6, (ushort)file.Length);
         PutU16(sub, 6, (ushort)sub.Length);
-        var leaf = LeafNode(root, file, sub);
+        PutU16(ghost, 6, (ushort)ghost.Length);
+        var leaf = LeafNode(root, file, sub, ghost);
         Array.Copy(leaf, 0, img, 10 * Block, Node);
         return img;
     }
@@ -177,5 +181,15 @@ public class VfsVdfsTests
         var buf = new byte[InlineContent.Length];
         int n = s.Read(buf, 0, buf.Length);
         Assert.That(buf[..n], Is.EqualTo(InlineContent));
+    }
+
+    [Test]
+    public void OrphanRecord_StaysInvisible()
+    {
+        using var ms = new MemoryStream(BuildImage(), false);
+        using var fs = new VdfsFileSystem(ms);
+        Assert.That(fs.FileExists("ghost.txt"), Is.False);
+        Assert.Throws<System.IO.FileNotFoundException>(
+            () => fs.OpenFile("ghost.txt", FileMode.Open, FileAccess.Read));
     }
 }
