@@ -47,9 +47,9 @@ public class MediatekPkgLister : IFormatLister
             st.Position += MediatekPkgDetector.PHILIPS_EXTRA_HEADER_SIZE;
         }
 
-        var dataHeaderSize = _ctx.Variant == MtkPkgVariant.Standard
-            ? Unsafe.SizeOf<DataHeader>()
-            : 0;
+        // NB: every part record is followed by a DataHeader-sized block
+        // (mirrors the extractor stride); this holds for all variants.
+        var strideHeaderSize = Unsafe.SizeOf<DataHeader>();
         var partEntrySize = Unsafe.SizeOf<PartEntry>();
         var count = 0;
         while (st.Position < st.Length)
@@ -65,12 +65,12 @@ public class MediatekPkgLister : IFormatLister
             }
             var part = st.ReadStruct<PartEntry>();
             // corrupt sizes must not slingshot the walk past the end
-            if ((long)part.Size + dataHeaderSize > st.Length - st.Position)
+            if ((long)part.Size + strideHeaderSize > st.Length - st.Position)
             {
                 break;
             }
             output.WriteLine($"  {part.PartName}.pak  size={part.Size}  flags={part.Flags}");
-            st.Position += part.Size + dataHeaderSize;
+            st.Position += part.Size + strideHeaderSize;
             if (++count > 100000)
             {
                 break;
