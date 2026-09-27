@@ -113,21 +113,19 @@ namespace Yafex.FileFormats.Partinfo
         {
             string sOut = DumpPartinfo(source.Data.Span);
 
-            var dirName = Path.GetDirectoryName(source.Directory);
-            if(dirName == null)
+            // Top-level artifacts carry a bare filename (no directory): don't crash on those.
+            string baseName = Path.GetFileNameWithoutExtension(source.Name ?? source.Directory ?? "partinfo");
+            if (baseName.Length == 0)
             {
-                throw new InvalidOperationException();
+                baseName = "partinfo";
             }
-
-            string artifactName = Path.Combine(
-                dirName,
-                Path.GetFileNameWithoutExtension(source.Directory) + ".txt"
-            );
+            string artifactName = baseName + ".txt";
 
             var artifact = new MemoryDataSource(Encoding.ASCII.GetBytes(sOut))
             {
                 Name = artifactName
             };
+            artifact.AddMetadata(new Metadata.OutputFileName(artifactName));
             yield return artifact;
         }
     }
