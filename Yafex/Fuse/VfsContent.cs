@@ -95,6 +95,7 @@ public static class ContentExpanders
 {
     private static readonly List<IContentExpander> _expanders = new()
     {
+        new Squashfs3Expander(),
         new SquashfsExpander(),
         new GzipExpander(),
         new FatExpander(),

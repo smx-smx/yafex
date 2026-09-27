@@ -95,6 +95,13 @@ public class LgLzoExtractor : IFormatExtractor
             Name = outName
         };
         artifact.SetChildOf(source);
+        // pin the inherited dir as an explicit output dir so the
+        // framework creates it (standalone -d may not exist yet)
+        var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+        if (outDir != null)
+        {
+            artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
+        }
         artifact.AddMetadata(new Metadata.OutputFileName(outName));
         artifact.Flags |= DataSourceFlags.ProcessFurther;
         yield return artifact;

@@ -34,6 +34,8 @@ namespace Yafex
         AllwinnerImg,
         Msd11,
         LgLzo,
-        Cramfs
+        Cramfs,
+        Squashfs3,
+        Squashfs4
     }
 }

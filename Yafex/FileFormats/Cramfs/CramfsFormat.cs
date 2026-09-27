@@ -94,6 +94,13 @@ public class CramfsExtractor : IFormatExtractor
                 Name = flat
             };
             artifact.SetChildOf(source);
+        // pin the inherited dir as an explicit output dir so the
+        // framework creates it (standalone -d may not exist yet)
+        var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+        if (outDir != null)
+        {
+            artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
+        }
             artifact.AddMetadata(new Metadata.OutputFileName(flat));
             yield return artifact;
         }
