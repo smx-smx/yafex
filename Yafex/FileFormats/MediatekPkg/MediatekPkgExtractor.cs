@@ -187,11 +187,21 @@ public class MediatekPkgExtractor : IFormatExtractor
             {
                 break;
             }
+            if (st.Length - st.Position < Unsafe.SizeOf<PartEntry>())
+            {
+                break;
+            }
 
             var part = st.ReadStruct<PartEntry>();
-            
+
             var dataOffset = st.Position;
-            var dataSize = part.Size + Unsafe.SizeOf<DataHeader>();
+            var dataSize = (long)part.Size + Unsafe.SizeOf<DataHeader>();
+            // trailing garbage must end the walk, not throw mid-slice
+            if (dataSize > st.Length - dataOffset)
+            {
+                log.DebugFormat("trailing {0} bytes after {1} parts, stopping", st.Length - dataOffset, iPart);
+                break;
+            }
             var dataSlice = st.Memory.Slice(dataOffset, dataSize);
 
             if (part.Flags.HasFlag(PartFlags.Encrypted))
