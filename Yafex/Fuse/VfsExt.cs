@@ -122,7 +122,7 @@ public static class VfsExt
                     continue;
                 }
                 // generic DiscFileInfo wrapper (named for its first user)
-                nodes.Add(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
+                nodes.Add(new DiscFileNode(f, Helpers.OctalLiteral(0666), gate));
             }
             catch (Exception ex)
             {

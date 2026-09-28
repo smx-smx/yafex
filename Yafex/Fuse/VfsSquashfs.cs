@@ -54,47 +54,4 @@ public static class VfsSquashfs
     }
 
     private static readonly ILog log = LogManager.GetLogger(typeof(VfsSquashfs));
-
-    public static void BuildTree(IVfsNode vfsNode, DiscFileSystem fs)
-    {
-        var gate = new object();
-        BuildTree(vfsNode, fs.Root, gate);
-    }
-
-    private static void BuildTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
-    {
-        DiscDirectoryInfo[] dirs;
-        DiscFileInfo[] files;
-        try
-        {
-            dirs = dirNode.GetDirectories();
-            files = dirNode.GetFiles();
-        }
-        catch (Exception ex)
-        {
-            // hostile entries (e.g. symlink variants DiscUtils cannot parse):
-            // keep siblings, skip this branch
-            log.Warn($"skipping unreadable squashfs branch '{dirNode.FullName}'", ex);
-            return;
-        }
-        foreach (var d in dirs)
-        {
-            var subdir = new SquashfsDirNode(d.Name, Helpers.OctalLiteral(0755));
-            vfsNode.AddNode(subdir);
-            BuildTree(subdir, d, gate);
-        }
-        foreach (var f in files)
-        {
-            try
-            {
-                vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
-            }
-            catch (Exception ex)
-            {
-                // hostile entries (e.g. dangling symlinks whose target cannot
-                // be resolved): keep siblings, skip the entry
-                log.Warn($"skipping unreadable squashfs entry '{f.FullName}'", ex);
-            }
-        }
-    }
 }

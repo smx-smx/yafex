@@ -330,7 +330,7 @@ public sealed class LzhsFsExpander : IContentExpander
         {
             if (!VfsSquashfs.TryOpen(inflated, keepAlive, out var reader)) return false;
             var tmp = new YafexDirectory(inflated.Name, Helpers.OctalLiteral(0755));
-            VfsSquashfs.BuildTree(tmp, reader);
+            DiscTree.BuildNodes(tmp, reader);
             foreach (var kv in tmp.Tree) tree.Add(kv.Value.Node);
             return true;
         }
@@ -398,7 +398,7 @@ public sealed class LzhsExpander : IContentExpander
         {
             if (!VfsSquashfs.TryOpen(inflated, keepAlive, out var reader)) return false;
             var tmp = new YafexDirectory(inflated.Name, Helpers.OctalLiteral(0755));
-            VfsSquashfs.BuildTree(tmp, reader);
+            DiscTree.BuildNodes(tmp, reader);
             foreach (var kv in tmp.Tree) tree.Add(kv.Value.Node);
             return true;
         }

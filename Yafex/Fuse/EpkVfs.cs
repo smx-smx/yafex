@@ -70,21 +70,21 @@ namespace Yafex.Fuse
         public int Write(byte[] buffer, long offset, long count) => -(int)PosixError.ENOTSUP;
     }
 
-    public class SquashfsDirNode : VfsNode, IVfsDir
+    public class DiscDirNode : VfsNode, IVfsDir
     {
-        public SquashfsDirNode(string name, int mode, long size = 0) : base(name, mode, size)
+        public DiscDirNode(string name, int mode, long size = 0) : base(name, mode, size)
         {
         }
 
         public override VfsNodeType Type => VfsNodeType.Directory;
     }
 
-    public class SquashfsFileNode : VfsNode, IVfsFile
+    public class DiscFileNode : VfsNode, IVfsFile
     {
         private readonly DiscFileInfo discNode;
         private readonly object _gate;
 
-        public SquashfsFileNode(DiscFileInfo f, int mode, object gate)
+        public DiscFileNode(DiscFileInfo f, int mode, object gate)
             : base(f.Name, mode, f.Length)
         {
             this.discNode = f;

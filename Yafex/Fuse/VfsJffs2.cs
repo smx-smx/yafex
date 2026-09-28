@@ -13,7 +13,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using DiscUtils;
 using DiscUtils.Jffs2;
 
 using log4net;
@@ -47,7 +46,7 @@ public sealed class Jffs2Expander : IContentExpander
                 throw new InvalidDataException("jffs2 open failed");
             }
             var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
-            VfsJffs2.BuildTree(tmp, reader);
+            DiscTree.BuildNodes(tmp, reader);
             return tmp.Tree.Values.Select(l => l.Node);
         });
     }
@@ -68,50 +67,6 @@ public sealed class Jffs2Expander : IContentExpander
         {
             log.Debug($"jffs2 open of '{image.Name}' failed", ex);
             return false;
-        }
-    }
-}
-
-internal static class VfsJffs2
-{
-    private static readonly ILog log = LogManager.GetLogger(typeof(VfsJffs2));
-
-    public static void BuildTree(IVfsNode vfsNode, DiscFileSystem fs)
-    {
-        var gate = new object();
-        BuildTree(vfsNode, fs.Root, gate);
-    }
-
-    private static void BuildTree(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
-    {
-        DiscDirectoryInfo[] dirs;
-        DiscFileInfo[] files;
-        try
-        {
-            dirs = dirNode.GetDirectories();
-            files = dirNode.GetFiles();
-        }
-        catch (Exception ex)
-        {
-            log.Warn($"skipping unreadable jffs2 branch '{dirNode.FullName}'", ex);
-            return;
-        }
-        foreach (var d in dirs)
-        {
-            var subdir = new SquashfsDirNode(d.Name, Helpers.OctalLiteral(0755));
-            vfsNode.AddNode(subdir);
-            BuildTree(subdir, d, gate);
-        }
-        foreach (var f in files)
-        {
-            try
-            {
-                vfsNode.AddNode(new SquashfsFileNode(f, Helpers.OctalLiteral(0666), gate));
-            }
-            catch (Exception ex)
-            {
-                log.Warn($"skipping unreadable jffs2 entry '{f.FullName}'", ex);
-            }
         }
     }
 }

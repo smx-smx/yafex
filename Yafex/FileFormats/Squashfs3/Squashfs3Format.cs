@@ -97,46 +97,11 @@ public class Squashfs3Extractor : IFormatExtractor
     {
         using var stream = new MemoryStream(_image, writable: false);
         using var fs = new Squashfs3FileSystem(stream);
-        foreach (var (path, content) in Walk(fs, fs.Root, ""))
+        foreach (var (path, content) in Fuse.DiscTree.Flatten(fs))
         {
             // flat output: hierarchy stays visible via --list/--tree and mount
             var flat = path.Replace('/', '_');
             yield return ArtifactBuilder.Flat(source, flat, content);
-        }
-    }
-
-    private static IEnumerable<(string Path, byte[] Content)> Walk(
-        Squashfs3FileSystem fs, DiscDirectoryInfo dir, string prefix)
-    {
-        foreach (var d in dir.GetDirectories())
-        {
-            foreach (var sub in Walk(fs, d, prefix + d.Name + "/"))
-            {
-                yield return sub;
-            }
-        }
-        foreach (var f in dir.GetFiles())
-        {
-            byte[] content;
-            try
-            {
-                using var s = f.OpenRead();
-                content = new byte[s.Length];
-                int off = 0;
-                while (off < content.Length)
-                {
-                    int n = s.Read(content, off, content.Length - off);
-                    if (n <= 0) throw new InvalidDataException("short squashfs file read");
-                    off += n;
-                }
-            }
-            catch (Exception ex)
-            {
-                // hostile entries (e.g. dangling symlinks): keep siblings
-                log.Warn($"skipping squashfs entry '{f.FullName}'", ex);
-                continue;
-            }
-            yield return (prefix + f.Name, content);
         }
     }
 }

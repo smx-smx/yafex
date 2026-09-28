@@ -44,7 +44,7 @@ namespace Yafex.FileFormats.Squashfs
                 vfs.Root.AddNode(rootDir);
                 var image = new RangeVirtualFile(rootDir.Name, input, 0, input.Data.Length);
                 if (!VfsSquashfs.TryOpen(image, vfs.KeepAlive, out var reader)) return null;
-                VfsSquashfs.BuildTree(rootDir, reader);
+                DiscTree.BuildNodes(rootDir, reader);
                 return vfs;
             }
             catch (Exception)
