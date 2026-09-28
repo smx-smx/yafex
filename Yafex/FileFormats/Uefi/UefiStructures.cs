@@ -39,6 +39,8 @@ public static class UefiStructures
     public static readonly Guid GuidedGzipQc = new("1d301fe9-be79-4353-91c2-d23bc959ae0c");
     public static readonly Guid GuidedZlibAmd = new("ce3233f5-2cd6-4d87-9152-4a238bb6d1c4");
     public static readonly Guid GuidedFvImage = new("24400798-3807-4a42-b413-a1ecee205dd8");
+    // Uncompressed wrapper: content is used as-is (sections or FV image).
+    public static readonly Guid GuidedStatic = new("fc1bcdb0-7d31-49aa-936a-a4600d9dd083");
 
     public static readonly Dictionary<byte, string> FileTypes = new()
     {
@@ -50,6 +52,8 @@ public static class UefiStructures
         [0x0F] = "MM_CORE_STANDALONE", [0xF0] = "PAD",
     };
 
+    // Note: Insyde H2O images carry a proprietary 0x20 section (8 bytes,
+    // typically right before TE); unknown types surface as SEC_xx leaves.
     public static readonly Dictionary<byte, string> SectionTypes = new()
     {
         [0x01] = "COMPRESS", [0x02] = "GUID_DEFINED", [0x03] = "DISPOSABLE",

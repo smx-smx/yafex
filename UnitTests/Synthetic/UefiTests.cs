@@ -289,4 +289,35 @@ public class UefiTests
         garbage[0] = 0xFF; // invalid properties byte
         Assert.Throws<InvalidDataException>(() => LzmaDecoder.Decompress(garbage));
     }
+
+    [Test]
+    public void CompressType2_LzmaCustom()
+    {
+        // same single-'X' stream with a known size field (section uclen=1)
+        var stream = new byte[]
+        {
+            0x5D, 0x00, 0x00, 0x80, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x2C, 0x41, 0xFB, 0xFF, 0xFF, 0xFF, 0xE0, 0x00, 0x00, 0x00,
+        };
+        var info = new Uefi.CompressInfo(1, 2, stream);
+        CollectionAssert.AreEqual(new byte[] { (byte)'X' }, Uefi.DecompressSection(info));
+    }
+
+    [Test]
+    public void GuidedStatic_PassesThrough()
+    {
+        var img = new List<byte>();
+        img.AddRange(UefiStructures.GuidedStatic.ToByteArray());
+        img.AddRange(new byte[] { 24, 0, 0, 0 }); // data offset + attributes
+        img.AddRange(new byte[] { (byte)'h', (byte)'i', (byte)'!' });
+        var bytes = img.ToArray();
+        var full = new byte[4 + bytes.Length];
+        Array.Copy(bytes, 0, full, 4, bytes.Length);
+        var sec = new Uefi.Section(0, 0x02, full.Length, 4, bytes.Length);
+        Assert.IsTrue(Uefi.TryReadGuided(full, sec, out var guided));
+        Assert.AreEqual(UefiStructures.GuidedStatic, guided.DefinitionGuid);
+        CollectionAssert.AreEqual(
+            new byte[] { (byte)'h', (byte)'i', (byte)'!' },
+            Uefi.DecompressGuided(full, sec, guided));
+    }
 }

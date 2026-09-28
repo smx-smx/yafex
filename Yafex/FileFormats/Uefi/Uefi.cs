@@ -413,14 +413,42 @@ public static class Uefi
 
     /// <summary>
     /// Decompresses a compression-section stream. Type 1 names the EFI and
-    /// Tiano variants with one byte, so EFI is tried before Tiano and the
-    /// stream's own OrigSize picks the winner.
+    /// Tiano variants with one byte, so EFI is tried before Tiano; type 2
+    /// (customized, LZMA in EDK2/Insyde builds) tries LZMA first and then
+    /// the type 1 pair. The section's UncompressedLength picks the winner.
     /// </summary>
     public static byte[] DecompressSection(CompressInfo info)
     {
         if (info.CompressionType == 0)
         {
             return info.Stream;
+        }
+        if (info.CompressionType == 2)
+        {
+            InvalidDataException? first = null;
+            try
+            {
+                var lzma = LzmaDecoder.Decompress(info.Stream);
+                if (lzma.Length == info.UncompressedLength)
+                {
+                    return lzma;
+                }
+            }
+            catch (InvalidDataException ex)
+            {
+                first = ex;
+            }
+            try
+            {
+                return TianoDecompressor.DecompressSection(info.Stream, info.UncompressedLength);
+            }
+            catch (InvalidDataException ex)
+            {
+                first ??= ex;
+            }
+            throw new InvalidDataException(
+                "type-2 section decoded with neither LZMA nor EFI/Tiano"
+                + (first != null ? ": " + first.Message : ""));
         }
         if (info.CompressionType != 1)
         {
@@ -457,6 +485,16 @@ public static class Uefi
     {
         int absData = (int)(s.Offset + info.DataOffset);
         int len = (int)(s.Offset + s.Size) - absData;
+        if (len < 0 || (long)absData + len > img.Length)
+        {
+            throw new InvalidDataException("guided section overruns image");
+        }
+        if (info.DefinitionGuid == UefiStructures.GuidedStatic)
+        {
+            var raw = new byte[len];
+            Buffer.BlockCopy(img, absData, raw, 0, len);
+            return raw;
+        }
         if (len <= 8)
         {
             throw new InvalidDataException("truncated guided section");
