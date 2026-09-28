@@ -167,13 +167,7 @@ namespace Yafex.FileFormats.SddlSec
 			}
 			log.Info($"[SDIT] Name: {sditEntry.FileName}, Size: {sditEntry.FileSize}");
 			if (_ctx.SaveSDIT) {
-				var artifact = new MemoryDataSource(sditData) {
-                	Name = sditEntry.FileName
-            	};
-            	artifact.SetChildOf(source);
-            	artifact.AddMetadata(new OutputFileName(sditEntry.FileName));
-            	artifact.AddMetadata(new OutputDirectoryName(basedir));
-            	yield return artifact;
+				yield return ArtifactBuilder.FlatIn(source, basedir, sditEntry.FileName, sditData);
 			}
 
 			//.. parse SDIT to get module counts ..
@@ -188,13 +182,7 @@ namespace Yafex.FileFormats.SddlSec
 				}
 				log.Info($"[INFO] #{i + 1}/{Header.InfoEntriesCount} - Name: {fileEntry.FileName}, Size: {fileEntry.FileSize}");
 				if (_ctx.SaveInfo) {
-					var artifact = new MemoryDataSource(fileData) {
-                		Name = fileEntry.FileName
-            		};
-            		artifact.SetChildOf(source);
-            		artifact.AddMetadata(new OutputFileName(fileEntry.FileName));
-            		artifact.AddMetadata(new OutputDirectoryName(basedir));
-            		yield return artifact;
+					yield return ArtifactBuilder.FlatIn(source, basedir, fileEntry.FileName, fileData);
 				}
 
 				//print content of info file

@@ -88,13 +88,7 @@ namespace Yafex.FileFormats.EpkV1
                     $" offset=0x{rec.offset:X}," +
                     $" size='{rec.size}') to file {filePath}");
 
-                var artifact = new MemoryDataSource(pakData.ToArray())
-                {
-                    Name = fileName
-                };
-                artifact.SetChildOf(source);
-                artifact.AddMetadata(new OutputFileName(fileName));
-                artifact.AddMetadata(new OutputDirectoryName(basedir));
+                var artifact = ArtifactBuilder.FlatIn(source, basedir, fileName, pakData.ToArray());
                 artifact.Flags |= DataSourceFlags.ProcessFurther;
                 yield return artifact;
             }
@@ -127,14 +121,8 @@ namespace Yafex.FileFormats.EpkV1
                     pakHdr.imageSize
                 );
 
-                var artifact = new MemoryDataSource(pakData.ToArray())
-                {
-                    Name = fileName
-                };
-                artifact.SetChildOf(source);
+                var artifact = ArtifactBuilder.FlatIn(source, basedir, fileName, pakData.ToArray());
                 artifact.Flags |= DataSourceFlags.ProcessFurther;
-                artifact.AddMetadata(new OutputFileName(fileName));
-                artifact.AddMetadata(new OutputDirectoryName(basedir));
                 yield return artifact;
             }
         }

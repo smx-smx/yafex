@@ -24,6 +24,22 @@ namespace Yafex;
 /// <item>the child link is attached last, so nested extraction inherits the right base.</item>
 /// </list>
 /// </summary>
+/// <remarks>
+/// Flags/metadata contract (the whole system in one place):
+/// <list type="bullet">
+/// <item>written to disk ⟺ <see cref="OutputFileName"/> plus a resolvable base
+/// (<see cref="BaseDirectoryPath"/> chain, <see cref="OutputDirectoryName"/>
+/// pinning it). No filename metadata ⇒ silently skipped by <c>Extractor</c>;</item>
+/// <item>returned to the caller ⟺ <see cref="DataSourceFlags.Output"/> (gates
+/// enumeration only, not writing);</item>
+/// <item>recursed into (matryoshka) ⟺ <see cref="DataSourceFlags.ProcessFurther"/>;</item>
+/// <item>mount node ⟺ attempted for every artifact via <c>CreateVfsNode</c>,
+/// regardless of flags;</item>
+/// <item><see cref="BaseDirectoryPath"/> is a reverse-priority stack, last wins.
+/// Derive per-image subdirs with <see cref="VersionedDir"/> (under -d), never
+/// from the source path (sources are often read-only).</item>
+/// </list>
+/// </remarks>
 public static class ArtifactBuilder
 {
     /// <summary>Absolute output dir for a firmware-style version subfolder.</summary>
@@ -94,6 +110,40 @@ public static class ArtifactBuilder
         {
             artifact.AddMetadata(new OutputDirectoryName(outDir));
         }
+        return artifact;
+    }
+
+    /// <summary>
+    /// One-shot in-memory artifact into an explicit (absolute) directory:
+    /// the container-member shape (pak/image parts under a versioned dir).
+    /// Flags default to none: OR in <see cref="DataSourceFlags.ProcessFurther"/>
+    /// etc. as needed.
+    /// </summary>
+    public static MemoryDataSource FlatIn(
+        IDataSource parent, string dirName, string fileName, byte[] content)
+    {
+        var artifact = new MemoryDataSource(content)
+        {
+            Name = fileName
+        };
+        artifact.AddMetadata(new OutputFileName(fileName));
+        artifact.SetChildOf(parent);
+        artifact.AddMetadata(new OutputDirectoryName(dirName));
+        return artifact;
+    }
+
+    /// <summary>Same as <see cref="FlatIn"/> without copying the payload.</summary>
+    public static MemoryDataSource FlatIn(
+        IDataSource parent, string dirName, string fileName,
+        Smx.SharpIO.Memory.Buffers.Memory64<byte> content)
+    {
+        var artifact = new MemoryDataSource(content)
+        {
+            Name = fileName
+        };
+        artifact.AddMetadata(new OutputFileName(fileName));
+        artifact.SetChildOf(parent);
+        artifact.AddMetadata(new OutputDirectoryName(dirName));
         return artifact;
     }
 }

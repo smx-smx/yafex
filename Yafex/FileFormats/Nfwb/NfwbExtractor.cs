@@ -44,13 +44,7 @@ namespace Yafex.FileFormats.Nfwb
 					$" offset=0x{partEntry.offset:X}," +
 					$" size='{partEntry.size}') to file {filePath}");
 
-                var artifact = new MemoryDataSource(partData.ToArray())
-                {
-                    Name = fileName
-                };
-				artifact.SetChildOf(source);
-				artifact.AddMetadata(new OutputFileName(fileName));
-				artifact.AddMetadata(new OutputDirectoryName(basedir));
+                var artifact = ArtifactBuilder.FlatIn(source, basedir, fileName, partData.ToArray());
 				artifact.Flags |= DataSourceFlags.ProcessFurther;
 				yield return artifact;
   			}

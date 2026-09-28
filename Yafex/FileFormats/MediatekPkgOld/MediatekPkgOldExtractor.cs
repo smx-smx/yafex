@@ -125,10 +125,7 @@ public class MediatekPkgOldExtractor : IFormatExtractor
                 $"{(otaId != null ? $", version='{otaId}'" : "")}" +
                 $") to file {filePath}");
 
-            var artifact = new MemoryDataSource(dataSlice) { Name = fileName };
-            artifact.SetChildOf(source);
-            artifact.AddMetadata(new OutputFileName(fileName));
-            artifact.AddMetadata(new OutputDirectoryName(basedir));
+            var artifact = ArtifactBuilder.FlatIn(source, basedir, fileName, dataSlice);
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
         }

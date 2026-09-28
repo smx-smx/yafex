@@ -33,22 +33,17 @@ namespace Yafex.FileFormats.MStarPkg
             );
             var partitions = ParseMBootScript(mbootScript);
 
-            var baseDir = Path.Combine(source.RequireBaseDirectory(), Path.GetFileNameWithoutExtension(source.Directory));
-            Directory.CreateDirectory(baseDir);
+            var stem = Path.GetFileNameWithoutExtension(
+                (source as Support.MFile)?.Name ?? source.Name ?? "mstar");
+            var baseDir = ArtifactBuilder.VersionedDir(source, stem);
+            source.AddMetadata(new Metadata.BaseDirectoryPath(baseDir));
 
             foreach (var part in partitions)
             {
-                var destPath = Path.Combine(baseDir, $"{part.Name}.pak");
-
-                var artifact = new MemoryDataSource(
-                    source
-                        .Data.Span
-                        .Slice(part.Offset, part.Size)
-                        .ToArray()
-                )
-                {
-                    Name = $"{part.Name}.pak"
-                };
+                var fileName = $"{part.Name}.pak";
+                var artifact = ArtifactBuilder.FlatIn(source, baseDir, fileName,
+                    source.Data.Span.Slice(part.Offset, part.Size).ToArray());
+                artifact.Flags |= DataSourceFlags.ProcessFurther;
                 yield return artifact;
             }
         }

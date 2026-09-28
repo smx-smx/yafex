@@ -9,6 +9,8 @@
  */
 #endregion
 // Synthetic MStarPkg tests. Fully in-memory: no disk, no samples.
+using System.Linq;
+
 using NUnit.Framework;
 
 using Yafex;
@@ -42,5 +44,23 @@ public class MStarPkgTests
     {
         var res = new MStarPkgDetector().Detect(Mem(new byte[16]));
         Assert.AreEqual(0, res.Confidence);
+    }
+
+    [Test]
+    public void Extract_EmitsWritableArtifacts()
+    {
+        var buf = Zeros(0x5000);
+        var script = "# File Partition: part1\nfilepartload 0 0 0x4000 0x100\n";
+        WriteAscii(buf, 0, script);
+        for (int i = 0; i < 0x100; i++) buf[0x4000 + i] = (byte)i;
+        var mem = Mem(buf, "test.bin");
+        var artifacts = new MStarPkgExtractor().Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("part1.pak", artifacts[0].Name);
+        Assert.IsTrue(artifacts[0].Flags.HasFlag(DataSourceFlags.ProcessFurther));
+        var fileName = artifacts[0].GetMetadata<Yafex.Metadata.OutputFileName>().First().FileName;
+        Assert.AreEqual("part1.pak", fileName);
+        Assert.IsNotEmpty(artifacts[0].GetMetadata<Yafex.Metadata.OutputDirectoryName>());
+        Assert.AreEqual(0x100, artifacts[0].Data.ToArray().Length);
     }
 }

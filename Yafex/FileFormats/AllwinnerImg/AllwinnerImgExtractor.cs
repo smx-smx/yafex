@@ -60,13 +60,8 @@ public class AllwinnerImgExtractor : IFormatExtractor
                 $" offset=0x{part.Offset:X}," +
                 $" size='{part.OriginalLength}') to file {filePath}");
 
-            var artifact = new MemoryDataSource(AllwinnerImgReader.DecryptPayload(fileData, part))
-            {
-                Name = fileName
-            };
-            artifact.SetChildOf(source);
-            artifact.AddMetadata(new OutputFileName(fileName));
-            artifact.AddMetadata(new OutputDirectoryName(basedir));
+            var artifact = ArtifactBuilder.FlatIn(source, basedir, fileName,
+                AllwinnerImgReader.DecryptPayload(fileData, part));
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
         }

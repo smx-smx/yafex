@@ -55,13 +55,8 @@ public class Msd11Extractor : IFormatExtractor
                 $" size='{member.Size}'," +
                 $" encrypted='{member.Encrypted}') to file {filePath}");
 
-            var artifact = new MemoryDataSource(Msd11Reader.ReadMember(fileData, member, _ctx.Key))
-            {
-                Name = member.Name
-            };
-            artifact.SetChildOf(source);
-            artifact.AddMetadata(new OutputFileName(member.Name));
-            artifact.AddMetadata(new OutputDirectoryName(basedir));
+            var artifact = ArtifactBuilder.FlatIn(source, basedir, member.Name,
+                Msd11Reader.ReadMember(fileData, member, _ctx.Key));
             artifact.Flags |= DataSourceFlags.ProcessFurther;
             yield return artifact;
         }
