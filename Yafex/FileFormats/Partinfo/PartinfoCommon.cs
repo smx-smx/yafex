@@ -14,6 +14,7 @@ using Smx.SharpIO.Memory.Buffers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 using Yafex.Support;
 
@@ -46,6 +47,20 @@ namespace Yafex.FileFormats.Partinfo
 
         public static PartinfoDevice FromPartinfoV1(PartinfoV1.DeviceInfo device)
         {
+            // V1 (20110620) device records carry no used flag.
+            return new PartinfoDevice()
+            {
+                name = new SpanStream(device.name).ReadCString(),
+                size = device.size,
+                phys = device.phys,
+                virt = device.virt,
+                cached = device.cached,
+                used = false
+            };
+        }
+
+        public static PartinfoDevice FromPartinfoV2(PartinfoV2.DeviceInfo device)
+        {
             return new PartinfoDevice()
             {
                 name = new SpanStream(device.name).ReadCString(),
@@ -57,7 +72,7 @@ namespace Yafex.FileFormats.Partinfo
             };
         }
 
-        public static PartinfoDevice FromPartinfoV2(PartinfoV2.DeviceInfo device)
+        public static PartinfoDevice FromPartinfoV3(PartinfoV3.DeviceInfo device)
         {
             return new PartinfoDevice()
             {
@@ -82,6 +97,8 @@ namespace Yafex.FileFormats.Partinfo
         public bool used { get; private set; }
         public bool valid { get; private set; }
         public PartinfoPartFlags mask_flags { get; private set; }
+        // Spare word in newer variants (0 in older ones).
+        public UInt32 extra { get; private set; }
 
         private PartinfoPartition() { }
 
@@ -97,7 +114,8 @@ namespace Yafex.FileFormats.Partinfo
                 sw_ver = part.sw_ver,
                 used = part.used == 1,
                 valid = part.valid == 1,
-                mask_flags = (PartinfoPartFlags)part.mask_flags
+                mask_flags = (PartinfoPartFlags)part.mask_flags,
+                extra = 0
             };
         }
         public static PartinfoPartition FromPartinfoV1(PartinfoV1.PartitionInfo part)
@@ -112,7 +130,8 @@ namespace Yafex.FileFormats.Partinfo
                 sw_ver = part.sw_ver,
                 used = part.used == 1,
                 valid = part.valid == 1,
-                mask_flags = (PartinfoPartFlags)part.mask_flags
+                mask_flags = (PartinfoPartFlags)part.mask_flags,
+                extra = part.extra
             };
         }
         public static PartinfoPartition FromPartinfoV2(PartinfoV2.PartitionInfo part)
@@ -127,7 +146,24 @@ namespace Yafex.FileFormats.Partinfo
                 sw_ver = part.sw_ver,
                 used = part.used == 1,
                 valid = part.valid == 1,
-                mask_flags = (PartinfoPartFlags)part.mask_flags
+                mask_flags = (PartinfoPartFlags)part.mask_flags,
+                extra = 0
+            };
+        }
+        public static PartinfoPartition FromPartinfoV3(PartinfoV3.PartitionInfo part)
+        {
+            return new PartinfoPartition()
+            {
+                name = new SpanStream(part.name).ReadCString(),
+                offset = part.offset,
+                size = part.size,
+                filename = new SpanStream(part.filename).ReadCString(),
+                filesize = part.filesize,
+                sw_ver = part.sw_ver,
+                used = part.used == 1,
+                valid = part.valid == 1,
+                mask_flags = (PartinfoPartFlags)part.mask_flags,
+                extra = 0
             };
         }
     }
@@ -151,9 +187,13 @@ namespace Yafex.FileFormats.Partinfo
                 case PartinfoType.MtdInfo:
                     return FromMtdInfo(data.ReadStruct<MtdInfo.PartmapInfo>());
                 case PartinfoType.PartinfoV1:
-                    return FromPartinfoV1(data.ReadStruct<PartinfoV1.PartmapInfo>());
+                    return FromPartinfoV1(data);
                 case PartinfoType.PartinfoV2:
                     return FromPartinfoV2(data.ReadStruct<PartinfoV2.PartmapInfo>());
+                case PartinfoType.PartinfoV3:
+                    return FromPartinfoV3(data.ReadStruct<PartinfoV3.PartmapInfo>());
+                case PartinfoType.MtdinfoFile:
+                    return FromMtdinfoFile(data);
                 default:
                     throw new NotSupportedException("Unsupported partinfo type");
             }
@@ -172,19 +212,35 @@ namespace Yafex.FileFormats.Partinfo
                 partitions = table.partition.Select(p => PartinfoPartition.FromMtdInfo(p)).ToList()
             };
         }
-        public static PartinfoTable FromPartinfoV1(PartinfoV1.PartmapInfo table)
+
+        // V1 (20110620): u32 partition count, 88-byte entries.
+        public static PartinfoTable FromPartinfoV1(ReadOnlySpan64<byte> data)
         {
+            var header = data.ReadStruct<PartinfoV1.PartmapInfo>();
+            long entryBase = Marshal.SizeOf<PartinfoV1.PartmapInfo>();
+            long stride = Marshal.SizeOf<PartinfoV1.PartitionInfo>();
+            long slots = (data.Length - entryBase) / stride;
+            long count = Math.Min((long)header.npartition, slots);
+
+            var partitions = new List<PartinfoPartition>();
+            for (long i = 0; i < count; i++)
+            {
+                var entry = data.ReadStruct<PartinfoV1.PartitionInfo>(entryBase + i * stride);
+                partitions.Add(PartinfoPartition.FromPartinfoV1(entry));
+            }
+
             return new PartinfoTable()
             {
                 type = PartinfoType.PartinfoV1,
-                cur_epk_ver = table.cur_epk_ver,
-                old_epk_ver = table.old_epk_ver,
+                cur_epk_ver = header.cur_epk_ver,
+                old_epk_ver = header.old_epk_ver,
                 nmap = 0,
-                npartition = table.npartition,
-                devices = new List<PartinfoDevice> { PartinfoDevice.FromPartinfoV1(table.dev) },
-                partitions = table.partition.Select(p => PartinfoPartition.FromPartinfoV1(p)).ToList()
+                npartition = (byte)Math.Min(count, 255),
+                devices = new List<PartinfoDevice> { PartinfoDevice.FromPartinfoV1(header.dev) },
+                partitions = partitions
             };
         }
+
         public static PartinfoTable FromPartinfoV2(PartinfoV2.PartmapInfo table)
         {
             return new PartinfoTable()
@@ -196,6 +252,46 @@ namespace Yafex.FileFormats.Partinfo
                 npartition = table.npartition,
                 devices = new List<PartinfoDevice> { PartinfoDevice.FromPartinfoV2(table.dev) },
                 partitions = table.partition.Select(p => PartinfoPartition.FromPartinfoV2(p)).ToList()
+            };
+        }
+        public static PartinfoTable FromPartinfoV3(PartinfoV3.PartmapInfo table)
+        {
+            return new PartinfoTable()
+            {
+                type = PartinfoType.PartinfoV3,
+                cur_epk_ver = table.cur_epk_ver,
+                old_epk_ver = table.old_epk_ver,
+                nmap = 0,
+                npartition = table.npartition,
+                devices = new List<PartinfoDevice> { PartinfoDevice.FromPartinfoV3(table.dev) },
+                partitions = table.partition.Select(p => PartinfoPartition.FromPartinfoV3(p)).ToList()
+            };
+        }
+
+        // mtdi.pak device-map files: header + 84-byte entries at 0xF0.
+        public static PartinfoTable FromMtdinfoFile(ReadOnlySpan64<byte> data)
+        {
+            var header = data.ReadStruct<MtdinfoFile.PartmapInfo>();
+            long slots = (data.Length - MtdinfoFile.Layout.EntriesOffset) / MtdinfoFile.Layout.EntryStride;
+            long count = Math.Min(header.npartition, slots);
+
+            var partitions = new List<PartinfoPartition>();
+            for (long i = 0; i < count; i++)
+            {
+                long off = MtdinfoFile.Layout.EntriesOffset + i * MtdinfoFile.Layout.EntryStride;
+                var entry = data.ReadStruct<MtdInfo.PartitionInfo>(off);
+                partitions.Add(PartinfoPartition.FromMtdInfo(entry));
+            }
+
+            return new PartinfoTable()
+            {
+                type = PartinfoType.MtdinfoFile,
+                cur_epk_ver = 0,
+                old_epk_ver = 0,
+                nmap = header.nmap,
+                npartition = (byte)Math.Min(count, 255),
+                devices = new List<PartinfoDevice> { PartinfoDevice.FromMtdInfo(header.dev) },
+                partitions = partitions
             };
         }
     }

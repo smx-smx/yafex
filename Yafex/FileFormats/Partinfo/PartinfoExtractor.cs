@@ -13,6 +13,7 @@ using Yafex.Support;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Smx.SharpIO.Memory.Buffers;
 
@@ -94,14 +95,19 @@ namespace Yafex.FileFormats.Partinfo
 
                 if (part.filename.Length > 0)
                 {
+                    long pct = part.size > 0 ? (int)((double)part.filesize / part.size * 100) : 0;
                     sb.Append(string.Format(PART_FMT[2],
                         part.filename,
                         part.filesize,
                         part.sw_ver,
                         part.used ? 'U' : 'u',
                         part.valid ? 'V' : 'v',
-                        (int)((double)part.filesize / part.size * 100)
+                        pct
                     ));
+                }
+                if (part.extra != 0)
+                {
+                    sb.Append(string.Format(" extra=0x{0:X}", part.extra));
                 }
                 sb.AppendLine();
             }
@@ -126,6 +132,14 @@ namespace Yafex.FileFormats.Partinfo
                 Name = artifactName
             };
             artifact.AddMetadata(new Metadata.OutputFileName(artifactName));
+            artifact.SetChildOf(source);
+            // pin the inherited dir as an explicit output dir so the
+            // framework creates it (standalone -d may not exist yet)
+            var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+            if (outDir != null)
+            {
+                artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
+            }
             yield return artifact;
         }
     }

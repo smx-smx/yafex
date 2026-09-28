@@ -26,8 +26,9 @@ namespace Yafex.FileFormats.Partinfo
         {
             switch (magic)
             {
-                case PartinfoV2.PartmapInfo.MAGIC: return PartinfoType.PartinfoV2;
                 case PartinfoV1.PartmapInfo.MAGIC: return PartinfoType.PartinfoV1;
+                case PartinfoV2.PartmapInfo.MAGIC: return PartinfoType.PartinfoV2;
+                case PartinfoV3.PartmapInfo.MAGIC: return PartinfoType.PartinfoV3;
                 case MtdInfo.PartmapInfo.MAGIC: return PartinfoType.MtdInfo;
                 default:
                     uint d = (magic >> 0) & 0xFF;
@@ -44,8 +45,70 @@ namespace Yafex.FileFormats.Partinfo
             }
         }
 
+        private static bool IsPrintableAscii(byte b)
+        {
+            return b == 0 || (b >= 0x20 && b < 0x7F);
+        }
+
+        private static bool IsNameAt(IDataSource source, long offset, int maxLen)
+        {
+            if (source.Data.Length < offset + maxLen)
+            {
+                return false;
+            }
+            var slice = source.Data.Span.Slice(offset, maxLen);
+            if (slice[0] == 0)
+            {
+                return false;
+            }
+            for (int i = 0; i < maxLen; i++)
+            {
+                if (!IsPrintableAscii(slice[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // mtdi.pak device-map files share date-coded magics with partinfo tables,
+        // but have their own shape: reserved u64, nmap/npartition, one device
+        // record and 84-byte entries at a fixed offset.
+        private bool LooksLikeMtdinfoFile(IDataSource source)
+        {
+            long len = source.Data.Length;
+            if (len < MtdinfoFile.Layout.EntriesOffset + MtdinfoFile.Layout.EntryStride)
+            {
+                return false;
+            }
+            if ((len - MtdinfoFile.Layout.EntriesOffset) % MtdinfoFile.Layout.EntryStride != 0)
+            {
+                return false;
+            }
+            var reserved = source.Data.Span.Slice(4, 8);
+            for (int i = 0; i < 8; i++)
+            {
+                if (reserved[i] != 0)
+                {
+                    return false;
+                }
+            }
+            byte nmap = source.Data.Span.Slice(12, 1)[0];
+            byte npart = source.Data.Span.Slice(13, 1)[0];
+            long slots = (len - MtdinfoFile.Layout.EntriesOffset) / MtdinfoFile.Layout.EntryStride;
+            if (nmap < 1 || npart < 1 || npart > slots)
+            {
+                return false;
+            }
+            return IsNameAt(source, 16, 32) && IsNameAt(source, MtdinfoFile.Layout.EntriesOffset, 32);
+        }
+
         public DetectionResult Detect(IDataSource source)
         {
+            if (source.Data.Length < 4)
+            {
+                return new PartinfoDetectionResult(0, null);
+            }
             uint magic = source.Data.Slice(0, 4).Cast<uint>()[0];
 
             int confidence = 0;
@@ -58,11 +121,22 @@ namespace Yafex.FileFormats.Partinfo
                 case PartinfoType.MtdInfo:
                 case PartinfoType.PartinfoV1:
                 case PartinfoType.PartinfoV2:
+                case PartinfoType.PartinfoV3:
                     confidence += 30;
                     ctx = new PartinfoContext()
                     {
                         PartinfoType = (PartinfoType)partinfoType
                     };
+                    break;
+                default:
+                    if (LooksLikeMtdinfoFile(source))
+                    {
+                        confidence += 30;
+                        ctx = new PartinfoContext()
+                        {
+                            PartinfoType = PartinfoType.MtdinfoFile
+                        };
+                    }
                     break;
             }
             return new PartinfoDetectionResult(confidence, ctx);
