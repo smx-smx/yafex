@@ -98,20 +98,7 @@ public class Squashfs3Extractor : IFormatExtractor
         {
             // flat output: hierarchy stays visible via --list/--tree and mount
             var flat = path.Replace('/', '_');
-            var artifact = new MemoryDataSource(content)
-            {
-                Name = flat
-            };
-            artifact.SetChildOf(source);
-        // pin the inherited dir as an explicit output dir so the
-        // framework creates it (standalone -d may not exist yet)
-        var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-        if (outDir != null)
-        {
-            artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
-        }
-            artifact.AddMetadata(new Metadata.OutputFileName(flat));
-            yield return artifact;
+            yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }
 

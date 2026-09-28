@@ -76,26 +76,22 @@ namespace Yafex
                 else
                 // $TODO: flag to skip filesystem writing
                 {
-                    var filename = artifact.GetMetadata<OutputFileName>().FirstOrDefault();
-                    if (filename != null)
+                    var path = artifact.GetDestinationPath();
+                    if (path != null)
                     {
-                        var dirname = artifact.GetMetadata<OutputDirectoryName>().FirstOrDefault();
-                        var path = artifact.GetMetadata<BaseDirectoryPath>().FirstOrDefault()?.DirectoryPath;
-                        if (path != null)
+                        if (artifact is FileDataSource streamed
+                        && string.Equals(streamed.Path, path, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (dirname != null)
+                            // already streamed straight to the destination: nothing to copy
+                        }
+                        else
+                        {
+                            var dir = Path.GetDirectoryName(path);
+                            if (dir != null)
                             {
-                                path = Path.Combine(path, dirname.DirectoryName);
-                                Directory.CreateDirectory(path);
+                                Directory.CreateDirectory(dir);
                             }
-                            path = Path.Combine(path, filename.FileName);
-
-                            if (artifact is FileDataSource streamed
-                                && string.Equals(streamed.Path, path, StringComparison.OrdinalIgnoreCase))
-                            {
-                                // already streamed straight to the destination: nothing to copy
-                            }
-                            else using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
+                            using (var fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read))
                             {
                                 fs.SetLength(0);
                                 foreach(var chunk in artifact.Data.Span.GetChunks())

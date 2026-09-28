@@ -127,20 +127,7 @@ namespace Yafex.FileFormats.Partinfo
             }
             string artifactName = baseName + ".txt";
 
-            var artifact = new MemoryDataSource(Encoding.ASCII.GetBytes(sOut))
-            {
-                Name = artifactName
-            };
-            artifact.AddMetadata(new Metadata.OutputFileName(artifactName));
-            artifact.SetChildOf(source);
-            // pin the inherited dir as an explicit output dir so the
-            // framework creates it (standalone -d may not exist yet)
-            var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-            if (outDir != null)
-            {
-                artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
-            }
-            yield return artifact;
+            yield return ArtifactBuilder.Flat(source, artifactName, Encoding.ASCII.GetBytes(sOut));
         }
     }
 }

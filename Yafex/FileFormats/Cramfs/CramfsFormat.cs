@@ -89,20 +89,7 @@ public class CramfsExtractor : IFormatExtractor
             // (A subdir per image would collide with the image file itself,
             // e.g. "lgap.unlzo/" next to "lgap.unlzo".)
             var flat = path.Replace('/', '_');
-            var artifact = new MemoryDataSource(content)
-            {
-                Name = flat
-            };
-            artifact.SetChildOf(source);
-        // pin the inherited dir as an explicit output dir so the
-        // framework creates it (standalone -d may not exist yet)
-        var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-        if (outDir != null)
-        {
-            artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
-        }
-            artifact.AddMetadata(new Metadata.OutputFileName(flat));
-            yield return artifact;
+            yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }
 

@@ -90,19 +90,7 @@ public class LgLzoExtractor : IFormatExtractor
             : baseName + ".unlzo";
         // flat next to the parent: the parent dir is already versioned, and a
         // "lgap.pak/" subdir would collide with the pak file itself
-        var artifact = new MemoryDataSource(plain)
-        {
-            Name = outName
-        };
-        artifact.SetChildOf(source);
-        // pin the inherited dir as an explicit output dir so the
-        // framework creates it (standalone -d may not exist yet)
-        var outDir = artifact.GetMetadata<Metadata.BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
-        if (outDir != null)
-        {
-            artifact.AddMetadata(new Metadata.OutputDirectoryName(outDir));
-        }
-        artifact.AddMetadata(new Metadata.OutputFileName(outName));
+        var artifact = ArtifactBuilder.Flat(source, outName, plain);
         artifact.Flags |= DataSourceFlags.ProcessFurther;
         yield return artifact;
     }

@@ -72,4 +72,28 @@ public static class ArtifactBuilder
         buff.Write(content);
         return Complete(buff, parent, dirName);
     }
+
+    /// <summary>
+    /// One-shot in-memory artifact placed flat next to the parent (single-file
+    /// transforms: unlzo, txt dumps, flat FS members). Attaches the file name,
+    /// the child link, and pins the inherited dir as <see cref="OutputDirectoryName"/>
+    /// so the framework creates it (standalone -d may not exist yet).
+    /// Flags default to none, like <c>new MemoryDataSource</c>: OR in
+    /// <see cref="DataSourceFlags.ProcessFurther"/> etc. as needed.
+    /// </summary>
+    public static MemoryDataSource Flat(IDataSource parent, string fileName, byte[] content)
+    {
+        var artifact = new MemoryDataSource(content)
+        {
+            Name = fileName
+        };
+        artifact.AddMetadata(new OutputFileName(fileName));
+        artifact.SetChildOf(parent);
+        var outDir = artifact.GetMetadata<BaseDirectoryPath>().LastOrDefault()?.DirectoryPath;
+        if (outDir != null)
+        {
+            artifact.AddMetadata(new OutputDirectoryName(outDir));
+        }
+        return artifact;
+    }
 }
