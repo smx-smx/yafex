@@ -79,17 +79,7 @@ public sealed class CramfsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[4];
-            if (probe.Read(magic, 0, 4) != 4) return false;
-            return CramfsReader.HasMagic(magic, out _);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 4, magic => CramfsReader.HasMagic(magic, out _));
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

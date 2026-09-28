@@ -174,25 +174,8 @@ public sealed class GptExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            if (probe.Length < VfsGpt.HeaderOffset + 92) return false;
-            var hdr = new byte[92];
-            probe.Seek(VfsGpt.HeaderOffset, SeekOrigin.Begin);
-            int off = 0;
-            while (off < hdr.Length)
-            {
-                int n = probe.Read(hdr, off, hdr.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return VfsGpt.IsHeader(hdr, out _, out _, out _);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.At(file, VfsGpt.HeaderOffset, 92,
+            hdr => VfsGpt.IsHeader(hdr, out _, out _, out _));
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
@@ -231,24 +214,7 @@ public sealed class VdfsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            if (probe.Length < 4096) return false;
-            var head = new byte[4096];
-            int off = 0;
-            while (off < head.Length)
-            {
-                int n = probe.Read(head, off, head.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return VfsVdfs.IsVolume(head);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 4096, VfsVdfs.IsVolume);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

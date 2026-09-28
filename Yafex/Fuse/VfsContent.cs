@@ -90,10 +90,46 @@ public interface IContentExpander
     IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive);
 }
 
+/// <summary>
+/// Shared head-sniff for expander matching: read-then-check with short-read
+/// and error guards, so Matches stays a one-liner per format.
+/// </summary>
+public static class ExpanderSniff
+{
+    public static bool Head(IVirtualFile file, int count, Func<byte[], bool> check)
+    {
+        return At(file, 0, count, check);
+    }
+
+    public static bool At(IVirtualFile file, long offset, int count, Func<byte[], bool> check)
+    {
+        try
+        {
+            using var probe = file.OpenRead();
+            if (offset != 0)
+            {
+                probe.Seek(offset, SeekOrigin.Begin);
+            }
+            var buf = new byte[count];
+            int off = 0;
+            while (off < count)
+            {
+                int n = probe.Read(buf, off, count - off);
+                if (n <= 0) return false;
+                off += n;
+            }
+            return check(buf);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+}
+
 /// <summary>Ordered expander registry shared by all formats. First match wins.</summary>
 public static class ContentExpanders
-{
-    private static readonly List<IContentExpander> _expanders = new()
+{    private static readonly List<IContentExpander> _expanders = new()
     {
         new Squashfs3Expander(),
         new SquashfsExpander(),
@@ -146,17 +182,8 @@ public sealed class SquashfsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[4];
-            if (probe.Read(magic, 0, 4) != 4) return false;
-            return BitConverter.ToUInt32(magic, 0) == VfsSquashfs.HsqsMagic;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 4,
+            magic => BitConverter.ToUInt32(magic, 0) == VfsSquashfs.HsqsMagic);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
@@ -180,17 +207,7 @@ public sealed class GzipExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[2];
-            if (probe.Read(magic, 0, 2) != 2) return false;
-            return magic[0] == 0x1F && magic[1] == 0x8B;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 2, magic => magic[0] == 0x1F && magic[1] == 0x8B);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
@@ -212,24 +229,7 @@ public sealed class FatExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            if (probe.Length < 512) return false;
-            var bpb = new byte[512];
-            int off = 0;
-            while (off < bpb.Length)
-            {
-                int n = probe.Read(bpb, off, bpb.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return VfsFat.IsBpb(bpb);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return file.Length >= 512 && ExpanderSniff.Head(file, 512, VfsFat.IsBpb);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

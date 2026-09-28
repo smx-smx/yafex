@@ -27,23 +27,8 @@ public sealed class UImageExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var header = new byte[UImage.HeaderSize];
-            int off = 0;
-            while (off < header.Length)
-            {
-                int n = probe.Read(header, off, header.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return Yafex.FileFormats.UImage.UImage.HasHeader(header);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, UImage.HeaderSize,
+            Yafex.FileFormats.UImage.UImage.HasHeader);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

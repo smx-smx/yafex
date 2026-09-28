@@ -27,18 +27,7 @@ public sealed class IdbExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[32];
-            int n = probe.Read(magic, 0, magic.Length);
-            if (n < magic.Length) return false;
-            return Idb.HasMagic(magic);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 32, Idb.HasMagic);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

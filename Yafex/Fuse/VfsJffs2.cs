@@ -31,18 +31,11 @@ public sealed class Jffs2Expander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
+        return ExpanderSniff.Head(file, 12, head =>
         {
-            using var probe = file.OpenRead();
-            var head = new byte[12];
-            if (probe.Read(head, 0, 12) != 12) return false;
             using var ms = new MemoryStream(head, writable: false);
             return Jffs2FileSystem.Detect(ms);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        });
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

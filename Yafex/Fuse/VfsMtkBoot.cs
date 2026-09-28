@@ -27,24 +27,8 @@ public sealed class MtkBootExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            if (probe.Length < MtkBoot.PblSize) return false;
-            var head = new byte[MtkBoot.MagicOffset + 32];
-            int off = 0;
-            while (off < head.Length)
-            {
-                int n = probe.Read(head, off, head.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return MtkBoot.HasMagic(head);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return file.Length >= MtkBoot.PblSize
+            && ExpanderSniff.Head(file, MtkBoot.MagicOffset + 32, MtkBoot.HasMagic);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

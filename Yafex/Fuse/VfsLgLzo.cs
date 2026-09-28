@@ -84,17 +84,7 @@ public sealed class LgLzoExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[LgLzo.Magic.Length];
-            if (probe.Read(magic, 0, magic.Length) != magic.Length) return false;
-            return LgLzo.HasMagic(magic);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, LgLzo.Magic.Length, magic => LgLzo.HasMagic(magic));
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

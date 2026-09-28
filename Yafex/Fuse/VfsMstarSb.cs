@@ -26,18 +26,7 @@ public sealed class MstarSbExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            if (probe.Length < 64) return false;
-            var head = new byte[64];
-            if (probe.Read(head, 0, 64) != 64) return false;
-            return MstarSb.HasMagic(head);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.Head(file, 64, MstarSb.HasMagic);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

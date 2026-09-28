@@ -33,18 +33,8 @@ public sealed class Squashfs3Expander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var head = new byte[32];
-            if (probe.Read(head, 0, 32) != 32) return false;
-            return BitConverter.ToUInt32(head, 0) == Squashfs3FileSystem.Magic
-                && BitConverter.ToUInt16(head, 28) == Squashfs3FileSystem.MajorVersion;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        // fork core covers both endiannesses (mount previously missed BE)
+        return ExpanderSniff.Head(file, 32, head => Squashfs3FileSystem.HasMagic(head, out _));
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

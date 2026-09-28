@@ -28,14 +28,10 @@ public sealed class IntelHexExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
+        return ExpanderSniff.Head(file, 32, head =>
         {
-            using var probe = file.OpenRead();
-            var head = new byte[64];
-            int n = probe.Read(head, 0, head.Length);
-            if (n < 32) return false;
             // header line DDDD:hex, then a ':' record
-            var text = Encoding.ASCII.GetString(head, 0, n);
+            var text = Encoding.ASCII.GetString(head, 0, head.Length);
             int nl = text.IndexOf('\n');
             if (nl < 0) return false;
             string first = text[..nl].Trim();
@@ -45,11 +41,7 @@ public sealed class IntelHexExpander : IContentExpander
                 if (!char.IsDigit(first[i])) return false;
             }
             return text.IndexOf("\n:", StringComparison.Ordinal) >= 0;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        });
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

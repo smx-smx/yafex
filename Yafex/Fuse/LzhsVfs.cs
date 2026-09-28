@@ -276,25 +276,8 @@ public sealed class LzhsFsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var s = file.OpenRead();
-            if (s.Length < LzhsFsVirtualFile.HeadingSize + 32) return false;
-            s.Seek(LzhsFsVirtualFile.HeadingSize, SeekOrigin.Begin);
-            var hdr = new byte[32];
-            int off = 0;
-            while (off < hdr.Length)
-            {
-                int n = s.Read(hdr, off, hdr.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
-            return FirstChunkSane(hdr, s.Length);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return ExpanderSniff.At(file, LzhsFsVirtualFile.HeadingSize, 32,
+            hdr => FirstChunkSane(hdr, file.Length));
     }
 
     private static bool FirstChunkSane(byte[] hdr, long total)
@@ -366,27 +349,13 @@ public sealed class LzhsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
+        return ExpanderSniff.Head(file, 16, hdr =>
         {
-            using var s = file.OpenRead();
-            if (s.Length < 16) return false;
-            var hdr = new byte[16];
-            int off = 0;
-            while (off < hdr.Length)
-            {
-                int n = s.Read(hdr, off, hdr.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
             for (int i = 10; i < 16; i++) if (hdr[i] != 0) return false;
             long comp = BitConverter.ToUInt32(hdr, 4);
             long uncomp = BitConverter.ToUInt32(hdr, 0);
-            return comp > 0 && uncomp > 0 && uncomp <= (1L << 31) && 16 + comp <= s.Length;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+            return comp > 0 && uncomp > 0 && uncomp <= (1L << 31) && 16 + comp <= file.Length;
+        });
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

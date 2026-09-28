@@ -27,19 +27,8 @@ public sealed class NfsbExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        try
-        {
-            using var probe = file.OpenRead();
-            var magic = new byte[64];
-            int n = probe.Read(magic, 0, magic.Length);
-            if (n < magic.Length) return false;
-            if (probe.Length <= Nfsb.HeaderSize) return false;
-            return Nfsb.HasMagic(magic);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return file.Length > Nfsb.HeaderSize
+            && ExpanderSniff.Head(file, 64, Nfsb.HasMagic);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
