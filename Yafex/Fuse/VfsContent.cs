@@ -113,6 +113,7 @@ public static class ContentExpanders
         new SymExpander(),
         new IntelHexExpander(),
         new MtkBootExpander(),
+        new MstarSbExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

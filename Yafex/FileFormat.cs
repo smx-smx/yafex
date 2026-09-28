@@ -44,6 +44,7 @@ namespace Yafex
         Idb,
         Sym,
         IntelHex,
-        MtkBoot
+        MtkBoot,
+        MstarSb
     }
 }
