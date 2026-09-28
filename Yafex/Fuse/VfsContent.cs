@@ -150,6 +150,7 @@ public static class ContentExpanders
         new IntelHexExpander(),
         new MtkBootExpander(),
         new MstarSbExpander(),
+        new UefiExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

@@ -44,6 +44,7 @@ namespace Yafex
         Sym,
         IntelHex,
         MtkBoot,
-        MstarSb
+        MstarSb,
+        Uefi
     }
 }
