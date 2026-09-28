@@ -105,6 +105,7 @@ public static class ContentExpanders
         new VdfsExpander(),
         new LgLzoExpander(),
         new CramfsExpander(),
+        new NfsbExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

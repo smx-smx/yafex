@@ -36,6 +36,7 @@ namespace Yafex
         LgLzo,
         Cramfs,
         Squashfs3,
-        Squashfs4
+        Squashfs4,
+        Nfsb
     }
 }
