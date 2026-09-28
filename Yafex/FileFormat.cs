@@ -17,7 +17,6 @@ namespace Yafex
         EpkV1,
         EpkV2,
         EpkV2Beta,
-        EPKV3,
         Partinfo,
         LZHS,
         LZHSFS,

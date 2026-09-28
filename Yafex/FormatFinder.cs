@@ -59,6 +59,8 @@ namespace Yafex
             int bestConfidence = 0;
             IFormatAddon? bestAddon = null;
             DetectionResult bestResult = null!;
+            FileFormat? bestFormat = null;
+            var tied = new List<string>();
 
             foreach (var fmt in formats)
             {
@@ -84,12 +86,25 @@ namespace Yafex
                         bestConfidence = result.Confidence;
                         bestAddon = addon;
                         bestResult = result;
+                        bestFormat = fmt;
+                        tied.Clear();
+                    }
+                    else if (result.Confidence == bestConfidence && bestConfidence > 0)
+                    {
+                        // first-registered wins: keep the winner, record the tie
+                        tied.Add(Enum.GetName(fmt) ?? fmt.ToString());
                     }
                 }
                 catch (DllNotFoundException ex)
                 {
                     log.Error("Failed to load native addon", ex);
                 }
+            }
+
+            if (tied.Count > 0 && bestFormat != null)
+            {
+                log.DebugFormat("detection tie at {0} between {1} (winner) and {2}",
+                    bestConfidence, Enum.GetName((FileFormat)bestFormat), string.Join(",", tied));
             }
 
             return (bestAddon, bestResult);
