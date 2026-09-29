@@ -14,15 +14,15 @@ using System.IO;
 namespace Yafex.FileFormats.Idb;
 
 /// <summary>
-/// LG "16" image decoder (IDB blobs). Big-endian header: '16', width,
-/// height,
-/// palette entry count (all u16), palette of RGB565 big-endian entries,
-/// big-endian pixel count, then a command stream. First byte of each
+/// LG "16" image decoder (IDB blobs). Big-endian header: '16', width, height,
+/// palette entry count (all u16), palette of RGB555 big-endian entries
+/// (bit 15 unused; 394 corpus palettes contain 555 gray ramps vs 30 for
+/// 565), big-endian pixel count, then a command stream. First byte of each
 /// command selects by top two bits: 0x00 = run (count6 + 1 index byte,
 /// palette pixel repeated), 0x40 = literals (count6 index bytes),
 /// 0x80 = history back-reference (count6 pixels copied from the 256-byte
 /// recent-index ring, then palette-resolved), 0xC0 = single palette pixel
-/// with 13-bit index when bit5 clear, else count5 raw RGB565BE pixels.
+/// with 13-bit index when bit5 clear, else count5 raw RGB555BE pixels.
 /// Decoding stops when the emitted count reaches the header total; anything
 /// truncated, out of range or overrunning fails closed.
 /// </summary>
@@ -73,12 +73,7 @@ public static class Eu16
         for (int i = 0; i < entries; i++)
         {
             int v = (blob[8 + i * 2] << 8) | blob[8 + i * 2 + 1];
-            palette[i] = new[]
-            {
-                (byte)(((v >> 11) & 31) * 255 / 31),
-                (byte)(((v >> 5) & 63) * 255 / 63),
-                (byte)((v & 31) * 255 / 31),
-            };
+            palette[i] = Expand555(v);
         }
         var img = new Image { Width = width, Height = height };
         img.Rgba = new byte[want * 4];
@@ -161,7 +156,7 @@ public static class Eu16
                             }
                             int v = (blob[p] << 8) | blob[p + 1];
                             p += 2;
-                            WritePixel(img.Rgba, ref written, want, Expand565(v));
+                            WritePixel(img.Rgba, ref written, want, Expand555(v));
                         }
                     }
                     break;
@@ -201,12 +196,12 @@ public static class Eu16
         return palette[index];
     }
 
-    private static byte[] Expand565(int v)
+    private static byte[] Expand555(int v)
     {
         return new[]
         {
-            (byte)(((v >> 11) & 31) * 255 / 31),
-            (byte)(((v >> 5) & 63) * 255 / 63),
+            (byte)(((v >> 10) & 31) * 255 / 31),
+            (byte)(((v >> 5) & 31) * 255 / 31),
             (byte)((v & 31) * 255 / 31),
         };
     }

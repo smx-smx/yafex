@@ -257,7 +257,7 @@ public class IdbTests
     public void Eu16_RunAndSingle()
     {
         // 3x1 red red green: run(2,idx0) + single(idx1)
-        var blob = BuildEu16(3, 1, new ushort[] { 0xF800, 0x07E0 },
+        var blob = BuildEu16(3, 1, new ushort[] { 0x7C00, 0x03E0 },
             new byte[] { 0x02, 0x00, 0xC0, 0x01 });
         var img = Eu16.Decode(blob);
         Assert.AreEqual(3, img.Width);
@@ -269,7 +269,7 @@ public class IdbTests
     public void Eu16_LiteralsAndHistory()
     {
         // 4x1: literals R,G then history copy of both
-        var blob = BuildEu16(4, 1, new ushort[] { 0xF800, 0x07E0 },
+        var blob = BuildEu16(4, 1, new ushort[] { 0x7C00, 0x03E0 },
             new byte[] { 0x42, 0x00, 0x01, 0x82, 0x00 });
         var img = Eu16.Decode(blob);
         CollectionAssert.AreEqual(
@@ -280,9 +280,9 @@ public class IdbTests
     [Test]
     public void Eu16_RawPixels()
     {
-        // 2x1 raw RGB565BE red, green, empty palette
+        // 2x1 raw RGB555BE red, green, empty palette
         var blob = BuildEu16(2, 1, Array.Empty<ushort>(),
-            new byte[] { 0xE2, 0xF8, 0x00, 0x07, 0xE0 });
+            new byte[] { 0xE2, 0x7C, 0x00, 0x03, 0xE0 });
         var img = Eu16.Decode(blob);
         CollectionAssert.AreEqual(
             new byte[] { 255, 0, 0, 255, 0, 255, 0, 255 }, img.Rgba);
@@ -291,14 +291,14 @@ public class IdbTests
     [Test]
     public void Eu16_RejectsBadIndex()
     {
-        var blob = BuildEu16(1, 1, new ushort[] { 0xF800 }, new byte[] { 0x01, 0x04 });
+        var blob = BuildEu16(1, 1, new ushort[] { 0x7C00 }, new byte[] { 0x01, 0x04 });
         Assert.Throws<InvalidDataException>(() => Eu16.Decode(blob));
     }
 
     [Test]
     public void Eu16_RejectsTruncated()
     {
-        var blob = BuildEu16(2, 1, new ushort[] { 0xF800 }, new byte[] { 0x42, 0x00 });
+        var blob = BuildEu16(2, 1, new ushort[] { 0x7C00 }, new byte[] { 0x42, 0x00 });
         Assert.Throws<InvalidDataException>(() => Eu16.Decode(blob));
     }
 }
