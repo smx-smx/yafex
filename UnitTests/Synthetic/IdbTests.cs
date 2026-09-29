@@ -229,18 +229,20 @@ public class IdbTests
 
     internal static byte[] BuildEu16(int width, int height, ushort[] palette, byte[] runs)
     {
+        // true big-endian layout: w, h, entries (u16BE),
+        // RGB565BE palette, pixel count (u32BE), command stream
         var img = new List<byte>();
         img.AddRange(Encoding.ASCII.GetBytes("16"));
-        img.Add(0); // version
+        img.Add((byte)(width >> 8));
         img.Add((byte)width);
-        img.Add(0);
+        img.Add((byte)(height >> 8));
         img.Add((byte)height);
-        img.Add(0);
+        img.Add((byte)(palette.Length >> 8));
         img.Add((byte)palette.Length);
         foreach (var p in palette)
         {
-            img.Add((byte)p);
             img.Add((byte)(p >> 8));
+            img.Add((byte)p);
         }
         int pixels = width * height;
         img.Add((byte)(pixels >> 24));
@@ -252,10 +254,11 @@ public class IdbTests
     }
 
     [Test]
-    public void Eu16_IndexedRuns()
+    public void Eu16_RunAndSingle()
     {
-        // RGB565 red + green; 3x1: 2 red, 1 green
-        var blob = BuildEu16(3, 1, new ushort[] { 0xF800, 0x07E0 }, new byte[] { 2, 0, 1, 1 });
+        // 3x1 red red green: run(2,idx0) + single(idx1)
+        var blob = BuildEu16(3, 1, new ushort[] { 0xF800, 0x07E0 },
+            new byte[] { 0x02, 0x00, 0xC0, 0x01 });
         var img = Eu16.Decode(blob);
         Assert.AreEqual(3, img.Width);
         CollectionAssert.AreEqual(
@@ -263,9 +266,39 @@ public class IdbTests
     }
 
     [Test]
+    public void Eu16_LiteralsAndHistory()
+    {
+        // 4x1: literals R,G then history copy of both
+        var blob = BuildEu16(4, 1, new ushort[] { 0xF800, 0x07E0 },
+            new byte[] { 0x42, 0x00, 0x01, 0x82, 0x00 });
+        var img = Eu16.Decode(blob);
+        CollectionAssert.AreEqual(
+            new byte[] { 255, 0, 0, 255, 0, 255, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255 },
+            img.Rgba);
+    }
+
+    [Test]
+    public void Eu16_RawPixels()
+    {
+        // 2x1 raw RGB565BE red, green, empty palette
+        var blob = BuildEu16(2, 1, Array.Empty<ushort>(),
+            new byte[] { 0xE2, 0xF8, 0x00, 0x07, 0xE0 });
+        var img = Eu16.Decode(blob);
+        CollectionAssert.AreEqual(
+            new byte[] { 255, 0, 0, 255, 0, 255, 0, 255 }, img.Rgba);
+    }
+
+    [Test]
     public void Eu16_RejectsBadIndex()
     {
-        var blob = BuildEu16(1, 1, new ushort[] { 0xF800 }, new byte[] { 1, 4 });
+        var blob = BuildEu16(1, 1, new ushort[] { 0xF800 }, new byte[] { 0x01, 0x04 });
+        Assert.Throws<InvalidDataException>(() => Eu16.Decode(blob));
+    }
+
+    [Test]
+    public void Eu16_RejectsTruncated()
+    {
+        var blob = BuildEu16(2, 1, new ushort[] { 0xF800 }, new byte[] { 0x42, 0x00 });
         Assert.Throws<InvalidDataException>(() => Eu16.Decode(blob));
     }
 }

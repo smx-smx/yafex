@@ -14,13 +14,17 @@ using System.IO;
 namespace Yafex.FileFormats.Idb;
 
 /// <summary>
-/// LG "16" image decoder, version 0, paletted subset (IDB blobs). Little-
-/// endian header: magic, version, dimensions, palette entry count, palette
-/// (16-bit RGB565 little-endian entries), big-endian pixel count, then
-/// [count][index] run pairs covering exactly width*height pixels with all
-/// indices inside the palette. Anything else (other versions, run variants
-/// with markers/tails, direct pixels) fails closed so callers can fall
-/// back to raw bytes instead of misrendering.
+/// LG "16" image decoder (IDB blobs). Big-endian header: '16', width,
+/// height,
+/// palette entry count (all u16), palette of RGB565 big-endian entries,
+/// big-endian pixel count, then a command stream. First byte of each
+/// command selects by top two bits: 0x00 = run (count6 + 1 index byte,
+/// palette pixel repeated), 0x40 = literals (count6 index bytes),
+/// 0x80 = history back-reference (count6 pixels copied from the 256-byte
+/// recent-index ring, then palette-resolved), 0xC0 = single palette pixel
+/// with 13-bit index when bit5 clear, else count5 raw RGB565BE pixels.
+/// Decoding stops when the emitted count reaches the header total; anything
+/// truncated, out of range or overrunning fails closed.
 /// </summary>
 public static class Eu16
 {
@@ -41,31 +45,34 @@ public static class Eu16
 
     public static Image Decode(byte[] blob)
     {
-        if (!HasMagic(blob) || blob.Length < 14)
+        if (!HasMagic(blob) || blob.Length < 12)
         {
             throw new InvalidDataException("not an EU16 image");
         }
-        if (blob[2] != 0)
-        {
-            throw new InvalidDataException("unsupported EU16 version");
-        }
-        int width = blob[3] | (blob[4] << 8);
-        int height = blob[5] | (blob[6] << 8);
-        int entries = blob[7];
+        int width = (blob[2] << 8) | blob[3];
+        int height = (blob[4] << 8) | blob[5];
+        int entries = (blob[6] << 8) | blob[7];
         if (width <= 0 || height <= 0 || width > MaxDimension || height > MaxDimension
-            || (long)width * height > MaxPixels || entries <= 0)
+            || (long)width * height > MaxPixels || entries < 0)
         {
             throw new InvalidDataException("implausible EU16 dimensions");
         }
-        int pos = 8 + entries * 2;
-        if (pos + 4 > blob.Length)
+        long palEnd = 8L + (long)entries * 2;
+        if (palEnd + 4 > blob.Length)
         {
             throw new InvalidDataException("truncated EU16 palette");
+        }
+        long total = ((long)blob[palEnd] << 24) | ((long)blob[palEnd + 1] << 16)
+            | ((long)blob[palEnd + 2] << 8) | blob[palEnd + 3];
+        long want = (long)width * height;
+        if (total != want)
+        {
+            throw new InvalidDataException("EU16 pixel count mismatch");
         }
         var palette = new byte[entries][];
         for (int i = 0; i < entries; i++)
         {
-            int v = blob[8 + i * 2] | (blob[8 + i * 2 + 1] << 8);
+            int v = (blob[8 + i * 2] << 8) | blob[8 + i * 2 + 1];
             palette[i] = new[]
             {
                 (byte)(((v >> 11) & 31) * 255 / 31),
@@ -73,38 +80,147 @@ public static class Eu16
                 (byte)((v & 31) * 255 / 31),
             };
         }
-        long count = ((long)(blob[pos] << 24) | (long)(blob[pos + 1] << 16)
-            | (long)(blob[pos + 2] << 8) | blob[pos + 3]);
-        pos += 4;
-        if (count != (long)width * height)
-        {
-            throw new InvalidDataException("EU16 pixel count mismatch");
-        }
         var img = new Image { Width = width, Height = height };
-        img.Rgba = new byte[(long)width * height * 4];
+        img.Rgba = new byte[want * 4];
+        var history = new byte[256];
+        int cursor = 0;
         long at = 0;
-        while (pos + 1 < blob.Length && at < (long)width * height)
+        long written = 0;
+        long p = palEnd + 4;
+        var backref = new byte[64];
+        while (at < total)
         {
-            int n = blob[pos];
-            int index = blob[pos + 1];
-            pos += 2;
-            if ((uint)index >= (uint)entries || at + n > (long)width * height)
+            if (p >= blob.Length)
             {
-                throw new InvalidDataException("bad EU16 run");
+                throw new InvalidDataException("truncated EU16 stream");
             }
-            var color = palette[index];
-            for (int k = 0; k < n; k++, at++)
+            int b = blob[p];
+            switch (b & 0xC0)
             {
-                img.Rgba[at * 4] = color[0];
-                img.Rgba[at * 4 + 1] = color[1];
-                img.Rgba[at * 4 + 2] = color[2];
-                img.Rgba[at * 4 + 3] = 0xFF;
+                case 0x40: // literals: count6 palette indices
+                {
+                    int k = b & 0x3F;
+                    p++;
+                    at += k;
+                    for (int j = 0; j < k; j++)
+                    {
+                        if (p >= blob.Length)
+                        {
+                            throw new InvalidDataException("truncated EU16 stream");
+                        }
+                        int index = blob[p++];
+                        WritePixel(img.Rgba, ref written, want, Resolve(palette, index));
+                        history[cursor++ & 0xFF] = (byte)index;
+                    }
+                    break;
+                }
+                case 0x80: // history back-reference, then palette resolve
+                {
+                    int k = b & 0x3F;
+                    if (p + 1 >= blob.Length)
+                    {
+                        throw new InvalidDataException("truncated EU16 stream");
+                    }
+                    int start = blob[p + 1];
+                    p += 2;
+                    at += k;
+                    for (int j = 0; j < k; j++)
+                    {
+                        backref[j] = history[(start + j) & 0xFF];
+                    }
+                    for (int j = 0; j < k; j++)
+                    {
+                        history[cursor++ & 0xFF] = backref[j];
+                        WritePixel(img.Rgba, ref written, want, Resolve(palette, backref[j]));
+                    }
+                    break;
+                }
+                case 0xC0:
+                {
+                    if ((b & 0x20) == 0) // single palette pixel, 13-bit index
+                    {
+                        if (p + 1 >= blob.Length)
+                        {
+                            throw new InvalidDataException("truncated EU16 stream");
+                        }
+                        int index = ((b & 0x1F) << 8) | blob[p + 1];
+                        p += 2;
+                        at++;
+                        WritePixel(img.Rgba, ref written, want, Resolve(palette, index));
+                    }
+                    else // raw RGB565BE pixels
+                    {
+                        int k = b & 0x1F;
+                        p++;
+                        at += k;
+                        for (int j = 0; j < k; j++)
+                        {
+                            if (p + 1 >= blob.Length)
+                            {
+                                throw new InvalidDataException("truncated EU16 stream");
+                            }
+                            int v = (blob[p] << 8) | blob[p + 1];
+                            p += 2;
+                            WritePixel(img.Rgba, ref written, want, Expand565(v));
+                        }
+                    }
+                    break;
+                }
+                default: // 0x00: run of one palette pixel
+                {
+                    int k = b & 0x3F;
+                    if (p + 1 >= blob.Length)
+                    {
+                        throw new InvalidDataException("truncated EU16 stream");
+                    }
+                    int index = blob[p + 1];
+                    p += 2;
+                    at += k;
+                    var color = Resolve(palette, index);
+                    for (int j = 0; j < k; j++)
+                    {
+                        WritePixel(img.Rgba, ref written, want, color);
+                    }
+                    break;
+                }
             }
         }
-        if (at != (long)width * height || pos != blob.Length)
+        if (at != total || written != want)
         {
             throw new InvalidDataException("EU16 pixel count mismatch");
         }
         return img;
+    }
+
+    private static byte[] Resolve(byte[][] palette, int index)
+    {
+        if ((uint)index >= (uint)palette.Length)
+        {
+            throw new InvalidDataException("bad EU16 palette index");
+        }
+        return palette[index];
+    }
+
+    private static byte[] Expand565(int v)
+    {
+        return new[]
+        {
+            (byte)(((v >> 11) & 31) * 255 / 31),
+            (byte)(((v >> 5) & 63) * 255 / 63),
+            (byte)((v & 31) * 255 / 31),
+        };
+    }
+
+    private static void WritePixel(byte[] rgba, ref long written, long want, byte[] color)
+    {
+        if (written >= want)
+        {
+            throw new InvalidDataException("EU16 pixel count mismatch");
+        }
+        rgba[written * 4] = color[0];
+        rgba[written * 4 + 1] = color[1];
+        rgba[written * 4 + 2] = color[2];
+        rgba[written * 4 + 3] = 0xFF;
+        written++;
     }
 }

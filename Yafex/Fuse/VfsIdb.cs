@@ -70,17 +70,13 @@ public sealed class IdbExpander : IContentExpander
                     name = n2 + ".png";
                     node = new BytesVirtualFile(name, blob);
                 }
-                else if (Lgi1.HasMagic(blob))
+                else
                 {
-                    try
+                    var png = IdbExtractor.TryDecodeToPng(blob);
+                    if (png != null)
                     {
-                        var img = Lgi1.Decode(blob);
                         name = n2 + ".png";
-                        node = new BytesVirtualFile(name,
-                            PngWriter.EncodeRgba(img.Width, img.Height, img.Rgba));
-                    }
-                    catch (InvalidDataException)
-                    {
+                        node = new BytesVirtualFile(name, png);
                     }
                 }
                 keepAlive.Add(node);
