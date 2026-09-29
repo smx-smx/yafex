@@ -189,8 +189,7 @@ public class IdbTests
 
     [Test]
     public void PngWriter_RoundTrip()
-    {
-        var png = PngWriter.EncodeRgba(1, 1, new byte[] { 9, 8, 7, 6 });
+    {        var png = PngWriter.EncodeRgba(1, 1, new byte[] { 9, 8, 7, 6 });
         Assert.AreEqual(0x89, png[0]);
         Assert.AreEqual("IHDR", Encoding.ASCII.GetString(png, 12, 4));
         Assert.AreEqual(1, (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19]);
@@ -226,5 +225,47 @@ public class IdbTests
         Assert.AreEqual(0x89, png[0]);
         Assert.AreEqual("IHDR", Encoding.ASCII.GetString(png, 12, 4));
         Assert.AreEqual("2.bin", artifacts[1].Name);
+    }
+
+    internal static byte[] BuildEu16(int width, int height, ushort[] palette, byte[] runs)
+    {
+        var img = new List<byte>();
+        img.AddRange(Encoding.ASCII.GetBytes("16"));
+        img.Add(0); // version
+        img.Add((byte)width);
+        img.Add(0);
+        img.Add((byte)height);
+        img.Add(0);
+        img.Add((byte)palette.Length);
+        foreach (var p in palette)
+        {
+            img.Add((byte)p);
+            img.Add((byte)(p >> 8));
+        }
+        int pixels = width * height;
+        img.Add((byte)(pixels >> 24));
+        img.Add((byte)(pixels >> 16));
+        img.Add((byte)(pixels >> 8));
+        img.Add((byte)pixels);
+        img.AddRange(runs);
+        return img.ToArray();
+    }
+
+    [Test]
+    public void Eu16_IndexedRuns()
+    {
+        // RGB565 red + green; 3x1: 2 red, 1 green
+        var blob = BuildEu16(3, 1, new ushort[] { 0xF800, 0x07E0 }, new byte[] { 2, 0, 1, 1 });
+        var img = Eu16.Decode(blob);
+        Assert.AreEqual(3, img.Width);
+        CollectionAssert.AreEqual(
+            new byte[] { 255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255 }, img.Rgba);
+    }
+
+    [Test]
+    public void Eu16_RejectsBadIndex()
+    {
+        var blob = BuildEu16(1, 1, new ushort[] { 0xF800 }, new byte[] { 1, 4 });
+        Assert.Throws<InvalidDataException>(() => Eu16.Decode(blob));
     }
 }

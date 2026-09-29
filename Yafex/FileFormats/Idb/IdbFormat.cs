@@ -85,9 +85,9 @@ public class IdbExtractor : IFormatExtractor
             throw new InvalidDataException("not an IDB file");
         }
         // reference parity: sequential numbers over non-skipped entries.
-        // Blobs that already are PNGs pass through; LGI1 blobs decode to
-        // real PNGs; anything else keeps raw bytes under an honest .bin
-        // name (never mislabeled .png).
+        // Blobs that already are PNGs pass through; LGI1 and EU16 blobs
+        // decode to real PNGs; anything else keeps raw bytes under an
+        // honest .bin name (never mislabeled .png).
         int n = 0;
         foreach (var e in table.Entries)
         {
@@ -101,27 +101,38 @@ public class IdbExtractor : IFormatExtractor
             if (IsPng(blob))
             {
                 yield return ArtifactBuilder.Flat(source, n + ".png", blob);
+                continue;
             }
-            else if (Lgi1.HasMagic(blob))
+            var png = TryDecodeToPng(blob);
+            yield return png != null
+                ? ArtifactBuilder.Flat(source, n + ".png", png)
+                : ArtifactBuilder.Flat(source, n + ".bin", blob);
+        }
+    }
+
+    /// <summary>
+    /// Decodes a blob to PNG bytes (LGI1, EU16) or returns null when the
+    /// blob is not a decodable image. Shared by extraction and mounting.
+    /// </summary>
+    internal static byte[]? TryDecodeToPng(byte[] blob)
+    {
+        try
+        {
+            if (Lgi1.HasMagic(blob))
             {
-                IDataSource artifact;
-                try
-                {
-                    var img = Lgi1.Decode(blob);
-                    artifact = ArtifactBuilder.Flat(source, n + ".png",
-                        PngWriter.EncodeRgba(img.Width, img.Height, img.Rgba));
-                }
-                catch (InvalidDataException)
-                {
-                    artifact = ArtifactBuilder.Flat(source, n + ".bin", blob);
-                }
-                yield return artifact;
+                var lgi = Lgi1.Decode(blob);
+                return PngWriter.EncodeRgba(lgi.Width, lgi.Height, lgi.Rgba);
             }
-            else
+            if (Eu16.HasMagic(blob))
             {
-                yield return ArtifactBuilder.Flat(source, n + ".bin", blob);
+                var eu = Eu16.Decode(blob);
+                return PngWriter.EncodeRgba(eu.Width, eu.Height, eu.Rgba);
             }
         }
+        catch (InvalidDataException)
+        {
+        }
+        return null;
     }
 
     private static readonly byte[] PngMagic = { 137, 80, 78, 71, 13, 10, 26, 10 };
