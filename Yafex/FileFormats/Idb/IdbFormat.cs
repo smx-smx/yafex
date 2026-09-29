@@ -84,7 +84,10 @@ public class IdbExtractor : IFormatExtractor
         {
             throw new InvalidDataException("not an IDB file");
         }
-        // reference parity: sequential numbers over non-skipped entries
+        // reference parity: sequential numbers over non-skipped entries.
+        // Blobs that already are PNGs pass through; LGI1 blobs decode to
+        // real PNGs; anything else keeps raw bytes under an honest .bin
+        // name (never mislabeled .png).
         int n = 0;
         foreach (var e in table.Entries)
         {
@@ -95,7 +98,47 @@ public class IdbExtractor : IFormatExtractor
             n++;
             var blob = new byte[e.Size];
             Buffer.BlockCopy(bytes, (int)e.Offset, blob, 0, (int)e.Size);
-            yield return ArtifactBuilder.Flat(source, n + ".png", blob);
+            if (IsPng(blob))
+            {
+                yield return ArtifactBuilder.Flat(source, n + ".png", blob);
+            }
+            else if (Lgi1.HasMagic(blob))
+            {
+                IDataSource artifact;
+                try
+                {
+                    var img = Lgi1.Decode(blob);
+                    artifact = ArtifactBuilder.Flat(source, n + ".png",
+                        PngWriter.EncodeRgba(img.Width, img.Height, img.Rgba));
+                }
+                catch (InvalidDataException)
+                {
+                    artifact = ArtifactBuilder.Flat(source, n + ".bin", blob);
+                }
+                yield return artifact;
+            }
+            else
+            {
+                yield return ArtifactBuilder.Flat(source, n + ".bin", blob);
+            }
         }
+    }
+
+    private static readonly byte[] PngMagic = { 137, 80, 78, 71, 13, 10, 26, 10 };
+
+    internal static bool IsPng(byte[] blob)
+    {
+        if (blob.Length < 8)
+        {
+            return false;
+        }
+        for (int i = 0; i < 8; i++)
+        {
+            if (blob[i] != PngMagic[i])
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }

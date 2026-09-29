@@ -18,9 +18,8 @@ namespace Yafex.FileFormats.Idb;
 /// <summary>
 /// LG IDB (image database, e.g. IDB_1366s_eu.lr): text header plus a table of
 /// NUM_IMG 16-byte entries {unk1, unk2, size, offset} pointing at raw image
-/// blobs. Zero-size entries are duplicates and skipped. Blobs are extracted
-/// as N.png for parity with the reference tool, although the payloads are
-/// raw image data, not PNG.
+/// blobs. Zero-size entries are duplicates and skipped. Blobs are PNG,
+/// LGI1 (decoded to PNG on extraction) or opaque vendor data.
 /// </summary>
 public static class Idb
 {

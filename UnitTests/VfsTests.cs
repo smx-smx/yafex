@@ -183,6 +183,38 @@ public class VfsTests
     }
 
     [Test]
+    public void TestIdbExpander_DecodesPng()
+    {
+        var pal = new[] { new byte[] { 0xFF, 0x01, 0x02, 0x03 } };
+        var lgi = IdbTests.BuildLgi1(1, 1, 8, 0x80, pal, new byte[] { 0 });
+        var img = new List<byte>();
+        img.AddRange(Encoding.ASCII.GetBytes("IDB_VERSION=1.1\n"));
+        img.AddRange(Encoding.ASCII.GetBytes("IDB_NUM_IMG=1\n"));
+        img.AddRange(Encoding.ASCII.GetBytes("IDB_HDR_ENDMARK\n"));
+        int tableStart = img.Count;
+        int dataStart = tableStart + 16;
+        img.AddRange(new byte[8]);
+        img.AddRange(BitConverter.GetBytes(lgi.Length));
+        img.AddRange(BitConverter.GetBytes(dataStart));
+        img.AddRange(lgi);
+        var path = Path.Combine(_root, "t.lr");
+        File.WriteAllBytes(path, img.ToArray());
+
+        using var mf = new MFile(path);
+        var image = new RangeVirtualFile("t.lr", mf, 0, mf.Data.Length);
+        var expander = new IdbExpander();
+        Assert.IsTrue(expander.Matches(image));
+        var keepAlive = new List<object>();
+        var dir = expander.Expand(image, keepAlive);
+        var names = ChildNames(dir);
+        Assert.AreEqual(new[] { "1.png" }, names);
+        var node = (IVfsFile)dir.Tree["1.png"].Node;
+        var head = node.Read(0, 8);
+        Assert.NotNull(head);
+        CollectionAssert.AreEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }, head!);
+    }
+
+    [Test]
     public void TestLgUpVfsTree_LazyUnits()
     {
         var key = LgUpTests.RandomKey();

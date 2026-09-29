@@ -19,7 +19,8 @@ namespace Yafex.Fuse;
 
 /// <summary>
 /// Mount expander for IDB image databases: exposes each blob as N.png
-/// (zero-copy slices; blobs are leaves, no chaining).
+/// (decoded PNG when possible) or N.bin (raw fallback), mirroring the
+/// extraction naming contract.
 /// </summary>
 public sealed class IdbExpander : IContentExpander
 {
@@ -58,11 +59,48 @@ public sealed class IdbExpander : IContentExpander
                     continue;
                 }
                 n2++;
-                var slice = new SliceVirtualFile(n2 + ".png", file, e.Offset, e.Size);
-                keepAlive.Add(slice);
-                nodes.Add(new PakVfsFile(slice, Helpers.OctalLiteral(0444)));
+                var blob = new byte[e.Size];
+                Buffer.BlockCopy(buf, (int)e.Offset, blob, 0, (int)e.Size);
+                // same naming contract as extraction: real PNGs keep .png,
+                // anything else is exposed raw under .bin
+                string name = n2 + ".bin";
+                IVirtualFile node = new BytesVirtualFile(name, blob);
+                if (IdbExtractor.IsPng(blob))
+                {
+                    name = n2 + ".png";
+                    node = new BytesVirtualFile(name, blob);
+                }
+                else if (Lgi1.HasMagic(blob))
+                {
+                    try
+                    {
+                        var img = Lgi1.Decode(blob);
+                        name = n2 + ".png";
+                        node = new BytesVirtualFile(name,
+                            PngWriter.EncodeRgba(img.Width, img.Height, img.Rgba));
+                    }
+                    catch (InvalidDataException)
+                    {
+                    }
+                }
+                keepAlive.Add(node);
+                nodes.Add(new PakVfsFile(node, Helpers.OctalLiteral(0444)));
             }
             return nodes;
         });
+    }
+
+    /// <summary>In-memory decoded image content.</summary>
+    private sealed class BytesVirtualFile : IVirtualFile
+    {
+        private readonly byte[] _content;
+        public BytesVirtualFile(string name, byte[] content)
+        {
+            Name = name;
+            _content = content;
+        }
+        public string Name { get; }
+        public long Length => _content.Length;
+        public Stream OpenRead() => new MemoryStream(_content, writable: false);
     }
 }
