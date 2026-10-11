@@ -363,6 +363,174 @@ namespace Yafex.FileFormats.SddlSec
 		public static string SDIT_FILE_NAME = "SDIT.FDI";
 		public static string INFO_FILE_EXTENSION = ".TXT";
 		public static int SUB_FILE_NAME_LENGHT = 0x100;
+		private const string PEAKS_MODULE = "PEAKS";
+
+		// Splits an assembled PEAKS module image into its fmaN partitions:
+		// the "D50 " marker locates the boot-args block, whose root=/dev and
+		// fmaN=size lines drive sequential cuts clamped at EOF. Each part
+		// is emitted as a fmaN.bin sibling flagged for nested detection.
+		// A ":c" flag marks a zlib-block container (§DecompressZlibBlocks);
+		// a failed decompress warns and keeps the raw cut.
+		private IEnumerable<IDataSource> SplitPeaks(List<(uint Dest, byte[] Data)> pieces, IDataSource source, string basedir)
+		{
+			long end = 0;
+			foreach (var (dest, data) in pieces)
+			{
+				end = Math.Max(end, (long)dest + data.Length);
+			}
+			var image = new byte[end];
+			foreach (var (dest, data) in pieces)
+			{
+				Array.Copy(data, 0, image, (long)dest, data.Length);
+			}
+
+			int search = (int)Math.Min(image.Length, 8L * 1024 * 1024);
+			var marker = new byte[] { (byte)'D', (byte)'5', (byte)'0', (byte)' ' };
+			int markerAt = -1;
+			for (int i = 0; i + 4 <= search; i++)
+			{
+				if (image[i] == marker[0] && image[i + 1] == marker[1]
+					&& image[i + 2] == marker[2] && image[i + 3] == marker[3])
+				{
+					markerAt = i;
+					break;
+				}
+			}
+			if (markerAt < 0) yield break;
+			// Boot args: 0x200 ASCII bytes at the D50 marker + 16.
+			if ((long)markerAt + 16 + 0x200 > image.Length) yield break;
+			var args = Encoding.ASCII.GetString(image, markerAt + 16, 0x200);
+
+			string? root = null;
+			var parts = new List<(string Name, ulong Size, string? Flag)>();
+			foreach (var rawLine in args.Split('\n'))
+			{
+				var line = rawLine.Trim(' ', '\r', '\0');
+				if (line.StartsWith("root=/dev/", StringComparison.Ordinal))
+				{
+					root = line.Substring("root=/dev/".Length).Trim();
+				}
+				else if (line.StartsWith("fma", StringComparison.Ordinal))
+				{
+					var cut = line.Substring(3);
+					int eq = cut.IndexOf('=');
+					if (eq <= 0) continue;
+					var num = cut.Substring(0, eq);
+					var rest = cut.Substring(eq + 1);
+					string? flag = null;
+					int colon = rest.IndexOf(':');
+					if (colon >= 0)
+					{
+						flag = rest.Substring(colon + 1);
+						rest = rest.Substring(0, colon);
+					}
+					if (num.Any(c => c < '0' || c > '9')) continue;
+					ulong mult = 1;
+					if (rest.EndsWith('k') || rest.EndsWith('K'))
+					{
+						mult = 1024;
+						rest = rest.Substring(0, rest.Length - 1);
+					}
+					else if (rest.EndsWith('M'))
+					{
+						mult = 1048576;
+						rest = rest.Substring(0, rest.Length - 1);
+					}
+					if (rest.Length == 0 || rest.Any(c => c < '0' || c > '9')) continue;
+					if (!ulong.TryParse(rest, out ulong numSize)) continue;
+					parts.Add(($"fma{num}", numSize * mult, string.IsNullOrEmpty(flag) ? null : flag));
+				}
+			}
+
+			if (root == null || parts.Count == 0) yield break;
+			int rootIndex = parts.FindIndex(p => p.Name == root);
+			if (rootIndex < 0) yield break;
+			int start = Math.Max(0, rootIndex - 1);
+
+			// Cuts start at the D50 marker: it heads the partition area
+			// (any leading bytes are padding, not fma data).
+			long pos = markerAt;
+			for (int i = start; i < parts.Count; i++)
+			{
+				if (pos >= image.Length) break;
+				long take = (long)Math.Min(parts[i].Size, (ulong)(image.Length - pos));
+				var cutBytes = new byte[take];
+				Array.Copy(image, pos, cutBytes, 0, take);
+				pos += (long)parts[i].Size;
+
+				byte[] emit = cutBytes;
+				if (parts[i].Flag == "c")
+				{
+					try
+					{
+						emit = DecompressZlibBlocks(cutBytes);
+					}
+					catch (Exception ex) when (ex is InvalidDataException || ex is ArgumentException)
+					{
+						log.Warn($"[PEAKS] zlib-block decompress of {parts[i].Name} failed, keeping raw bytes: {ex.Message}");
+					}
+				}
+
+				var part = ArtifactBuilder.FlatIn(source, basedir, $"{parts[i].Name}.bin", emit);
+				part.Flags |= DataSourceFlags.Output | DataSourceFlags.ProcessFurther;
+				log.Info($"[PEAKS] split {parts[i].Name}.bin ({emit.Length} bytes{(parts[i].Flag == "c" ? ", zlib-blocks" : "")})");
+				yield return part;
+			}
+		}
+
+		private static uint ReadU32(byte[] buf, int at, bool littleEndian)
+		{
+			if (littleEndian)
+				return (uint)(buf[at] | (buf[at + 1] << 8) | (buf[at + 2] << 16) | (buf[at + 3] << 24));
+			return (uint)((buf[at] << 24) | (buf[at + 1] << 16) | (buf[at + 2] << 8) | buf[at + 3]);
+		}
+
+		// zlib-block container: u32 uncompressed size + u32 first block
+		// offset, then an offset table starting AT byte 4 whose first
+		// entry repeats the first block offset. Each block inflates
+		// independently (the last spans a fixed 16384 bytes) and the
+		// results concatenate in order. Endianness follows the size
+		// field: leading 00 00 means little-endian, else big-endian.
+		private static byte[] DecompressZlibBlocks(byte[] blob)
+		{
+			if (blob.Length < 8)
+				throw new InvalidDataException("zlib-block container too short for its header");
+			bool littleEndian = blob[0] == 0 && blob[1] == 0;
+			uint firstBlk = ReadU32(blob, 4, littleEndian);
+			if (firstBlk < 8 || firstBlk > (uint)blob.Length || ((firstBlk - 4) % 4) != 0)
+				throw new InvalidDataException("zlib-block container has a bad first-block offset");
+			int count = (int)((firstBlk - 4) / 4);
+			if (count == 0)
+				throw new InvalidDataException("zlib-block container has an empty offset table");
+			var locs = new uint[count];
+			for (int i = 0; i < count; i++)
+			{
+				locs[i] = ReadU32(blob, 4 + 4 * i, littleEndian);
+			}
+			if (locs[0] != firstBlk)
+				throw new InvalidDataException("zlib-block offset table does not start at the first block");
+			for (int i = 0; i < count; i++)
+			{
+				if (locs[i] > (uint)blob.Length)
+					throw new InvalidDataException("zlib-block offset runs past the container");
+				if (i > 0 && locs[i] <= locs[i - 1])
+					throw new InvalidDataException("zlib-block offsets are not ascending");
+			}
+			if ((ulong)locs[count - 1] + 16384 > (ulong)blob.Length)
+				throw new InvalidDataException("zlib-block final block runs past the container");
+
+			using var output = new MemoryStream();
+			for (int i = 0; i < count - 1; i++)
+			{
+				var span = blob[(int)locs[i]..(int)locs[i + 1]];
+				var inflated = DecompressZlib(new Memory64<byte>(span)).ToArray();
+				output.Write(inflated, 0, inflated.Length);
+			}
+			var last = blob[(int)locs[count - 1]..(int)(locs[count - 1] + 16384)];
+			var lastInflated = DecompressZlib(new Memory64<byte>(last)).ToArray();
+			output.Write(lastInflated, 0, lastInflated.Length);
+			return output.ToArray();
+		}
 
 		public IEnumerable<IDataSource> Extract(IDataSource source) {
 			var data = source.Data;
@@ -425,6 +593,9 @@ namespace Yafex.FileFormats.SddlSec
 				var moduleBuf = ArtifactBuilder.BeginBuffer(
                     basedir, fileName, DataSourceFlags.Output | DataSourceFlags.ProcessFurther);
 
+				List<(uint Dest, byte[] Data)>? peaksPieces =
+					module.ModuleName == PEAKS_MODULE ? new List<(uint, byte[])>() : null;
+
 				for (int iSegment = 0; iSegment < module.SegmentCount; iSegment++)
 				{
 					var (moduleEntry, moduleData) = GetFile(st);
@@ -434,6 +605,7 @@ namespace Yafex.FileFormats.SddlSec
 
 					//parse module seg data
 					var (destOffset, outData, version, compressed, hasSubFile, subFileName, size) = AssembleSegment(moduleData);
+					peaksPieces?.Add((destOffset, outData));
 
 					log.Info($"	segment #{iSegment + 1}/{module.SegmentCount} (name='{moduleEntry.FileName}'," +
 						$" size={moduleEntry.FileSize}," +
@@ -447,6 +619,14 @@ namespace Yafex.FileFormats.SddlSec
 
 				var artifact = ArtifactBuilder.Complete(moduleBuf, source, basedir);
 				yield return artifact;
+
+				if (peaksPieces != null)
+				{
+					foreach (var part in SplitPeaks(peaksPieces, source, basedir))
+					{
+						yield return part;
+					}
+				}
 
 				iModule++;
 			}
