@@ -27,6 +27,7 @@
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.SquashFs/DiscUtils.SquashFs.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.SquashFs3/DiscUtils.SquashFs3.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Jffs2/DiscUtils.Jffs2.csproj" />
+    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Ufs/DiscUtils.Ufs.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Ext/DiscUtils.Ext.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Fat/DiscUtils.Fat.csproj" />
     <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Vdfs/DiscUtils.Vdfs.csproj" />

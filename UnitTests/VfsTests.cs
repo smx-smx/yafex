@@ -215,6 +215,28 @@ public class VfsTests
     }
 
     [Test]
+    public void TestUfsExpander_RoundTrip()
+    {
+        var bytes = UfsTests.BuildUfs1();
+        var path = Path.Combine(_root, "part.bin");
+        File.WriteAllBytes(path, bytes);
+
+        using var mf = new MFile(path);
+        var image = new RangeVirtualFile("part.bin", mf, 0, mf.Data.Length);
+        var expander = new UfsExpander();
+        Assert.IsTrue(expander.Matches(image));
+        Assert.IsFalse(new Jffs2Expander().Matches(image));
+        var keepAlive = new List<object>();
+        var dir = expander.Expand(image, keepAlive);
+        var names = ChildNames(dir);
+        CollectionAssert.AreEquivalent(new[] { "hello.txt", "link" }, names);
+        var node = (IVfsFile)dir.Tree["hello.txt"].Node;
+        var content = node.Read(0, 12);
+        Assert.NotNull(content);
+        CollectionAssert.AreEqual(Encoding.ASCII.GetBytes("hello, ufs1!"), content!);
+    }
+
+    [Test]
     public void TestLgUpVfsTree_LazyUnits()
     {
         var key = LgUpTests.RandomKey();

@@ -46,6 +46,7 @@ using Yafex.FileFormats.Sym;
 using Yafex.FileFormats.Squashfs;
 using Yafex.FileFormats.Squashfs3;
 using Yafex.FileFormats.Uefi;
+using Yafex.FileFormats.Ufs;
 using Yafex.FileFormats.UImage;
 
 namespace Yafex
@@ -126,6 +127,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, MtkBootAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MstarSbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UefiAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, UfsAddon>(key);
         }
     }
 }

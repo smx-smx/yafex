@@ -45,6 +45,7 @@ namespace Yafex
         IntelHex,
         MtkBoot,
         MstarSb,
-        Uefi
+        Uefi,
+        Ufs
     }
 }

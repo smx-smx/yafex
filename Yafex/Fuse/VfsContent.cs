@@ -151,6 +151,7 @@ public static class ContentExpanders
         new MtkBootExpander(),
         new MstarSbExpander(),
         new UefiExpander(),
+        new UfsExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
