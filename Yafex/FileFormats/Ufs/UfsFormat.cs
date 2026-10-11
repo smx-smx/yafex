@@ -72,6 +72,10 @@ public class UfsLister : IFormatLister
     {
         foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
         {
+            if (e.Name == "." || e.Name == "..")
+            {
+                continue;
+            }
             var inode = ctx.GetInode(e.Ino);
             var kind = inode.IsDirectory ? "d" : inode.IsSymlink ? "l" : "f";
             output.WriteLine($"  {kind} {prefix}{e.Name} size={inode.Size}");

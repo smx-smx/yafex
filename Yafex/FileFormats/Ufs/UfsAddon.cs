@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 
 using Yafex.Fuse;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.Ufs;
 
@@ -43,5 +44,26 @@ public class UfsAddon : IFormatAddon
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));
+    }
+
+    // Lazy top-level mount: the expander subtree hangs off the VFS root.
+    // Lifetime: the factory closure retains the image, the keep-alive
+    // set and the reader for as long as the node is reachable.
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        if (source is not MFile input) return null;
+        if (result is not UfsDetectionResult typed || typed.Image == null) return null;
+        try
+        {
+            var vfs = new YafexVfs();
+            var image = new RangeVirtualFile(input.Name ?? "ufs.bin", input, 0, input.Data.Length);
+            var node = new UfsExpander().Expand(image, new List<object>());
+            vfs.Root.AddNode(node);
+            return vfs;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }

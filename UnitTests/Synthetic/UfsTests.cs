@@ -21,7 +21,6 @@ using NUnit.Framework;
 
 using Yafex;
 using Yafex.FileFormats.Ufs;
-
 using static UnitTests.Synthetic;
 
 namespace UnitTests;
