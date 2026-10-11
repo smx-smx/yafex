@@ -315,6 +315,44 @@ public class UfsTests
         CollectionAssert.AreEqual(Encoding.ASCII.GetBytes("hello.txt"), link);
     }
 
+    // Panasonic-style stale template geometry: data laid out 4096/1024
+    // while the superblock claims 8192/2048 (all descriptor fields kept
+    // claim-consistent, like fma5). The reader must fall back and still open it.
+    internal static byte[] BuildUfsStale()
+    {
+        byte[] img = BuildUfs1();
+        void At32(int off, uint v)
+        {
+            img[8192 + off] = (byte)v;
+            img[8192 + off + 1] = (byte)(v >> 8);
+            img[8192 + off + 2] = (byte)(v >> 16);
+            img[8192 + off + 3] = (byte)(v >> 24);
+        }
+        At32(48, 8192); // bsize
+        At32(52, 2048); // fsize
+        At32(56, 4); // frag
+        At32(72, 0xFFFFE000); // bmask
+        At32(76, 0xFFFFF800); // fmask
+        At32(80, 13); // bshift
+        At32(84, 11); // fshift
+        At32(96, 2); // fragshift
+        At32(116, 2048); // nindir (8192/4)
+        At32(120, 64); // inopb (8192/128)
+        return img;
+    }
+
+    [Test]
+    public void UfsStaleGeometry_StillOpens()
+    {
+        var res = (UfsDetectionResult)new UfsAddon().CreateDetector(new Dictionary<string, string>())
+            .Detect(Mem(BuildUfsStale()));
+        Assert.AreEqual(90, res.Confidence);
+        using var stream = new MemoryStream(BuildUfsStale(), writable: false);
+        var ctx = DiscUtils.Ufs.UfsContext.Open(stream);
+        CollectionAssert.AreEqual(
+            Encoding.ASCII.GetBytes("hello, ufs1!"), ctx.ReadFile(3));
+    }
+
     [Test]
     public void Garbage_Detects0()
     {

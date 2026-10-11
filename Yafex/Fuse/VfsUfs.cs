@@ -31,11 +31,12 @@ public sealed class UfsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        // superblock lives at +8192 (UFS1) or +65536 (UFS2); the short
-        // probe covers small UFS1 images, the long one everything else.
-        // Field validation only (no inode walks); full validation runs
-        // in TryOpen on expand.
-        return ExpanderSniff.Head(file, 66912, head => UfsFileSystem.HeadMatches(head))
+        // superblock magic at +1372 (floppy), +9564 (UFS1), +66908 (UFS2)
+        // or +263516 (piggy); probes are sized to cover each while still
+        // matching small images. Field validation only (no inode walks);
+        // full validation runs in TryOpen on expand.
+        return ExpanderSniff.Head(file, 263520, head => UfsFileSystem.HeadMatches(head))
+            || ExpanderSniff.Head(file, 66912, head => UfsFileSystem.HeadMatches(head))
             || ExpanderSniff.Head(file, 9568, head => UfsFileSystem.HeadMatches(head));
     }
 
