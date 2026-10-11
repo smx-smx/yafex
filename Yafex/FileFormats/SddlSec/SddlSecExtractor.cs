@@ -23,14 +23,32 @@ namespace Yafex.FileFormats.SddlSec
         private readonly SddlSecContext _ctx;
         private static readonly ILog log = LogManager.GetLogger(nameof(SddlSecExtractor));
 		private const string AES_KEY_ID = "sddl-sec-key";
-		private readonly Aes _aesKey;
-		private readonly AesDecryptor Decryptor;
+
+		// Entry-key trial order (key values live in the caller's key
+		// bundle, never here): new AES-128-CBC/PKCS7 first, then old
+		// AES-128-CBC/NoPadding keys, then old 3DES-CBC/NoPadding keys.
+		private static readonly (string Id, bool Old, bool TripleDes, PaddingMode Padding)[] TrialKeys =
+		[
+			(AES_KEY_ID, false, false, PaddingMode.PKCS7),
+			("sddl-sec-old-aes-2009", true, false, PaddingMode.None),
+			("sddl-sec-old-aes-jpn", true, false, PaddingMode.None),
+			("sddl-sec-old-des-2010", true, true, PaddingMode.None),
+			("sddl-sec-old-des-pre2009", true, true, PaddingMode.None),
+		];
+
+		private readonly KeysRepository _keys;
+		private AesDecryptor? _newDecryptor;
+		private Func<byte[], Memory64<byte>>? _entryDecrypt;
+		private bool _trialDone;
+		private bool _isOld;
+
+		/// <summary>True once the entry-key trial selected an old-variant
+		/// key (old entry framing + old module headers apply).</summary>
+		public bool IsOldFormat => _trialDone && _isOld;
 
 		public SddlSecExtractor(SddlSecContext ctx, KeysRepository keys) {
-			var aesKey = keys.GetKey(AES_KEY_ID);
-			_aesKey = aesKey.GetAes(PaddingMode.PKCS7);
-			Decryptor = new AesDecryptor(_aesKey);
             _ctx = ctx;
+			_keys = keys;
 		}
 
         private SddlSecHeader Header => _ctx.Header;
@@ -88,10 +106,117 @@ namespace Yafex.FileFormats.SddlSec
 			}
 		}
 
+		private static byte[] DecryptBlocks(byte[] cipher, byte[] key, byte[] iv, bool tripleDes, PaddingMode padding)
+		{
+			using SymmetricAlgorithm algo = tripleDes ? TripleDES.Create() : Aes.Create();
+			algo.Mode = CipherMode.CBC;
+			algo.Padding = padding;
+			algo.Key = key;
+			algo.IV = iv;
+			using var transform = algo.CreateDecryptor();
+			return transform.TransformFinalBlock(cipher, 0, cipher.Length);
+		}
+
+		private static bool LooksLikeEntryHeader(byte[] plain)
+		{
+			if (plain.Length < 24) return false;
+			for (int i = 0; i < 8; i++)
+			{
+				byte b = plain[i];
+				if (b != 0 && (b < 0x20 || b > 0x7E)) return false;
+			}
+			var sizeText = Encoding.ASCII.GetString(plain, 12, 12).Trim(' ', '\0');
+			if (sizeText.Length == 0 || sizeText.Any(c => c < '0' || c > '9')) return false;
+			return uint.TryParse(sizeText, out uint size) && size >= 1 && size <= (1u << 30);
+		}
+
+		// Resolves the entry key once per extraction by trial-decrypting
+		// the 32-byte entry header at the current stream position. The
+		// stream position is preserved; later entries reuse the winner.
+		private void EnsureTrial(SpanStream dataStream)
+		{
+			if (_trialDone) return;
+			long pos = dataStream.Position;
+			byte[] header;
+			try
+			{
+				header = dataStream.ReadBytes(EntryHeader.PADDED_SIZE).ToArray();
+			}
+			finally
+			{
+				dataStream.Position = pos;
+			}
+
+			foreach (var (id, old, tripleDes, padding) in TrialKeys)
+			{
+				byte[] key, iv;
+				if (!old)
+				{
+					if (!_keys.TryGetKey(id, out var entry)) continue;
+					key = entry.key;
+					iv = entry.iv;
+					if (key.Length != 16 || iv.Length != 16) continue;
+				}
+				else
+				{
+					if (!_keys.TryGetRaw(id, out key, out iv)) continue;
+					if (tripleDes ? (key.Length != 24 || iv.Length != 8)
+						: (key.Length != 16 || iv.Length != 16)) continue;
+				}
+
+				byte[] plain;
+				try
+				{
+					plain = DecryptBlocks(header, key, iv, tripleDes, padding);
+				}
+				catch (CryptographicException)
+				{
+					continue;
+				}
+				if (!LooksLikeEntryHeader(plain)) continue;
+
+				if (!old)
+				{
+					var aes = Aes.Create();
+					aes.Key = key;
+					aes.IV = iv;
+					aes.Mode = CipherMode.CBC;
+					aes.Padding = PaddingMode.PKCS7;
+					_newDecryptor = new AesDecryptor(aes);
+					_entryDecrypt = bytes => _newDecryptor.Decrypt(bytes);
+				}
+				else
+				{
+					var k = (byte[])key.Clone();
+					var v = (byte[])iv.Clone();
+					var td = tripleDes;
+					_entryDecrypt = bytes => new Memory64<byte>(DecryptBlocks(bytes, k, v, td, PaddingMode.None));
+				}
+				_isOld = old;
+				_trialDone = true;
+				log.Info($"[SDDL] entry key trial matched '{id}' (old-format={old})");
+				return;
+			}
+
+			throw new InvalidDataException("No SDDL entry key trial matched the first entry header");
+		}
+
+		private static uint ParseAsciiCount(byte[] buf, ref int at, int width, string what)
+		{
+			if (at < 0 || (long)at + width > buf.Length)
+				throw new InvalidDataException($"Old SDDL entry {what} count runs past the payload");
+			var text = Encoding.ASCII.GetString(buf, at, width).Trim(' ', '\0');
+			at += width;
+			if (text.Length == 0 || text.Any(c => c < '0' || c > '9') || !uint.TryParse(text, out uint value))
+				throw new InvalidDataException($"Old SDDL entry has a non-numeric {what} count");
+			return value;
+		}
+
 		internal (EntryHeader Header, long DataOffset) ReadEntryHeader(SpanStream dataStream)
 		{
+			EnsureTrial(dataStream);
 			var entryHeaderEncrypted = dataStream.ReadBytes(EntryHeader.PADDED_SIZE);
-			var entryHeaderBytes = Decryptor.Decrypt(entryHeaderEncrypted);
+			var entryHeaderBytes = _entryDecrypt!(entryHeaderEncrypted);
 			var entryHeader = entryHeaderBytes.Cast<byte, EntryHeader>().Span[0];
 			return (entryHeader, dataStream.Position);
 		}
@@ -100,10 +225,104 @@ namespace Yafex.FileFormats.SddlSec
 		{
 			var (entryHeader, _) = ReadEntryHeader(dataStream);
 
-			var entryDataEncrypted = dataStream.ReadBytes(entryHeader.FileSize);
-			var entryData = Decryptor.Decrypt(entryDataEncrypted);
+			if (!_isOld)
+			{
+				var entryDataEncrypted = dataStream.ReadBytes(entryHeader.FileSize);
+				var entryData = _entryDecrypt!(entryDataEncrypted);
+				return (entryHeader, entryData);
+			}
 
-			return (entryHeader, entryData);
+			// Old framing: a display-only ciphered run follows the header
+			// (counted in FileSize, never decrypted), then one NoPadding
+			// blob holding a second skip count, a 12-char data size and
+			// the payload.
+			var skipped = ParseStreamCount(dataStream);
+			if ((ulong)skipped + 4 > entryHeader.FileSize)
+				throw new InvalidDataException("Old SDDL entry display count exceeds file size");
+			dataStream.ReadBytes(skipped);
+			uint encSize = entryHeader.FileSize - 4u - skipped;
+			byte[] inner;
+			try
+			{
+				inner = _entryDecrypt!(dataStream.ReadBytes(encSize)).ToArray();
+			}
+			catch (CryptographicException ex)
+			{
+				throw new InvalidDataException("Old SDDL entry payload failed to decrypt", ex);
+			}
+
+			int at = 0;
+			uint dataSkip = ParseAsciiCount(inner, ref at, 4, "data");
+			// The M field is followed by M + 4 skipped bytes, then the
+			// 12-char data size and the payload.
+			if ((ulong)at + dataSkip + 4 + 12 > (ulong)inner.Length)
+				throw new InvalidDataException("Old SDDL entry data skip runs past the payload");
+			at += (int)dataSkip + 4;
+			uint dataSize = ParseAsciiCount(inner, ref at, 12, "data size");
+			if ((ulong)at + dataSize > (ulong)inner.Length)
+				throw new InvalidDataException("Old SDDL entry payload runs past the decrypted blob");
+			var payload = new byte[dataSize];
+			Array.Copy(inner, at, payload, 0, (int)dataSize);
+			return (entryHeader, new Memory64<byte>(payload));
+		}
+
+		private static uint ParseStreamCount(SpanStream stream)
+		{
+			var raw = stream.ReadBytes(4).ToArray();
+			int at = 0;
+			return ParseAsciiCount(raw, ref at, 4, "display");
+		}
+
+		// Assembles one module segment payload: header (new 48-byte magic
+		// header or old 32+16-byte header), optional stream decipher and
+		// zlib inflation, then the shared content-header/data cut. Used by
+		// both the extractor and the lazy VFS so old modules behave the
+		// same on both paths. Must follow GetFile (the key trial decides
+		// which header layout applies).
+		internal (uint DestOffset, byte[] Data, string Version, bool Compressed, bool HasSubFile, string? SubFile, uint Size) AssembleSegment(Memory64<byte> moduleData)
+		{
+			if (!_trialDone) throw new InvalidOperationException("Entry key trial has not run");
+			if (!_isOld)
+			{
+				var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
+				var moduleHeader = moduleStream.ReadStruct<ModuleHeader>();
+				if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC)){
+					throw new InvalidDataException("Invalid module header magic");
+				}
+
+				var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
+				var decipheredData = moduleHeader.isCiphered? Decipher(storedData) : storedData;
+				var finalData = moduleHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
+				return FinishSegment(finalData, moduleHeader.VersionString, moduleHeader.isCompressed);
+			}
+			else
+			{
+				if (moduleData.Length < ModuleHeaderOld.COM_SIZE + Unsafe.SizeOf<ModuleHeaderOld>())
+					throw new InvalidDataException("Old SDDL module segment too short for its header");
+				var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
+				moduleStream.Position = ModuleHeaderOld.COM_SIZE;
+				var oldHeader = moduleStream.ReadStruct<ModuleHeaderOld>();
+
+				var storedData = moduleStream.ReadBytes(oldHeader.CompressedSize);
+				var decipheredData = oldHeader.isCiphered ? Decipher(storedData) : storedData;
+				var finalData = oldHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
+				return FinishSegment(finalData, $"old:{oldHeader.Id:X4}", oldHeader.isCompressed);
+			}
+		}
+
+		private static (uint DestOffset, byte[] Data, string Version, bool Compressed, bool HasSubFile, string? SubFile, uint Size) FinishSegment(Memory64<byte> finalData, string version, bool compressed)
+		{
+			var contentReader = new SpanStream(finalData, Endianness.BigEndian);
+			var contentHeader = contentReader.ReadStruct<ContentHeader>();
+
+			//TODO: figure out how to handle this
+			var subFileName = contentHeader.hasSubFile ? contentReader.ReadBytes(SUB_FILE_NAME_LENGHT).AsString(Encoding.ASCII) : null;
+
+			//seek to data start
+			contentReader.Position = contentHeader.SourceOffset;
+			var outData = contentReader.ReadBytes(contentHeader.Size);
+
+			return (contentHeader.DestOffset, outData, version, compressed, contentHeader.hasSubFile, subFileName, contentHeader.Size);
 		}
 
 		public List<SditModuleEntry> ParseSditToModules(Memory64<byte> sditData)
@@ -214,34 +433,16 @@ namespace Yafex.FileFormats.SddlSec
 					}
 
 					//parse module seg data
-					var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
-					var moduleHeader = moduleStream.ReadStruct<ModuleHeader>();
-					if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC)){
-						throw new InvalidDataException("Invalid module header magic");
-					}
+					var (destOffset, outData, version, compressed, hasSubFile, subFileName, size) = AssembleSegment(moduleData);
 
-					var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
-					var decipheredData = moduleHeader.isCiphered? Decipher(storedData) : storedData;
-					var finalData = moduleHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
-
-					var contentReader = new SpanStream(finalData, Endianness.BigEndian);
-					var contentHeader = contentReader.ReadStruct<ContentHeader>();
-
-					//TODO: figure out how to handle this
-					var subFileName = contentHeader.hasSubFile ? contentReader.ReadBytes(SUB_FILE_NAME_LENGHT).AsString(Encoding.ASCII) : null;
-
-					//seek to data start
-					contentReader.Position = contentHeader.SourceOffset;
-					var outData = contentReader.ReadBytes(contentHeader.Size);
-					
 					log.Info($"	segment #{iSegment + 1}/{module.SegmentCount} (name='{moduleEntry.FileName}'," +
 						$" size={moduleEntry.FileSize}," +
-						$" version='{moduleHeader.VersionString}'" +
-						$" compressed='{moduleHeader.isCompressed}'" +
-						$"{(contentHeader.hasSubFile ? $", target='{subFileName}'" : "")}" +
-						$") --> 0x{contentHeader.Size:X} @ 0x{contentHeader.DestOffset:X}");
+						$" version='{version}'" +
+						$" compressed='{compressed}'" +
+						$"{(hasSubFile ? $", target='{subFileName}'" : "")}" +
+						$") --> 0x{size:X} @ 0x{destOffset:X}");
 
-					moduleBuf.WriteAt((int)contentHeader.DestOffset, outData);
+					moduleBuf.WriteAt((int)destOffset, outData);
 				}
 
 				var artifact = ArtifactBuilder.Complete(moduleBuf, source, basedir);

@@ -162,6 +162,22 @@ namespace Yafex.FileFormats.SddlSec
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct ModuleHeaderOld
+    {
+        public const int COM_SIZE = 32;
+
+        public ushort Id;
+        public byte Attributes;
+        public byte Target;
+        public uint CompressedSize;
+        public uint UncompressedSize;
+        public uint Crc;
+
+        public bool isCompressed => (Attributes & 0x01) != 0;
+        public bool isCiphered => (Attributes & 0x02) != 0;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct ContentHeader
     {
         private byte _magic1; //0x01

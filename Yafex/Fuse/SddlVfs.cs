@@ -70,27 +70,10 @@ public sealed class SddlModuleFile : IVirtualFile
                 st.Position = dataOffset - EntryHeader.PADDED_SIZE;
                 var (_, moduleData) = _extractor.GetFile(st);
 
-                var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
-                var moduleHeader = moduleStream.ReadStruct<ModuleHeader>();
-                if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC))
-                {
-                    throw new InvalidDataException("Invalid module header magic");
-                }
-
-                var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
-                var decipheredData = moduleHeader.isCiphered ? SddlSecExtractor.Decipher(storedData) : storedData;
-                var finalData = moduleHeader.isCompressed ? SddlSecExtractor.DecompressZlib(decipheredData) : decipheredData;
-
-                var contentReader = new SpanStream(finalData, Endianness.BigEndian);
-                var contentHeader = contentReader.ReadStruct<ContentHeader>();
-                if (contentHeader.hasSubFile)
-                {
-                    contentReader.ReadBytes(SddlSecExtractor.SUB_FILE_NAME_LENGHT);
-                }
-                contentReader.Position = contentHeader.SourceOffset;
-                var outData = contentReader.ReadBytes(contentHeader.Size).ToArray();
-                pieces.Add((contentHeader.DestOffset, outData));
-                end = Math.Max(end, (long)contentHeader.DestOffset + outData.Length);
+                var (destOffset, outData, _, _, _, _, _) = _extractor.AssembleSegment(moduleData);
+                var bytes = outData.ToArray();
+                pieces.Add((destOffset, bytes));
+                end = Math.Max(end, (long)destOffset + bytes.Length);
             }
             var assembled = new byte[end];
             foreach (var (dest, data) in pieces)
