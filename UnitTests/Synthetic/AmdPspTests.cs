@@ -210,4 +210,25 @@ public class AmdPspTests
         StringAssert.Contains("smu_offchip_fw", text);
         StringAssert.Contains("EFS @0x100", text);
     }
+
+    [Test]
+    public void Expander_MatchesAndExpands()
+    {
+        var k0 = new byte[] { 0xAA, 0xBB };
+        var dir = BuildPspDir(new[] { ((byte)0x04, (uint)k0.Length, (ulong)0x500 | (1UL << 62)) });
+        var full = BuildImageWithEfs(dir);
+        Array.Copy(k0, 0, full, 0x500, k0.Length);
+        var mem = Mem(full, "flash.bin");
+        var file = new Yafex.Fuse.RangeVirtualFile("flash.bin", mem, 0, full.Length);
+        var expander = new Yafex.Fuse.AmdPspExpander();
+        Assert.IsTrue(expander.Matches(file));
+        Assert.IsFalse(new Yafex.Fuse.MtkBootExpander().Matches(file));
+        var keepAlive = new List<object>();
+        var node = expander.Expand(file, keepAlive);
+        node.EnsureLoaded();
+        var names = node.Tree.Keys.OrderBy(k => k).ToList();
+        CollectionAssert.Contains(names, "psp0_smu_offchip_fw_00.bin");
+        var fnode = (Yafex.Fuse.IVfsFile)node.Tree["psp0_smu_offchip_fw_00.bin"].Node;
+        CollectionAssert.AreEqual(k0, fnode.Read(0, k0.Length)!);
+    }
 }

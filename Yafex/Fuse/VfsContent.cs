@@ -153,6 +153,7 @@ public static class ContentExpanders
         new UefiExpander(),
         new UfsExpander(),
         new AndroidBootExpander(),
+        new AmdPspExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;

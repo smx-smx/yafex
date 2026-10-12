@@ -273,6 +273,40 @@ public class VfsTests
     }
 
     [Test]
+    public void TestAmdPspVfsTree_RoundTrip()
+    {
+        var k0 = new byte[] { 0xAA, 0xBB, 0xCC };
+        var dir = AmdPspTests.BuildPspDir(new[] { ((byte)0x04, (uint)k0.Length, (ulong)0x500 | (1UL << 62)) });
+        var full = AmdPspTests.BuildImageWithEfs(dir);
+        Array.Copy(k0, 0, full, 0x500, k0.Length);
+        var path = Path.Combine(_root, "flash.bin");
+        File.WriteAllBytes(path, full);
+
+        using var mf = new MFile(path);
+        var image = new RangeVirtualFile("flash.bin", mf, 0, mf.Data.Length);
+        var expander = new AmdPspExpander();
+        Assert.IsTrue(expander.Matches(image));
+        var keepAlive = new List<object>();
+        var expandDir = expander.Expand(image, keepAlive);
+        var expandNames = ChildNames(expandDir);
+        CollectionAssert.Contains(expandNames, "psp0_smu_offchip_fw_00.bin");
+
+        var det = (Yafex.FileFormats.AmdPsp.AmdPspDetectionResult)
+            new Yafex.FileFormats.AmdPsp.AmdPspAddon()
+                .CreateDetector(new Dictionary<string, string>()).Detect(mf);
+        var vfs = new Yafex.FileFormats.AmdPsp.AmdPspAddon()
+            .CreateVfs(mf, det);
+        Assert.NotNull(vfs);
+        var top = ChildNames(vfs!.Root);
+        Assert.IsTrue(top.Contains("flash"), string.Join(",", top));
+        var fw = vfs.Root.Tree["flash"].Node;
+        var segs = ChildNames(fw);
+        CollectionAssert.Contains(segs, "psp0_smu_offchip_fw_00.bin");
+        var node = (IVfsFile)fw.Tree["psp0_smu_offchip_fw_00.bin"].Node;
+        CollectionAssert.AreEqual(k0, node.Read(0, k0.Length)!);
+    }
+
+    [Test]
     public void TestLgUpVfsTree_LazyUnits()
     {
         var key = LgUpTests.RandomKey();
