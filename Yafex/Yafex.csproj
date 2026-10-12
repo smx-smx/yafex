@@ -41,6 +41,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- AsString/ReadStruct/GetField moved upstream to Smx.SharpIO
+         (extern/Smx.SharpIO, branch next); Yafex/Support/SpanExtensions
+         keeps only the helpers SharpIO lacks. Global using so call sites
+         resolve the upstream extensions without per-file edits. -->
+    <Using Include="Smx.SharpIO.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Common\" />
   </ItemGroup>
 

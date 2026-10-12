@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using NUnit.Framework;
+using Smx.SharpIO.Extensions;
 using Smx.SharpIO.Memory.Buffers;
 using Yafex.Support;
 
