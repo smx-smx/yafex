@@ -23,18 +23,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- local LTRData/DiscUtils fork (symlink fix); was LTRData.DiscUtils.SquashFs 0.16.13 from nuget -->
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.SquashFs/DiscUtils.SquashFs.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.SquashFs3/DiscUtils.SquashFs3.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Jffs2/DiscUtils.Jffs2.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Ufs/DiscUtils.Ufs.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Ext/DiscUtils.Ext.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Fat/DiscUtils.Fat.csproj" />
-    <ProjectReference Include="../../DiscUtilsFs/DiscUtils/Library/DiscUtils.Vdfs/DiscUtils.Vdfs.csproj" />
+    <!-- smx-smx/discutils fork (branch next) via submodule; was LTRData.DiscUtils.SquashFs 0.16.13 from nuget -->
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.SquashFs\DiscUtils.SquashFs.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.SquashFs3\DiscUtils.SquashFs3.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.Jffs2\DiscUtils.Jffs2.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.Ufs\DiscUtils.Ufs.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.Ext\DiscUtils.Ext.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.Fat\DiscUtils.Fat.csproj" />
+    <ProjectReference Include="..\extern\DiscUtils\Library\DiscUtils.Vdfs\DiscUtils.Vdfs.csproj" />
+    <!-- smx-smx/Smx.SharpIO (branch next) via submodule; was Smx.SharpIO 2.0-beta.3 from nuget -->
+    <ProjectReference Include="..\extern\Smx.SharpIO\SharpIO\SharpIO\SharpIO.csproj" />
     <PackageReference Include="log4net" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
-    <PackageReference Include="Smx.SharpIO" Version="2.0-beta.3" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.2" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
   </ItemGroup>

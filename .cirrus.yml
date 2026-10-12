@@ -5,4 +5,5 @@ linux_x64_task:
     dockerfile: .ci/linux_x64/Dockerfile
 
   build_script:
+    - git submodule update --init --recursive
     - dotnet build -p:Configuration=Release -m
