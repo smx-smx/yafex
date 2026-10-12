@@ -296,6 +296,19 @@ namespace Yafex.FileFormats.SddlSec
 					throw new InvalidDataException(
 						$"Module segment stored size 0x{moduleHeader.StoredDataSize:X} runs past the segment payload");
 				var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
+				// 2018 type-9 BANK modules (e.g. M170 J_7): the stored payload
+				// is plaintext starting with \x04BANK and has no ContentHeader
+				// wrapper, so Decipher would corrupt it and FinishSegment
+				// would read garbage offsets. Emit the stored bytes raw.
+				// The magic check is self-validating either way: genuine
+				// ciphertext never starts with it, so those segments keep
+				// flowing through Decipher/ContentHeader below.
+				if (LooksLikeBankModule(storedData))
+				{
+					var rawBytes = storedData.ToArray();
+					log.Info($"	BANK module segment, emitting {rawBytes.Length} stored bytes raw");
+					return (0, rawBytes, moduleHeader.VersionString, false, false, null, (uint)rawBytes.Length);
+				}
 				var decipheredData = moduleHeader.isCiphered? Decipher(storedData) : storedData;
 				var finalData = moduleHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
 				return FinishSegment(finalData, moduleHeader.VersionString, moduleHeader.isCompressed);
@@ -318,7 +331,21 @@ namespace Yafex.FileFormats.SddlSec
 			}
 		}
 
-		private static (uint DestOffset, byte[] Data, string Version, bool Compressed, bool HasSubFile, string? SubFile, uint Size) FinishSegment(Memory64<byte> finalData, string version, bool compressed)
+			// Plaintext BANK variant probe: magic \x04BANK at offset 0 plus a
+		// sane bank count at 0x3F. Conservative on purpose: unknown shapes
+		// fall through to the Decipher/ContentHeader path and fail loudly.
+		private static bool LooksLikeBankModule(Memory64<byte> storedData)
+		{
+			if (storedData.Length < 0x40) return false;
+			var head = storedData.Slice(0, 0x40).ToArray();
+			if (head[0] != 0x04 || head[1] != (byte)'B' || head[2] != (byte)'A'
+				|| head[3] != (byte)'N' || head[4] != (byte)'K')
+				return false;
+			byte count = head[0x3F];
+			return count >= 1 && count <= 16;
+		}
+
+	private static (uint DestOffset, byte[] Data, string Version, bool Compressed, bool HasSubFile, string? SubFile, uint Size) FinishSegment(Memory64<byte> finalData, string version, bool compressed)
 		{
 		if (finalData.Length < Unsafe.SizeOf<ContentHeader>())
 			throw new InvalidDataException("SDDL segment content too short for its header");

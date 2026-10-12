@@ -303,4 +303,32 @@ public class SddlSecTests
         var ex = Assert.Throws<InvalidDataException>(() => extractor.Extract(mem).ToList());
         StringAssert.Contains("content range", ex!.Message);
     }
+
+    internal static byte[] BuildBankBlob(int totalSize = 0x100, byte count = 1)
+    {
+        var buf = Zeros(totalSize);
+        buf[0] = 0x04;
+        WriteAscii(buf, 1, "BANK");
+        buf[0x3F] = count;
+        return buf;
+    }
+
+    // 2018 type-9 BANK modules (e.g. M170 J_7) carry plaintext starting
+    // with \x04BANK despite the ciphered flag: Decipher would corrupt
+    // them, so they are emitted raw. Byte-equality proves no Decipher.
+    [Test]
+    public void NewSegment_BankPlaintext_EmitsRaw()
+    {
+        var key = RandomNumberGenerator.GetBytes(16);
+        var iv = RandomNumberGenerator.GetBytes(16);
+        var bank = BuildBankBlob();
+        var seg = new List<byte>(BuildModuleHeader((uint)bank.Length, flags: 0x02));
+        seg.AddRange(bank);
+        var blob = BuildNewContainer(key, iv, "TST", seg.ToArray());
+        var extractor = NewKeyExtractorFor(key, iv, blob, out var mem);
+        var artifacts = extractor.Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("TST.bin", artifacts[0].Name);
+        CollectionAssert.AreEqual(bank, artifacts[0].Data.ToArray());
+    }
 }
