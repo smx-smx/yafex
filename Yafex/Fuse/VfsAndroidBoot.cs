@@ -89,8 +89,6 @@ public sealed class AndroidBootExpander : IContentExpander
             }
             foreach (var seg in header.Segments)
             {
-                AddSlice(seg.Name + ".bin", seg.Offset, seg.Size,
-                    $"android boot v{header.HeaderVersion} {seg.Name}");
                 if (seg.Name == "kernel" && seg.Size <= int.MaxValue)
                 {
                     var kbytes = new byte[seg.Size];
@@ -98,6 +96,8 @@ public sealed class AndroidBootExpander : IContentExpander
                     long dtbAt = AndroidBoot.FindAppendedDtb(kbytes);
                     if (dtbAt > 0)
                     {
+                        AddSlice("kernel.bin", seg.Offset, dtbAt,
+                            $"android boot v{header.HeaderVersion} kernel (gzip part)");
                         int pos = (int)dtbAt;
                         int idx = 0;
                         while (pos < kbytes.Length
@@ -108,8 +108,11 @@ public sealed class AndroidBootExpander : IContentExpander
                             pos += (int)total;
                             idx++;
                         }
+                        continue;
                     }
                 }
+                AddSlice(seg.Name + ".bin", seg.Offset, seg.Size,
+                    $"android boot v{header.HeaderVersion} {seg.Name}");
             }
             return nodes;
         });

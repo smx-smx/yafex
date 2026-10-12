@@ -59,10 +59,6 @@ public class AndroidBootAddon : IFormatAddon
             var keepAlive = new List<object>();
             foreach (var seg in header.Segments)
             {
-                VfsMount.AddRange(root, input, seg.Name + ".bin",
-                    seg.Offset, seg.Size,
-                    $"android boot v{header.HeaderVersion} {seg.Name}",
-                    keepAlive);
                 if (seg.Name == "kernel"
                     && seg.Size <= int.MaxValue
                     && seg.Offset + seg.Size <= input.Data.Length)
@@ -71,6 +67,10 @@ public class AndroidBootAddon : IFormatAddon
                     long dtbAt = AndroidBoot.FindAppendedDtb(kbytes);
                     if (dtbAt > 0)
                     {
+                        VfsMount.AddRange(root, input, "kernel.bin",
+                            seg.Offset, dtbAt,
+                            $"android boot v{header.HeaderVersion} kernel (gzip part)",
+                            keepAlive);
                         int pos = (int)dtbAt;
                         int idx = 0;
                         while (pos < kbytes.Length
@@ -84,8 +84,13 @@ public class AndroidBootAddon : IFormatAddon
                             pos += (int)total;
                             idx++;
                         }
+                        continue;
                     }
                 }
+                VfsMount.AddRange(root, input, seg.Name + ".bin",
+                    seg.Offset, seg.Size,
+                    $"android boot v{header.HeaderVersion} {seg.Name}",
+                    keepAlive);
             }
             return vfs;
         }
