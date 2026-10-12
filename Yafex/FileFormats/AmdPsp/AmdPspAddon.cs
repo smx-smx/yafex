@@ -26,12 +26,18 @@ public class AmdPspAddon : IFormatAddon
 
     public IFormatExtractor CreateExtractor(DetectionResult result)
     {
-        throw new NotImplementedException();
+        if (result is not AmdPspDetectionResult typed)
+        {
+            throw new ArgumentException(nameof(result));
+        }
+        return new AmdPspExtractor(typed);
     }
 
     public IFormatLister? CreateLister(DetectionResult result)
     {
-        return null;
+        return result is AmdPspDetectionResult typed
+            ? new AmdPspLister(typed)
+            : null;
     }
 
     public IVfsNode CreateVfsNode(IDataSource ds)
