@@ -47,6 +47,7 @@ namespace Yafex
         MstarSb,
         Uefi,
         Ufs,
-        AndroidBoot
+        AndroidBoot,
+        AmdPsp
     }
 }

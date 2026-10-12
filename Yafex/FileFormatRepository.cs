@@ -49,6 +49,7 @@ using Yafex.FileFormats.Uefi;
 using Yafex.FileFormats.Ufs;
 using Yafex.FileFormats.UImage;
 using Yafex.FileFormats.AndroidBoot;
+using Yafex.FileFormats.AmdPsp;
 
 namespace Yafex
 {
@@ -130,6 +131,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, UefiAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UfsAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, AndroidBootAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, AmdPspAddon>(key);
         }
     }
 }
