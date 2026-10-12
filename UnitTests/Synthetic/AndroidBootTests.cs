@@ -213,4 +213,24 @@ public class AndroidBootTests
         CollectionAssert.AreEqual(prefix, artifacts[0].Data.ToArray());
         CollectionAssert.AreEqual(dtb, artifacts[1].Data.ToArray());
     }
+
+    [Test]
+    public void Expander_MatchesAndExpands()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB };
+        var bytes = BuildImage(kernel, new byte[] { 0x11 });
+        var mem = Mem(bytes, "boot.img");
+        var file = new Yafex.Fuse.RangeVirtualFile("boot.img", mem, 0, bytes.Length);
+        var expander = new Yafex.Fuse.AndroidBootExpander();
+        Assert.IsTrue(expander.Matches(file));
+        Assert.IsFalse(new Yafex.Fuse.MtkBootExpander().Matches(file));
+        var keepAlive = new List<object>();
+        var dir = expander.Expand(file, keepAlive);
+        dir.EnsureLoaded();
+        var names = dir.Tree.Keys.OrderBy(k => k).ToList();
+        CollectionAssert.Contains(names, "kernel.bin");
+        CollectionAssert.Contains(names, "ramdisk.bin");
+        var node = (Yafex.Fuse.IVfsFile)dir.Tree["kernel.bin"].Node;
+        CollectionAssert.AreEqual(kernel, node.Read(0, kernel.Length)!);
+    }
 }

@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 
 using Yafex.Fuse;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.AndroidBoot;
 
@@ -43,5 +44,54 @@ public class AndroidBootAddon : IFormatAddon
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));
+    }
+
+    // Lazy mount: header + each segment as a range view (no copies);
+    // kernel-embedded DTB (e.g. edk-fajita) gets its own view too.
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        if (source is not MFile input) return null;
+        if (result is not AndroidBootDetectionResult typed) return null;
+        try
+        {
+            var header = typed.Header;
+            VfsMount.TryRoot(input, "androidboot", out var vfs, out var root);
+            var keepAlive = new List<object>();
+            foreach (var seg in header.Segments)
+            {
+                VfsMount.AddRange(root, input, seg.Name + ".bin",
+                    seg.Offset, seg.Size,
+                    $"android boot v{header.HeaderVersion} {seg.Name}",
+                    keepAlive);
+                if (seg.Name == "kernel"
+                    && seg.Size <= int.MaxValue
+                    && seg.Offset + seg.Size <= input.Data.Length)
+                {
+                    var kbytes = input.Data.Slice(seg.Offset, seg.Size).ToArray();
+                    long dtbAt = AndroidBoot.FindAppendedDtb(kbytes);
+                    if (dtbAt > 0)
+                    {
+                        int pos = (int)dtbAt;
+                        int idx = 0;
+                        while (pos < kbytes.Length
+                            && AndroidBoot.TryReadDtbSize(kbytes, pos, out uint total))
+                        {
+                            var name = idx == 0 ? "kernel.dtb" : $"kernel.dtb{idx}";
+                            VfsMount.AddRange(root, input, name,
+                                seg.Offset + pos, total,
+                                "appended DTB in kernel",
+                                keepAlive);
+                            pos += (int)total;
+                            idx++;
+                        }
+                    }
+                }
+            }
+            return vfs;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }

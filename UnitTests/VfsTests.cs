@@ -237,6 +237,42 @@ public class VfsTests
     }
 
     [Test]
+    public void TestAndroidBootExpander_RoundTrip()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var ramdisk = new byte[] { 0x11, 0x22 };
+        var bytes = AndroidBootTests.BuildImage(kernel, ramdisk);
+        var path = Path.Combine(_root, "boot.img");
+        File.WriteAllBytes(path, bytes);
+
+        using var mf = new MFile(path);
+        var image = new RangeVirtualFile("boot.img", mf, 0, mf.Data.Length);
+        var expander = new AndroidBootExpander();
+        Assert.IsTrue(expander.Matches(image));
+        Assert.IsFalse(new MtkBootExpander().Matches(image));
+        var keepAlive = new List<object>();
+        var dir = expander.Expand(image, keepAlive);
+        var names = ChildNames(dir);
+        CollectionAssert.Contains(names, "kernel.bin");
+        CollectionAssert.Contains(names, "ramdisk.bin");
+        var node = (IVfsFile)dir.Tree["kernel.bin"].Node;
+        CollectionAssert.AreEqual(kernel, node.Read(0, kernel.Length)!);
+
+        var det = (Yafex.FileFormats.AndroidBoot.AndroidBootDetectionResult)
+            new Yafex.FileFormats.AndroidBoot.AndroidBootAddon()
+                .CreateDetector(new Dictionary<string, string>()).Detect(mf);
+        var vfs = new Yafex.FileFormats.AndroidBoot.AndroidBootAddon()
+            .CreateVfs(mf, det);
+        Assert.NotNull(vfs);
+        var top = ChildNames(vfs!.Root);
+        Assert.IsTrue(top.Contains("boot"), string.Join(",", top));
+        var fw = vfs.Root.Tree["boot"].Node;
+        var segs = ChildNames(fw);
+        CollectionAssert.Contains(segs, "kernel.bin");
+        CollectionAssert.Contains(segs, "ramdisk.bin");
+    }
+
+    [Test]
     public void TestLgUpVfsTree_LazyUnits()
     {
         var key = LgUpTests.RandomKey();
