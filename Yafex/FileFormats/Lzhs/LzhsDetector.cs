@@ -37,6 +37,15 @@ namespace Yafex.FileFormats.Lzhs
                 return new SimpleDetectionResult(0);
             }
 
+            // An empty compressed stream carries no content; without this,
+            // any header-shaped prefix with comp == 0 and a zero checksum
+            // (e.g. ARM ELF e_ident) vacuously verifies. Mirrors the mount
+            // matcher's comp > 0 requirement.
+            if (hdr.CompressedSize == 0)
+            {
+                return new SimpleDetectionResult(0);
+            }
+
             try
             {
                 var decoder = new LzhsDecoder(data);

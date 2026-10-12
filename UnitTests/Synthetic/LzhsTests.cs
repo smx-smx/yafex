@@ -48,6 +48,17 @@ public class LzhsTests
     }
 
     [Test]
+    public void EmptyStream_Detects0()
+    {
+        // comp == 0 carries no content: must not vacuously verify via an
+        // empty decode with a zero checksum (e.g. lxboot.bin head shape)
+        var buf = Zeros(32);
+        WriteU32LE(buf, 0, 0x6F225052);
+        var res = new LzhsDetector().Detect(Mem(buf));
+        Assert.AreEqual(0, res.Confidence);
+    }
+
+    [Test]
     public void Fs_Short_Detects0()
     {
         var res = new LzhsFsDetector().Detect(Mem(new byte[8]));
