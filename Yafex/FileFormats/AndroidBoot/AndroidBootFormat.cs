@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using System.IO;
 
 namespace Yafex.FileFormats.AndroidBoot;
 
@@ -34,6 +35,85 @@ public class AndroidBootDetector : IFormatDetector
         catch (Exception)
         {
             return DetectionResult.Fail;
+        }
+    }
+}
+
+public class AndroidBootLister : IFormatLister
+{
+    private readonly AndroidBootDetectionResult _result;
+
+    public AndroidBootLister(AndroidBootDetectionResult result)
+    {
+        _result = result;
+    }
+
+    public void List(IDataSource source, DetectionResult result, TextWriter output)
+    {
+        var h = _result.Header;
+        output.WriteLine($"AndroidBoot (android boot image v{h.HeaderVersion}, {source.Name}):");
+        output.WriteLine($"  page={h.PageSize} kernel={h.KernelSize} ramdisk={h.RamdiskSize}" +
+            $" second={h.SecondSize} recovery_dtbo={h.RecoveryDtboSize} dtb={h.DtbSize}");
+        foreach (var s in h.Segments)
+        {
+            output.WriteLine($"  {s.Name} @0x{s.Offset:X} ({s.Size})");
+        }
+    }
+}
+
+public class AndroidBootExtractor : IFormatExtractor
+{
+    private readonly AndroidBootDetectionResult _result;
+
+    public AndroidBootExtractor(AndroidBootDetectionResult result)
+    {
+        _result = result;
+    }
+
+    public System.Collections.Generic.IEnumerable<IDataSource> Extract(IDataSource source)
+    {
+        foreach (var seg in _result.Header.Segments)
+        {
+            if (seg.Offset < 0 || seg.Size <= 0 || seg.Offset + seg.Size > source.Data.Length)
+            {
+                throw new InvalidDataException($"android boot segment {seg.Name} out of range");
+            }
+            var bytes = source.Data.Slice(seg.Offset, seg.Size).ToArray();
+            // Qualcomm-style appended DTB lives inside kernel_size (e.g.
+            // edk-fajita: gzip + 557360 DTB); split it so the gzip part stays
+            // Gzip-valid (exact end) and the DTB is preserved as its own blob.
+            if (seg.Name == "kernel")
+            {
+                long dtbAt = AndroidBoot.FindAppendedDtb(bytes);
+                if (dtbAt > 0 && AndroidBoot.TryReadDtbSize(bytes, (int)dtbAt, out uint dtbTotal))
+                {
+                    var kpart = new byte[dtbAt];
+                    Buffer.BlockCopy(bytes, 0, kpart, 0, kpart.Length);
+                    var kArtifact = ArtifactBuilder.Flat(source, "kernel.bin", kpart);
+                    kArtifact.Flags |= DataSourceFlags.Output | DataSourceFlags.ProcessFurther;
+                    yield return kArtifact;
+
+                    // one or more concatenated DTBs (each with its own totalsize)
+                    int pos = (int)dtbAt;
+                    int idx = 0;
+                    while (pos < bytes.Length
+                        && AndroidBoot.TryReadDtbSize(bytes, pos, out uint total))
+                    {
+                        var dtb = new byte[total];
+                        Buffer.BlockCopy(bytes, pos, dtb, 0, dtb.Length);
+                        var name = idx == 0 ? "kernel.dtb" : $"kernel.dtb{idx}";
+                        var dArtifact = ArtifactBuilder.Flat(source, name, dtb);
+                        dArtifact.Flags |= DataSourceFlags.Output | DataSourceFlags.ProcessFurther;
+                        yield return dArtifact;
+                        pos += (int)total;
+                        idx++;
+                    }
+                    continue;
+                }
+            }
+            var artifact = ArtifactBuilder.Flat(source, seg.Name + ".bin", bytes);
+            artifact.Flags |= DataSourceFlags.Output | DataSourceFlags.ProcessFurther;
+            yield return artifact;
         }
     }
 }

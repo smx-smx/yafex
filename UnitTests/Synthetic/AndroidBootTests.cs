@@ -11,6 +11,7 @@
 // Synthetic Android boot image tests. Fully in-memory: no disk, no samples.
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using NUnit.Framework;
@@ -130,5 +131,86 @@ public class AndroidBootTests
         var res = new AndroidBootAddon().CreateDetector(new Dictionary<string, string>())
             .Detect(Mem(buf));
         Assert.AreEqual(0, res.Confidence);
+    }
+
+    [Test]
+    public void Extract_EmitsKernelRamdisk()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var ramdisk = new byte[] { 0x11, 0x22 };
+        var mem = Mem(BuildImage(kernel, ramdisk), "boot.img");
+        var det = (AndroidBootDetectionResult)new AndroidBootAddon()
+            .CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = new AndroidBootAddon().CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(2, artifacts.Count);
+        Assert.AreEqual("kernel.bin", artifacts[0].Name);
+        Assert.AreEqual("ramdisk.bin", artifacts[1].Name);
+        Assert.IsTrue(artifacts[0].Flags.HasFlag(DataSourceFlags.Output));
+        Assert.IsTrue(artifacts[0].Flags.HasFlag(DataSourceFlags.ProcessFurther));
+        CollectionAssert.AreEqual(kernel, artifacts[0].Data.ToArray());
+        CollectionAssert.AreEqual(ramdisk, artifacts[1].Data.ToArray());
+    }
+
+    [Test]
+    public void Lister_OutputsSegments()
+    {
+        var mem = Mem(BuildImage(), "boot.img");
+        var det = (AndroidBootDetectionResult)new AndroidBootAddon()
+            .CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var lister = new AndroidBootAddon().CreateLister(det);
+        Assert.NotNull(lister);
+        using var sw = new StringWriter();
+        lister!.List(mem, det, sw);
+        var text = sw.ToString();
+        StringAssert.Contains("AndroidBoot", text);
+        StringAssert.Contains("kernel", text);
+        StringAssert.Contains("ramdisk", text);
+    }
+
+    internal static byte[] BuildDtb(int totalSize = 64)
+    {
+        var buf = new byte[totalSize];
+        buf[0] = 0xD0;
+        buf[1] = 0x0D;
+        buf[2] = 0xFE;
+        buf[3] = 0xED;
+        buf[4] = (byte)(totalSize >> 24);
+        buf[5] = (byte)(totalSize >> 16);
+        buf[6] = (byte)(totalSize >> 8);
+        buf[7] = (byte)totalSize;
+        return buf;
+    }
+
+    [Test]
+    public void FindAppendedDtb_FindsOffset()
+    {
+        var prefix = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+        var dtb = BuildDtb(64);
+        var kernel = prefix.Concat(dtb).ToArray();
+        Assert.AreEqual(prefix.Length, AndroidBoot.FindAppendedDtb(kernel));
+    }
+
+    [Test]
+    public void FindAppendedDtb_NoneReturnsMinusOne()
+    {
+        Assert.AreEqual(-1, AndroidBoot.FindAppendedDtb(new byte[] { 1, 2, 3 }));
+    }
+
+    [Test]
+    public void Extract_KernelAppendedDtbSplits()
+    {
+        var prefix = new byte[] { 0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04 };
+        var dtb = BuildDtb(64);
+        var kernel = prefix.Concat(dtb).ToArray();
+        var mem = Mem(BuildImage(kernel, new byte[] { 0x0A }), "edk.img");
+        var det = (AndroidBootDetectionResult)new AndroidBootAddon()
+            .CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = new AndroidBootAddon().CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(3, artifacts.Count);
+        Assert.AreEqual("kernel.bin", artifacts[0].Name);
+        Assert.AreEqual("kernel.dtb", artifacts[1].Name);
+        Assert.AreEqual("ramdisk.bin", artifacts[2].Name);
+        CollectionAssert.AreEqual(prefix, artifacts[0].Data.ToArray());
+        CollectionAssert.AreEqual(dtb, artifacts[1].Data.ToArray());
     }
 }

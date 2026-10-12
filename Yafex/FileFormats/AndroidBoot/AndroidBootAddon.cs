@@ -26,12 +26,18 @@ public class AndroidBootAddon : IFormatAddon
 
     public IFormatExtractor CreateExtractor(DetectionResult result)
     {
-        throw new NotImplementedException();
+        if (result is not AndroidBootDetectionResult typed)
+        {
+            throw new ArgumentException(nameof(result));
+        }
+        return new AndroidBootExtractor(typed);
     }
 
     public IFormatLister? CreateLister(DetectionResult result)
     {
-        return null;
+        return result is AndroidBootDetectionResult typed
+            ? new AndroidBootLister(typed)
+            : null;
     }
 
     public IVfsNode CreateVfsNode(IDataSource ds)
