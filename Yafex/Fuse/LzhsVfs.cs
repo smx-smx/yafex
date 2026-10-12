@@ -349,13 +349,40 @@ public sealed class LzhsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        return ExpanderSniff.Head(file, 16, hdr =>
+        if (!ExpanderSniff.Head(file, 16, hdr =>
         {
             for (int i = 10; i < 16; i++) if (hdr[i] != 0) return false;
             long comp = BitConverter.ToUInt32(hdr, 4);
             long uncomp = BitConverter.ToUInt32(hdr, 0);
             return comp > 0 && uncomp > 0 && uncomp <= (1L << 31) && 16 + comp <= file.Length;
-        });
+        }))
+        {
+            return false;
+        }
+        // The header shape alone also matches unrelated binaries (any ELF:
+        // e_ident parses as huge uncomp + small comp with zero spare).
+        // Run the same full decode+checksum verification as the format
+        // detector so mount matching never claims content detection
+        // rejects. Bounded to keep mount probing cheap; extraction (which
+        // does not go through Matches) is unaffected.
+        if (file.Length > 1 << 26)
+        {
+            return false;
+        }
+        try
+        {
+            var window = ReadAll(file);
+            var mem = new MemoryDataSource(new Memory64<byte>(window))
+            {
+                Name = file.Name,
+                Flags = DataSourceFlags.Input,
+            };
+            return new LzhsDetector().Detect(mem).Confidence > 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)
@@ -377,6 +404,18 @@ public sealed class LzhsExpander : IContentExpander
 
     private static MemoryVirtualFile Inflate(IVirtualFile file)
     {
+        var data = new Memory64<byte>(ReadAll(file));
+        var decoder = new LzhsDecoder(data);
+        var decoded = decoder.DecodeToArray();
+        if (!decoder.VerifyChecksum())
+        {
+            throw new InvalidDataException("LZHS checksum mismatch");
+        }
+        return new MemoryVirtualFile(file.Name + ".bin", decoded);
+    }
+
+    private static byte[] ReadAll(IVirtualFile file)
+    {
         using var s = file.OpenRead();
         var buf = new byte[s.Length];
         int off = 0;
@@ -386,9 +425,7 @@ public sealed class LzhsExpander : IContentExpander
             if (n <= 0) break;
             off += n;
         }
-        var data = new Memory64<byte>(buf[..off]);
-        var decoded = new LzhsDecoder(data).DecodeToArray();
-        return new MemoryVirtualFile(file.Name + ".bin", decoded);
+        return buf[..off];
     }
 
     private static bool TryOpenSquashfs(IVirtualFile inflated, ICollection<object> keepAlive, out List<IVfsNode> tree)

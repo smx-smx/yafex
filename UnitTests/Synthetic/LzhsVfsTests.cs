@@ -119,6 +119,39 @@ public class LzhsVfsTests
         Assert.IsFalse(exp.Matches(new MemoryVirtualFile("short.bin", new byte[4])));
     }
 
+    // Any ELF header parses as LZHS-shaped (e_ident = huge uncomp, small
+    // comp, zero spare), e.g. ARM ABL images: mount matching must reject
+    // them via checksum verification, like the format detector does.
+    private static byte[] ElfHeaded(int length)
+    {
+        var buf = new byte[length];
+        buf[0] = 0x7F;
+        buf[1] = (byte)'E';
+        buf[2] = (byte)'L';
+        buf[3] = (byte)'F';
+        buf[4] = 1;
+        buf[5] = 1;
+        buf[6] = 1;
+        new Random(7).NextBytes(new Span<byte>(buf, 16, buf.Length - 16));
+        return buf;
+    }
+
+    [Test]
+    public void LzhsExpander_RejectsElfMagic()
+    {
+        var exp = new LzhsExpander();
+        Assert.IsFalse(exp.Matches(new MemoryVirtualFile("abl.elf", ElfHeaded(70000))));
+    }
+
+    [Test]
+    public void LzhsExpander_ExpandEmitsNoGarbageOnBadChecksum()
+    {
+        var exp = new LzhsExpander();
+        var dir = exp.Expand(new MemoryVirtualFile("abl.elf", ElfHeaded(70000)), new List<object>());
+        dir.EnsureLoaded();
+        Assert.IsEmpty(dir.Tree);
+    }
+
     [Test]
     public void Expanders_ReturnLazyDirsWithoutTouchingPayload()
     {
