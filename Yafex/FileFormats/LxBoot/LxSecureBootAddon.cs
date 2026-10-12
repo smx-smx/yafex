@@ -71,6 +71,17 @@ namespace Yafex.FileFormats.LxBoot
                         "bare LL second stage", keepAlive);
                     return vfs;
                 }
+                if (ctx.SpbcVariant == SpbcVariant.Embedded)
+                {
+                    int i = 0;
+                    foreach (var (off, size) in ctx.EmbeddedImages)
+                    {
+                        VfsMount.AddRange(root, input, $"lxboot.ll{i}.bin", off, size,
+                            $"embedded LL image at 0x{off:X}", keepAlive);
+                        i++;
+                    }
+                    return vfs;
+                }
                 var firstOffset = (long)(ctx.SpbcDescriptors.First().LoadAddress & 0xFFFF);
                 long firstEnd = ctx.SpbcSecondStageOffset is uint second
                     ? second

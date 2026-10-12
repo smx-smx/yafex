@@ -32,6 +32,14 @@ namespace Yafex.FileFormats.LxBoot
                 }
                 return;
             }
+            if (_ctx.SpbcVariant == SpbcVariant.Embedded)
+            {
+                foreach (var (off, size) in _ctx.EmbeddedImages)
+                {
+                    output.WriteLine($"  embedded LL image @0x{off:X} size={size}");
+                }
+                return;
+            }
             for (int i = 0; i < _ctx.SpbcDescriptors.Count; i++)
             {
                 var d = _ctx.SpbcDescriptors[i];

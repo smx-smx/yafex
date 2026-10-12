@@ -77,14 +77,25 @@ public class LxSecureBootTests
         });
     }
 
-    private static byte[] BareLlSynthetic()
+    private static byte[] BareLlSynthetic(byte branchTop = 0xEA)
     {
         var buf = Zeros(64);
         // ARM branch, "LL_B", load, size=48
-        buf[0] = 0x06; buf[1] = 0x00; buf[2] = 0x00; buf[3] = 0xEA;
+        buf[0] = 0x06; buf[1] = 0x00; buf[2] = 0x00; buf[3] = branchTop;
         buf[4] = (byte)'L'; buf[5] = (byte)'L'; buf[6] = (byte)'_'; buf[7] = (byte)'B';
         WriteU32LE(buf, 8, 0x78100000);
         WriteU32LE(buf, 12, 48);
+        return buf;
+    }
+
+    private static byte[] EmbeddedLlSynthetic(uint offset = 0x100, uint size = 64, byte branchTop = 0x14)
+    {
+        var buf = Zeros((int)(offset + size + 16));
+        buf[offset] = 0x00; buf[offset + 1] = 0x03; buf[offset + 2] = 0x00; buf[offset + 3] = branchTop;
+        buf[offset + 4] = (byte)'L'; buf[offset + 5] = (byte)'L'; buf[offset + 6] = (byte)'_'; buf[offset + 7] = (byte)'B';
+        WriteU32LE(buf, (int)offset + 8, 0x78100000);
+        WriteU32LE(buf, (int)offset + 12, size);
+        for (uint i = 0; i < size; i++) buf[offset + 16 + i] = (byte)(0xA0 + (i & 0x0F));
         return buf;
     }
 
@@ -116,6 +127,58 @@ public class LxSecureBootTests
     {
         var buf = BareLlSynthetic();
         buf[4] = (byte)'X';
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var res = det.Detect(Mem(buf));
+        Assert.IsFalse(res.Succeded());
+    }
+
+    [Test]
+    public void BareLl_AArch64Branch_DetectsBare()
+    {
+        // sb_verify LLHeader branch on AArch64 (B #imm): lxboot.bin style
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var res = (LxSecureBootDetectionResult)det.Detect(Mem(BareLlSynthetic(0x14)));
+        Assert.AreEqual(60, res.Confidence);
+        Assert.AreEqual(SpbcVariant.Bare, res.Context!.SpbcVariant);
+    }
+
+    [Test]
+    public void EmbeddedLl_DetectsAndCarves()
+    {
+        var buf = EmbeddedLlSynthetic();
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var mem = Mem(buf, "lxboot.bin");
+        var res = (LxSecureBootDetectionResult)det.Detect(mem);
+        Assert.AreEqual(60, res.Confidence);
+        Assert.AreEqual(SpbcVariant.Embedded, res.Context!.SpbcVariant);
+        Assert.AreEqual(1, res.Context.EmbeddedImages.Count);
+        Assert.AreEqual(0x100u, res.Context.EmbeddedImages[0].Offset);
+        var artifacts = new LxSecureBootExtractor(res.Context).Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("lxboot.ll0.bin", artifacts[0].Name);
+        Assert.AreEqual(64, artifacts[0].Data.ToArray().Length);
+        CollectionAssert.AreEqual(buf[0x100..(0x100 + 64)], artifacts[0].Data.ToArray());
+    }
+
+    [Test]
+    public void EmbeddedLl_BadBranch_Fails()
+    {
+        var buf = EmbeddedLlSynthetic(branchTop: 0x12);
+        var addon = new LxSecureBootAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>());
+        var res = det.Detect(Mem(buf));
+        Assert.IsFalse(res.Succeded());
+    }
+
+    [Test]
+    public void EmbeddedLl_Oversize_Fails()
+    {
+        // size runs past EOF: no hit, and offset 0 is not bare either
+        var buf = EmbeddedLlSynthetic();
+        WriteU32LE(buf, 0x100 + 12, 0x10000);
         var addon = new LxSecureBootAddon();
         var det = addon.CreateDetector(new Dictionary<string, string>());
         var res = det.Detect(Mem(buf));

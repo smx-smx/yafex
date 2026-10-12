@@ -16,6 +16,7 @@ using Smx.SharpIO.Memory.Buffers;
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -39,7 +40,11 @@ namespace Yafex.FileFormats.LxBoot
         New = 2,
         // Bare second-stage image (branch + LL/B_LL header at offset 0,
         // no SPBC wrapper): e.g. webos lxboot.pak.
-        Bare = 3
+        Bare = 3,
+        // LL image contained at a nonzero offset (found by scan, e.g.
+        // lxboot.bin with an AArch64 LL header at 0x22000): carved out
+        // like Bare instead of processed as SPBC.
+        Embedded = 4
     }
 
     internal class LxSecureBootDetector : IFormatDetector
@@ -106,6 +111,18 @@ namespace Yafex.FileFormats.LxBoot
         private const uint BLL_MAGIC = 0x425F4C4C;
 
         /// <summary>
+        /// Branch-opcode check for LL headers (smx-smx/sb_verify LX
+        /// LLHeader: {branch, magic "LL_B", load, size}). ARM32 B (0xEA)
+        /// plus AArch64 B/BL (0x14/0x94): real images are AArch64 (e.g.
+        /// lxboot.bin header 0x14000300 = B #0xC00), ARM32 BL unobserved.
+        /// </summary>
+        internal static bool IsBranchInstruction(uint branch)
+        {
+            byte top = (byte)(branch >> 24);
+            return top == 0xEA || top == 0x14 || top == 0x94;
+        }
+
+        /// <summary>
         /// Bare LL second stage at offset 0: ARM branch, LL/B_LL magic,
         /// fitting size. Header layout ({branch, magic, load, size}) matches
         /// smx-smx/sb_verify's LLHeader documentation.
@@ -123,7 +140,7 @@ namespace Yafex.FileFormats.LxBoot
                 uint branch = BitConverter.ToUInt32(head, 0);
                 uint magic = BitConverter.ToUInt32(head, 4);
                 size = BitConverter.ToUInt32(head, 12);
-                if ((branch >> 24) != 0xEA)
+                if (!IsBranchInstruction(branch))
                 {
                     return false;
                 }
@@ -141,6 +158,44 @@ namespace Yafex.FileFormats.LxBoot
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// LL images contained at nonzero offsets (4-aligned scan): same
+        /// header acceptance as bare (branch shape, either magic, fitting
+        /// size). Offset 0 is excluded (handled by the Bare path).
+        /// </summary>
+        internal static List<(uint Offset, uint Size)> FindEmbeddedImages(Memory64<byte> data)
+        {
+            var hits = new List<(uint Offset, uint Size)>();
+            try
+            {
+                var bytes = data.ToArray();
+                for (long off = 4; off + 16 <= bytes.Length && hits.Count < 16; off += 4)
+                {
+                    int o = (int)off;
+                    uint branch = BitConverter.ToUInt32(bytes, o);
+                    if (!IsBranchInstruction(branch))
+                    {
+                        continue;
+                    }
+                    uint magic = BitConverter.ToUInt32(bytes, o + 4);
+                    if (magic != LLB_MAGIC && magic != BLL_MAGIC)
+                    {
+                        continue;
+                    }
+                    uint size = BitConverter.ToUInt32(bytes, o + 12);
+                    if (size < 16 || off + size > bytes.Length)
+                    {
+                        continue;
+                    }
+                    hits.Add(((uint)off, size));
+                }
+            }
+            catch
+            {
+            }
+            return hits;
         }
 
         private long FindSecondStage(Memory64<byte> data, uint startOffset)
@@ -224,6 +279,18 @@ namespace Yafex.FileFormats.LxBoot
                 };
                 logger.InfoFormat("bare LL second stage, size 0x{0:X}", bareSize);
                 return new LxSecureBootDetectionResult(60, bareCtx);
+            }
+            else if (FindEmbeddedImages(data) is var embedded && embedded.Count > 0)
+            {
+                var embeddedCtx = new LxSecureBootContext
+                {
+                    SpbcVariant = SpbcVariant.Embedded,
+                    SpbcDescriptors = new List<SpbcDescriptor>(),
+                    SpbcSecondStageOffset = null,
+                    EmbeddedImages = embedded,
+                };
+                logger.InfoFormat("embedded LL image(s): {0}", embedded.Count);
+                return new LxSecureBootDetectionResult(60, embeddedCtx);
             }
             else
             {

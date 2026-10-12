@@ -17,5 +17,6 @@ namespace Yafex.FileFormats.LxBoot
         public SpbcVariant SpbcVariant { get; set; }
         public List<SpbcDescriptor> SpbcDescriptors { get; set; }
         public uint? SpbcSecondStageOffset { get; internal set; }
+        public List<(uint Offset, uint Size)> EmbeddedImages { get; set; } = new();
     }
 }

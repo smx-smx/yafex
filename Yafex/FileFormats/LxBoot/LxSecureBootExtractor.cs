@@ -60,6 +60,30 @@ namespace Yafex.FileFormats.LxBoot
                 yield break;
             }
 
+            if (ctx.SpbcVariant == SpbcVariant.Embedded)
+            {
+                var baseName = source.Name ?? "lxboot";
+                foreach (var ext in new[] { ".pak", ".bin", ".lr" })
+                {
+                    if (baseName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    {
+                        baseName = baseName[..^ext.Length];
+                        break;
+                    }
+                }
+                // carved LL images keep their headers: leaf outputs, no
+                // further processing (slices would re-detect as embedded)
+                int i = 0;
+                foreach (var (off, size) in ctx.EmbeddedImages)
+                {
+                    var artifact = ArtifactBuilder.Flat(source, $"{baseName}.ll{i}.bin", Slice(source, (long)off, size));
+                    artifact.Flags |= DataSourceFlags.Output;
+                    yield return artifact;
+                    i++;
+                }
+                yield break;
+            }
+
             var data = source.Data;
 
             var firstOffset = ctx.SpbcDescriptors.First().LoadAddress & 0xFFFF;
