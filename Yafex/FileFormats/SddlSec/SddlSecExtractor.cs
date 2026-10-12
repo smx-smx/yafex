@@ -284,12 +284,17 @@ namespace Yafex.FileFormats.SddlSec
 			if (!_trialDone) throw new InvalidOperationException("Entry key trial has not run");
 			if (!_isOld)
 			{
+				if (moduleData.Length < Unsafe.SizeOf<ModuleHeader>())
+					throw new InvalidDataException("New SDDL module segment too short for its header");
 				var moduleStream = new SpanStream(moduleData, Endianness.BigEndian);
 				var moduleHeader = moduleStream.ReadStruct<ModuleHeader>();
 				if (!moduleHeader.HeaderMagic.SequenceEqual(SddlSecHeader.SDDL_SEC_HEADER_MAGIC)){
 					throw new InvalidDataException("Invalid module header magic");
 				}
 
+				if ((ulong)moduleHeader.StoredDataSize > (ulong)moduleStream.Remaining)
+					throw new InvalidDataException(
+						$"Module segment stored size 0x{moduleHeader.StoredDataSize:X} runs past the segment payload");
 				var storedData = moduleStream.ReadBytes(moduleHeader.StoredDataSize);
 				var decipheredData = moduleHeader.isCiphered? Decipher(storedData) : storedData;
 				var finalData = moduleHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
@@ -303,6 +308,9 @@ namespace Yafex.FileFormats.SddlSec
 				moduleStream.Position = ModuleHeaderOld.COM_SIZE;
 				var oldHeader = moduleStream.ReadStruct<ModuleHeaderOld>();
 
+				if ((ulong)oldHeader.CompressedSize > (ulong)moduleStream.Remaining)
+					throw new InvalidDataException(
+						$"Old SDDL module segment compressed size 0x{oldHeader.CompressedSize:X} runs past the segment payload");
 				var storedData = moduleStream.ReadBytes(oldHeader.CompressedSize);
 				var decipheredData = oldHeader.isCiphered ? Decipher(storedData) : storedData;
 				var finalData = oldHeader.isCompressed ? DecompressZlib(decipheredData) : decipheredData;
@@ -312,15 +320,21 @@ namespace Yafex.FileFormats.SddlSec
 
 		private static (uint DestOffset, byte[] Data, string Version, bool Compressed, bool HasSubFile, string? SubFile, uint Size) FinishSegment(Memory64<byte> finalData, string version, bool compressed)
 		{
-			var contentReader = new SpanStream(finalData, Endianness.BigEndian);
-			var contentHeader = contentReader.ReadStruct<ContentHeader>();
+		if (finalData.Length < Unsafe.SizeOf<ContentHeader>())
+			throw new InvalidDataException("SDDL segment content too short for its header");
+		var contentReader = new SpanStream(finalData, Endianness.BigEndian);
+		var contentHeader = contentReader.ReadStruct<ContentHeader>();
 
-			//TODO: figure out how to handle this
-			var subFileName = contentHeader.hasSubFile ? contentReader.ReadBytes(SUB_FILE_NAME_LENGHT).AsString(Encoding.ASCII) : null;
+		//TODO: figure out how to handle this
+		var subFileName = contentHeader.hasSubFile ? contentReader.ReadBytes(SUB_FILE_NAME_LENGHT).AsString(Encoding.ASCII) : null;
 
-			//seek to data start
-			contentReader.Position = contentHeader.SourceOffset;
-			var outData = contentReader.ReadBytes(contentHeader.Size);
+		//seek to data start
+		if ((ulong)contentHeader.SourceOffset > (ulong)finalData.Length
+			|| (ulong)contentHeader.Size > (ulong)finalData.Length - contentHeader.SourceOffset)
+			throw new InvalidDataException(
+				$"SDDL segment content range @0x{contentHeader.SourceOffset:X} size 0x{contentHeader.Size:X} runs past the payload");
+		contentReader.Position = contentHeader.SourceOffset;
+		var outData = contentReader.ReadBytes(contentHeader.Size);
 
 			return (contentHeader.DestOffset, outData, version, compressed, contentHeader.hasSubFile, subFileName, contentHeader.Size);
 		}

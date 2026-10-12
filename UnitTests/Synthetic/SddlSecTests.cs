@@ -13,6 +13,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -164,5 +166,141 @@ public class SddlSecTests
         var extractor = OldKeyExtractor(RandomNumberGenerator.GetBytes(16), RandomNumberGenerator.GetBytes(16));
         var st = new SpanStream(new Memory64<byte>(blob));
         Assert.Throws<InvalidDataException>(() => extractor.GetFile(st));
+    }
+
+    // SDDL integers are big-endian (see 2013.SEC: SDIT bytes 00 53 are
+    // 83 segments, matching the 85-file header count as 83+1+1). Guards
+    // the SharpIO endianness behavior the whole format depends on.
+    [Test]
+    public void SditSegmentCount_IsBigEndian()
+    {
+        Assert.AreEqual(44, Unsafe.SizeOf<SditModuleEntry>());
+        var buf = Zeros(8 + 4 + 44);
+        buf[0] = 0x11; buf[1] = 0x22; buf[2] = 0x33; buf[3] = 0x44;
+        buf[4] = 1; // one group
+        buf[8] = 0; buf[9] = 1; // group 0, one entry
+        int e = 12;
+        buf[e + 24] = 1; // module type
+        buf[e + 26] = 0x00; buf[e + 27] = 0x53; // BE 83
+        WriteAscii(buf, e + 36, "PEAKS");
+        var ext = new SddlSecExtractor(new SddlSecContext(), EmptyKeys());
+        var modules = ext.ParseSditToModules(new Memory64<byte>(buf));
+        Assert.AreEqual(1, modules.Count);
+        Assert.AreEqual("PEAKS", modules[0].ModuleName);
+        Assert.AreEqual(83, modules[0].SegmentCount);
+    }
+
+    private static byte[] AesCbcEncryptPkcs7(byte[] plain, byte[] key, byte[] iv)
+    {
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.IV = iv;
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
+        using var enc = aes.CreateEncryptor();
+        return enc.TransformFinalBlock(plain, 0, plain.Length);
+    }
+
+    // Builds one new-framed entry (name[12] + size[12] header, AES-CBC-PKCS7
+    // payload) sealed with the given random AES key. No real key material.
+    private static byte[] BuildNewEntry(byte[] key, byte[] iv, string name, byte[] payload, out uint fileSize)
+    {
+        var encPayload = AesCbcEncryptPkcs7(payload, key, iv);
+        fileSize = (uint)encPayload.Length;
+        var header = Zeros(24);
+        WriteAscii(header, 0, name);
+        WriteAscii(header, 12, fileSize.ToString());
+        var encHeader = AesCbcEncryptPkcs7(header, key, iv);
+        var entry = new List<byte>(encHeader);
+        entry.AddRange(encPayload);
+        return entry.ToArray();
+    }
+
+    // Full production wiring for Extract-path tests: detect first so the
+    // context carries the deciphered header, like FileFormatRepository flow.
+    private static SddlSecExtractor NewKeyExtractorFor(byte[] key, byte[] iv, byte[] blob, out MemoryDataSource mem)
+    {
+        var keys = new KeysRepository(new KeyBundle(new KeyDTO[]
+        {
+            new Aes128Cbc
+            {
+                Id = "sddl-sec-key",
+                KeyMaterial = Convert.ToHexString(key),
+                KeyIV = Convert.ToHexString(iv),
+            },
+        }));
+        mem = Mem(blob);
+        var det = (SddlSecDetectionResult)new SddlSecAddon(keys)
+            .CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        Assert.AreEqual(100, det.Confidence);
+        return new SddlSecExtractor(det.Context!, keys);
+    }
+
+    private static byte[] BuildModuleHeader(uint storedBe, byte flags = 0)
+    {
+        Assert.AreEqual(48, Unsafe.SizeOf<ModuleHeader>());
+        var buf = Zeros(48);
+        buf[0] = 0x11; buf[1] = 0x22; buf[2] = 0x33; buf[3] = 0x44;
+        buf[34] = flags;
+        buf[36] = (byte)(storedBe >> 24);
+        buf[37] = (byte)(storedBe >> 16);
+        buf[38] = (byte)(storedBe >> 8);
+        buf[39] = (byte)storedBe;
+        return buf;
+    }
+
+    // Builds a minimal new-format container: obfuscated header + SDIT.FDI
+    // describing one single-segment module + its segment entry.
+    private static byte[] BuildNewContainer(byte[] key, byte[] iv, string module, byte[] segPayload)
+    {
+        var sdit = new List<byte>();
+        sdit.AddRange(new byte[] { 0x11, 0x22, 0x33, 0x44, 1, 0, 0, 0 });
+        sdit.AddRange(new byte[] { 0, 1, 0, 0 });
+        var entry = Zeros(44);
+        entry[24] = 1;
+        entry[26] = 0x00; entry[27] = 0x01; // BE 1 segment
+        WriteAscii(entry, 36, module);
+        sdit.AddRange(entry);
+        var sditEntry = BuildNewEntry(key, iv, "SDIT.FDI", sdit.ToArray(), out _);
+        var segEntry = BuildNewEntry(key, iv, module + ".F00", segPayload, out _);
+        var header = Zeros(Unsafe.SizeOf<SddlSecHeader>());
+        header[0] = 0x11; header[1] = 0x22; header[2] = 0x33; header[3] = 0x44;
+        WriteAscii(header, 8, "0000");
+        WriteAscii(header, 12, "0001");
+        var blob = new List<byte>(SddlEncipher(header));
+        blob.AddRange(sditEntry);
+        blob.AddRange(segEntry);
+        return blob.ToArray();
+    }
+
+    [Test]
+    public void NewSegment_OversizeStored_ThrowsInvalidData()
+    {
+        var key = RandomNumberGenerator.GetBytes(16);
+        var iv = RandomNumberGenerator.GetBytes(16);
+        // valid magic, plain flags, stored size far past the 16 payload bytes
+        var seg = new List<byte>(BuildModuleHeader(0x01000000));
+        seg.AddRange(Zeros(16));
+        var blob = BuildNewContainer(key, iv, "TST", seg.ToArray());
+        var extractor = NewKeyExtractorFor(key, iv, blob, out var mem);
+        var ex = Assert.Throws<InvalidDataException>(() => extractor.Extract(mem).ToList());
+        StringAssert.Contains("stored size", ex!.Message);
+    }
+
+    [Test]
+    public void NewSegment_OversizeContent_ThrowsInvalidData()
+    {
+        var key = RandomNumberGenerator.GetBytes(16);
+        var iv = RandomNumberGenerator.GetBytes(16);
+        // stored size covers the 32 content bytes; the content header
+        // inside claims 16MB from offset 0
+        var content = Zeros(32);
+        content[9] = 0x01; content[10] = 0x00; content[11] = 0x00; content[12] = 0x00;
+        var seg = new List<byte>(BuildModuleHeader(32));
+        seg.AddRange(content);
+        var blob = BuildNewContainer(key, iv, "TST", seg.ToArray());
+        var extractor = NewKeyExtractorFor(key, iv, blob, out var mem);
+        var ex = Assert.Throws<InvalidDataException>(() => extractor.Extract(mem).ToList());
+        StringAssert.Contains("content range", ex!.Message);
     }
 }
