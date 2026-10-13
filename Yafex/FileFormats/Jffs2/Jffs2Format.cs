@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using DiscUtils.Jffs2;
+using Yafex.FileSystems.Jffs2;
 
 namespace Yafex.FileFormats.Jffs2;
 
