@@ -13,6 +13,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 using NUnit.Framework;
 
@@ -95,7 +97,7 @@ public class TliTests
     public void Valid_Detects90()
     {
         var mem = Mem(BuildImage(new byte[] { 1, 2, 3 }, new byte[] { 4, 5 }));
-        var res = (TliDetectionResult)new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var res = (TliDetectionResult)new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(mem);
         Assert.AreEqual(90, res.Confidence);
         Assert.AreEqual(0, res.Offset);
         Assert.AreEqual(16, res.HeaderLength);
@@ -112,7 +114,7 @@ public class TliTests
             buf[i] = 0xFF;
         }
         Array.Copy(inner, 0, buf, 128, inner.Length);
-        var res = (TliDetectionResult)new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(Mem(buf));
+        var res = (TliDetectionResult)new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(Mem(buf));
         Assert.AreEqual(90, res.Confidence);
         Assert.AreEqual(128, res.Offset);
     }
@@ -122,7 +124,7 @@ public class TliTests
     {
         var buf = BuildImage(new byte[] { 1, 2, 3 }, new byte[] { 4, 5 });
         buf[5] ^= 0xFF;
-        var res = new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(Mem(buf));
+        var res = new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(Mem(buf));
         Assert.AreEqual(0, res.Confidence);
     }
 
@@ -132,7 +134,7 @@ public class TliTests
         var buf = BuildImage(new byte[] { 1, 2, 3 }, new byte[] { 4, 5 });
         var cut = new byte[100];
         Array.Copy(buf, 0, cut, 0, cut.Length);
-        var res = new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(Mem(cut));
+        var res = new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(Mem(cut));
         Assert.AreEqual(0, res.Confidence);
     }
 
@@ -141,8 +143,8 @@ public class TliTests
     {
         var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
         var mem = Mem(BuildImage(kernel, new byte[] { 0x11 }), "update.tli");
-        var det = (TliDetectionResult)new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new TliAddon().CreateLister(det);
+        var det = (TliDetectionResult)new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var lister = new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateLister(det);
         Assert.NotNull(lister);
         using var sw = new StringWriter();
         lister!.List(mem, det, sw);
@@ -159,8 +161,8 @@ public class TliTests
         var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
         var config = new byte[] { 0x11, 0x22 };
         var mem = Mem(BuildImage(kernel, config), "update.tli");
-        var det = (TliDetectionResult)new TliAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var artifacts = new TliAddon().CreateExtractor(det).Extract(mem).ToList();
+        var det = (TliDetectionResult)new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateExtractor(det).Extract(mem).ToList();
         Assert.AreEqual(2, artifacts.Count);
         Assert.AreEqual("kernel", artifacts[0].Name);
         Assert.AreEqual("cfg_opt", artifacts[1].Name);
@@ -191,5 +193,115 @@ public class TliTests
         var names = node.Tree.Keys.ToList();
         CollectionAssert.Contains(names, "kernel");
         CollectionAssert.Contains(names, "cfg_opt");
+    }
+
+    internal static byte[] EncryptEntry(byte[] plain, byte[] password, byte[] salt)
+    {
+        var key = new byte[32];
+        var iv = new byte[16];
+        TliCrypto.EvpBytesToKey(password, salt, key, iv);
+        using var aes = Aes.Create();
+        aes.KeySize = 256;
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.PKCS7;
+        aes.Key = key;
+        aes.IV = iv;
+        using var enc = aes.CreateEncryptor();
+        byte[] cipher = enc.TransformFinalBlock(plain, 0, plain.Length);
+        var blob = new byte[16 + cipher.Length];
+        Encoding.ASCII.GetBytes("Salted__").CopyTo(blob, 0);
+        Array.Copy(salt, 0, blob, 8, 8);
+        Array.Copy(cipher, 0, blob, 16, cipher.Length);
+        return blob;
+    }
+
+    internal static byte[] BuildEncryptedImage(byte[] kernel, byte[] config, byte[] password)
+    {
+        var salt = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+        using var ms = new MemoryStream();
+        var header = new byte[15];
+        header[0] = 0x4B;
+        header[1] = 0x00;
+        header[2] = 0x10;
+        header[3] = 0x80;
+        header[4] = 0x08;
+        uint crc = Crc32.Compute(header, 0, header.Length);
+        ms.Write(header, 0, header.Length);
+        ms.WriteByte((byte)(crc >> 24));
+        ms.WriteByte((byte)(crc >> 16));
+        ms.WriteByte((byte)(crc >> 8));
+        ms.WriteByte((byte)crc);
+        ms.Write(new byte[64], 0, 64);
+        var k = BuildTarEntry("kernel", EncryptEntry(kernel, password, salt), spacePadded: true);
+        ms.Write(k, 0, k.Length);
+        var c = BuildTarEntry("config", EncryptEntry(config, password, salt), spacePadded: false);
+        ms.Write(c, 0, c.Length);
+        ms.Write(new byte[1024], 0, 1024);
+        return ms.ToArray();
+    }
+
+    internal static KeysRepository BundleWithPassword(byte[] password)
+    {
+        var dto = new RawKeyDTO
+        {
+            Id = "tli-password",
+            KeyMaterial = Convert.ToHexString(password),
+            Description = "test",
+        };
+        return new KeysRepository(new KeyBundle(new KeyDTO[] { dto }));
+    }
+
+    [Test]
+    public void Extract_DecryptsWithBundlePassword()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var password = Encoding.ASCII.GetBytes("test-password-16");
+        var mem = Mem(BuildEncryptedImage(kernel, new byte[] { 0x11 }, password), "update.tli");
+        var addon = new TliAddon(BundleWithPassword(password));
+        var det = (TliDetectionResult)addon.CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        Assert.AreEqual(90, det.Confidence);
+        var artifacts = addon.CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(2, artifacts.Count);
+        CollectionAssert.AreEqual(kernel, artifacts[0].Data.ToArray());
+    }
+
+    [Test]
+    public void Extract_PassesThroughWithoutKeys()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var password = Encoding.ASCII.GetBytes("test-password-16");
+        var mem = Mem(BuildEncryptedImage(kernel, new byte[] { 0x11 }, password), "update.tli");
+        var addon = new TliAddon(new KeysRepository(KeyBundle.Empty));
+        var det = (TliDetectionResult)addon.CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = addon.CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(2, artifacts.Count);
+        byte[] raw = artifacts[0].Data.ToArray();
+        Assert.AreEqual("Salted__", Encoding.ASCII.GetString(raw, 0, 8));
+    }
+
+    [Test]
+    public void Extract_PassesThroughOnWrongPassword()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var password = Encoding.ASCII.GetBytes("test-password-16");
+        var mem = Mem(BuildEncryptedImage(kernel, new byte[] { 0x11 }, password), "update.tli");
+        var addon = new TliAddon(BundleWithPassword(Encoding.ASCII.GetBytes("wrong-password!!")));
+        var det = (TliDetectionResult)addon.CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = addon.CreateExtractor(det).Extract(mem).ToList();
+        byte[] raw = artifacts[0].Data.ToArray();
+        Assert.AreEqual("Salted__", Encoding.ASCII.GetString(raw, 0, 8));
+    }
+
+    [Test]
+    public void Extract_PasswordOptionDecrypts()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        string password = "test-password-16";
+        var mem = Mem(BuildEncryptedImage(kernel, new byte[] { 0x11 }, Encoding.ASCII.GetBytes(password)), "update.tli");
+        var addon = new TliAddon(new KeysRepository(KeyBundle.Empty));
+        var det = (TliDetectionResult)addon
+            .CreateDetector(new Dictionary<string, string> { { "password", password } }).Detect(mem);
+        var artifacts = addon.CreateExtractor(det).Extract(mem).ToList();
+        CollectionAssert.AreEqual(kernel, artifacts[0].Data.ToArray());
     }
 }
