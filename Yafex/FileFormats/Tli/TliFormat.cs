@@ -11,7 +11,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+
+using DiscUtils.Archives;
 
 namespace Yafex.FileFormats.Tli;
 
@@ -28,7 +29,6 @@ public static class TliParser
 {
     public const byte TableId = 0x4B;
     public const int MaxHeaderLength = 65535;
-    public const int MaxEntries = 10000;
 
     private static readonly uint[] CrcTable = BuildCrcTable();
 
@@ -56,19 +56,6 @@ public static class TliParser
             crc = CrcTable[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
         }
         return crc ^ 0xFFFFFFFFu;
-    }
-
-    public sealed class Header
-    {
-        public long Offset;
-        public int Length;
-    }
-
-    public sealed class Entry
-    {
-        public string Name = string.Empty;
-        public long DataOffset;
-        public long Size;
     }
 
     /// <summary>Validate the header at offset; returns its length on success.</summary>
@@ -122,7 +109,7 @@ public static class TliParser
         long limit = Math.Min(image.Length - 512, headerEnd + 65536);
         for (long pos = headerEnd; pos < limit; pos++)
         {
-            if (IsTarHeader(image, pos))
+            if (TarFile.IsHeader(image, (int)pos))
             {
                 tarStart = pos;
                 return true;
@@ -131,146 +118,21 @@ public static class TliParser
         return false;
     }
 
-    private static bool IsTarHeader(byte[] image, long pos)
+    /// <summary>Open the tar archive at an absolute image offset.</summary>
+    public static TarFile OpenTar(byte[] image, long tarStart)
     {
-        if (pos < 0 || pos + 512 > image.Length)
-        {
-            return false;
-        }
-        if (image[pos + 257] != (byte)'u'
-            || image[pos + 258] != (byte)'s'
-            || image[pos + 259] != (byte)'t'
-            || image[pos + 260] != (byte)'a'
-            || image[pos + 261] != (byte)'r')
-        {
-            return false;
-        }
-        return TarChecksum(image, pos, out _);
+        var stream = new MemoryStream(image, (int)tarStart, image.Length - (int)tarStart, false);
+        return new TarFile(stream);
     }
 
-    private static bool TarChecksum(byte[] image, long pos, out long size)
+    public static int CountEntries(TarFile tar)
     {
-        size = 0;
-        long sum = 0;
-        for (int i = 0; i < 512; i++)
+        int count = 0;
+        foreach (var _ in tar.Entries)
         {
-            byte b = image[pos + i];
-            sum += (i >= 148 && i < 156) ? 32 : b;
+            count++;
         }
-        if (!ParseOctal(image, pos + 148, 8, out long stored))
-        {
-            return false;
-        }
-        if (sum != stored)
-        {
-            return false;
-        }
-        return ParseOctal(image, pos + 124, 12, out size);
-    }
-
-    /// <summary>Tar numeric field: leading spaces/nulls, octal digits,
-    /// terminated by space/null. Both paddings occur in the wild.</summary>
-    private static bool ParseOctal(byte[] image, long pos, int length, out long value)
-    {
-        value = 0;
-        int i = 0;
-        while (i < length && (image[pos + i] == (byte)' ' || image[pos + i] == 0))
-        {
-            i++;
-        }
-        if (i >= length)
-        {
-            return false;
-        }
-        int digits = 0;
-        while (i < length)
-        {
-            byte b = image[pos + i];
-            if (b == 0 || b == (byte)' ')
-            {
-                break;
-            }
-            if (b < (byte)'0' || b > (byte)'7')
-            {
-                return false;
-            }
-            value = (value << 3) + (b - (byte)'0');
-            digits++;
-            i++;
-        }
-        return digits > 0;
-    }
-
-    private static bool IsZeroBlock(byte[] image, long pos)
-    {
-        if (pos < 0 || pos + 512 > image.Length)
-        {
-            return true;
-        }
-        for (int i = 0; i < 512; i++)
-        {
-            if (image[pos + i] != 0)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static string ReadName(byte[] image, long pos)
-    {
-        int nameLen = 0;
-        while (nameLen < 100 && image[pos + nameLen] != 0)
-        {
-            nameLen++;
-        }
-        int prefixLen = 0;
-        while (prefixLen < 155 && image[pos + 345 + prefixLen] != 0)
-        {
-            prefixLen++;
-        }
-        string name = Encoding.ASCII.GetString(image, (int)pos, nameLen);
-        if (prefixLen > 0)
-        {
-            string prefix = Encoding.ASCII.GetString(image, (int)pos + 345, prefixLen);
-            name = prefix + "/" + name;
-        }
-        return name;
-    }
-
-    /// <summary>Walk the tar entries; stops at the end marker or first fault.</summary>
-    public static List<Entry> ListEntries(byte[] image, long tarStart)
-    {
-        var entries = new List<Entry>();
-        long pos = tarStart;
-        while (pos + 512 <= image.Length && entries.Count < MaxEntries)
-        {
-            if (IsZeroBlock(image, pos))
-            {
-                if (IsZeroBlock(image, pos + 512))
-                {
-                    break;
-                }
-                pos += 512;
-                continue;
-            }
-            if (!IsTarHeader(image, pos) || !TarChecksum(image, pos, out long size))
-            {
-                break;
-            }
-            if (size < 0 || pos + 512 + size > image.Length)
-            {
-                break;
-            }
-            entries.Add(new Entry
-            {
-                Name = ReadName(image, pos),
-                DataOffset = pos + 512,
-                Size = size,
-            });
-            pos += 512 + ((size + 511) / 512) * 512;
-        }
-        return entries;
+        return count;
     }
 }
 
@@ -304,8 +166,16 @@ public class TliDetector : IFormatDetector
                 {
                     continue;
                 }
-                var entries = TliParser.ListEntries(bytes, tarStart);
-                if (entries.Count == 0)
+                int members;
+                try
+                {
+                    members = TliParser.CountEntries(TliParser.OpenTar(bytes, tarStart));
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+                if (members == 0)
                 {
                     continue;
                 }
@@ -337,11 +207,12 @@ public class TliLister : IFormatLister
 
     public void List(IDataSource source, DetectionResult result, TextWriter output)
     {
-        var entries = TliParser.ListEntries(_image, _tarStart);
-        output.WriteLine($"Tli ({source.Name}, {entries.Count} images, header {_headerLength} bytes at 0x{_offset:X}):");
-        foreach (var e in entries)
+        var tar = TliParser.OpenTar(_image, _tarStart);
+        int count = TliParser.CountEntries(tar);
+        output.WriteLine($"Tli ({source.Name}, {count} images, header {_headerLength} bytes at 0x{_offset:X}):");
+        foreach (var e in tar.Entries)
         {
-            output.WriteLine($"  f {e.Name} size={e.Size}");
+            output.WriteLine($"  f {e.Name} size={e.Length}");
         }
     }
 }
@@ -359,15 +230,32 @@ public class TliExtractor : IFormatExtractor
 
     public IEnumerable<IDataSource> Extract(IDataSource source)
     {
-        foreach (var e in TliParser.ListEntries(_image, _tarStart))
+        var tar = TliParser.OpenTar(_image, _tarStart);
+        foreach (var e in tar.Entries)
         {
             string flat = TliParser.SafeName(e.Name);
-            if (flat.Length == 0)
+            if (flat.Length == 0 || e.Length > int.MaxValue)
             {
                 continue;
             }
-            var content = new byte[e.Size];
-            Array.Copy(_image, e.DataOffset, content, 0, (int)e.Size);
+            var content = new byte[(int)e.Length];
+            using (var s = tar.OpenFile(e.Name))
+            {
+                int done = 0;
+                while (done < content.Length)
+                {
+                    int n = s.Read(content, done, content.Length - done);
+                    if (n <= 0)
+                    {
+                        break;
+                    }
+                    done += n;
+                }
+                if (done != content.Length)
+                {
+                    continue;
+                }
+            }
             yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }

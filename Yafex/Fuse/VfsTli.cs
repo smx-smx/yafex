@@ -10,7 +10,10 @@
 #endregion
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+
+using DiscUtils.Archives;
 
 using Yafex.FileFormats.Tli;
 
@@ -58,7 +61,20 @@ public sealed class TliExpander : IContentExpander
                 {
                     continue;
                 }
-                return TliParser.ListEntries(buf, tarStart).Count > 0;
+                try
+                {
+                    using var ms = new MemoryStream(buf, (int)tarStart, buf.Length - (int)tarStart, false);
+                    int members = 0;
+                    foreach (var _ in new TarFile(ms).Entries)
+                    {
+                        members++;
+                    }
+                    return members > 0;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
             }
             return false;
         }
@@ -101,7 +117,20 @@ public sealed class TliExpander : IContentExpander
                 {
                     continue;
                 }
-                if (TliParser.ListEntries(image, candidate).Count == 0)
+                try
+                {
+                    using var probe = new MemoryStream(image, (int)candidate, image.Length - (int)candidate, false);
+                    int members = 0;
+                    foreach (var _ in new TarFile(probe).Entries)
+                    {
+                        members++;
+                    }
+                    if (members == 0)
+                    {
+                        continue;
+                    }
+                }
+                catch (Exception)
                 {
                     continue;
                 }
@@ -113,9 +142,11 @@ public sealed class TliExpander : IContentExpander
                 throw new InvalidOperationException("no TLI image entries found");
             }
             var nodes = new List<IVfsNode>();
-            foreach (var e in TliParser.ListEntries(image, tarStart))
+            using var stream = new MemoryStream(image, (int)tarStart, image.Length - (int)tarStart, false);
+            var tar = new TarFile(stream);
+            foreach (var e in tar.Entries)
             {
-                var slice = new SliceVirtualFile(TliParser.SafeName(e.Name), file, e.DataOffset, e.Size);
+                var slice = new SliceVirtualFile(TliParser.SafeName(e.Name), file, tarStart + e.Offset, e.Length);
                 keepAlive.Add(slice);
                 nodes.Add(new PakVfsFile(slice, Helpers.OctalLiteral(0444)));
                 try

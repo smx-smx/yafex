@@ -11,6 +11,8 @@
 using System;
 using System.Collections.Generic;
 
+using DiscUtils.Archives;
+
 using Yafex.Fuse;
 using Yafex.Support;
 
@@ -62,14 +64,16 @@ public class TliAddon : IFormatAddon
         {
             VfsMount.TryRoot(input, "tli", out var vfs, out var root);
             var keepAlive = new List<object>();
-            foreach (var e in TliParser.ListEntries(typed.Image, typed.TarStart))
+            using var stream = new System.IO.MemoryStream(
+                typed.Image, (int)typed.TarStart, typed.Image.Length - (int)typed.TarStart, false);
+            foreach (var e in new TarFile(stream).Entries)
             {
                 string name = TliParser.SafeName(e.Name);
                 if (name.Length == 0)
                 {
                     continue;
                 }
-                VfsMount.AddRange(root, input, name, e.DataOffset, e.Size,
+                VfsMount.AddRange(root, input, name, typed.TarStart + e.Offset, e.Length,
                     $"tli image {e.Name}", keepAlive);
             }
             return vfs;
