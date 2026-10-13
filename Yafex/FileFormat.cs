@@ -50,6 +50,7 @@ namespace Yafex
         AndroidBoot,
         AmdPsp,
         Squashfs2,
-        Tli
+        Tli,
+        Tar
     }
 }

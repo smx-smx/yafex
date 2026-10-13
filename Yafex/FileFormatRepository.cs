@@ -52,6 +52,7 @@ using Yafex.FileFormats.AndroidBoot;
 using Yafex.FileFormats.AmdPsp;
 using Yafex.FileFormats.Squashfs2;
 using Yafex.FileFormats.Tli;
+using Yafex.FileFormats.Tar;
 
 namespace Yafex
 {
@@ -136,6 +137,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, AmdPspAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, Squashfs2Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, TliAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, TarAddon>(key);
         }
     }
 }

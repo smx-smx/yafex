@@ -155,6 +155,7 @@ public static class ContentExpanders
         new AndroidBootExpander(),
         new AmdPspExpander(),
         new TliExpander(),
+        new TarExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
