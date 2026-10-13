@@ -48,6 +48,7 @@ namespace Yafex
         Uefi,
         Ufs,
         AndroidBoot,
-        AmdPsp
+        AmdPsp,
+        Squashfs2
     }
 }
