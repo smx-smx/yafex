@@ -20,7 +20,7 @@ using System.Text;
 
 using NUnit.Framework;
 
-using DiscUtils.Fat;
+using Yafex.FileSystems.Fat;
 
 using Yafex.Fuse;
 
