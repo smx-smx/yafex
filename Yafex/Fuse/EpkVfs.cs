@@ -9,7 +9,6 @@
  */
 #endregion
 using DiscUtils;
-using DiscUtils.SquashFs;
 
 using System;
 using System.Collections.Generic;

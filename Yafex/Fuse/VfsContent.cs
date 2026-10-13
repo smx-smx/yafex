@@ -15,8 +15,6 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 
-using DiscUtils.SquashFs;
-
 namespace Yafex.Fuse;
 
 /// <summary>

@@ -14,7 +14,7 @@ using System.IO;
 using System.Linq;
 
 using DiscUtils;
-using DiscUtils.SquashFs;
+using Yafex.FileSystems.SquashFs;
 
 namespace Yafex.FileFormats.Squashfs;
 

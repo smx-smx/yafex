@@ -4,7 +4,7 @@ using System.Linq;
 
 using NUnit.Framework;
 
-using DiscUtils.SquashFs;
+using Yafex.FileSystems.SquashFs;
 
 using Smx.SharpIO.Memory.Buffers;
 
