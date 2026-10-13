@@ -367,3 +367,5 @@ FodyWeavers.xsd
 Yafex.CygwinLauncher/external/
 fuse_bridge/build/
 TestResults/
+secrets.json
+staging/

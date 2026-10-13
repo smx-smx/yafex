@@ -20,11 +20,23 @@ namespace Yafex.FileFormats.Tli;
 
 public class TliAddon : IFormatAddon
 {
+    private readonly KeysRepository _keys;
+
+    public TliAddon(KeysRepository keys)
+    {
+        _keys = keys;
+    }
+
     public FileFormat FileFormat => FileFormat.Tli;
+
+    public IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
+    {
+        { "password", "TLI image password as text (tried before the tli-password bundle entry)" },
+    };
 
     public IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
-        return new TliDetector();
+        return new TliDetector(_keys, args);
     }
 
     public IFormatExtractor CreateExtractor(DetectionResult result)

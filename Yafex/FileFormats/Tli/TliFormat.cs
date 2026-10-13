@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 using DiscUtils.Archives;
 
@@ -136,10 +137,33 @@ public static class TliParser
     }
 }
 
-public record TliDetectionResult(int Confidence, byte[]? Image, long Offset, int HeaderLength, long TarStart) : DetectionResult(Confidence);
+public record TliDetectionResult(int Confidence, byte[]? Image, long Offset, int HeaderLength, long TarStart, List<byte[]> Passwords) : DetectionResult(Confidence);
 
 public class TliDetector : IFormatDetector
 {
+    private readonly KeysRepository _keys;
+    private readonly IDictionary<string, string> _args;
+
+    public TliDetector(KeysRepository keys, IDictionary<string, string> args)
+    {
+        _keys = keys;
+        _args = args;
+    }
+
+    public static List<byte[]> ResolvePasswords(IDictionary<string, string> args, KeysRepository keys)
+    {
+        var passwords = new List<byte[]>();
+        if (args.TryGetValue("password", out var text) && text.Length > 0)
+        {
+            passwords.Add(Encoding.ASCII.GetBytes(text));
+        }
+        if (keys.TryGetRaw(TliCrypto.PasswordId, out byte[] raw, out _) && raw.Length > 0)
+        {
+            passwords.Add(raw);
+        }
+        return passwords;
+    }
+
     public DetectionResult Detect(IDataSource source)
     {
         try
@@ -179,7 +203,8 @@ public class TliDetector : IFormatDetector
                 {
                     continue;
                 }
-                return new TliDetectionResult(90, bytes, off, headerLength, tarStart);
+                return new TliDetectionResult(90, bytes, off, headerLength, tarStart,
+                    ResolvePasswords(_args, _keys));
             }
             return DetectionResult.Fail;
         }
@@ -221,11 +246,13 @@ public class TliExtractor : IFormatExtractor
 {
     private readonly byte[] _image;
     private readonly long _tarStart;
+    private readonly List<byte[]> _passwords;
 
     public TliExtractor(TliDetectionResult result)
     {
         _image = result.Image!;
         _tarStart = result.TarStart;
+        _passwords = result.Passwords;
     }
 
     public IEnumerable<IDataSource> Extract(IDataSource source)
@@ -255,6 +282,13 @@ public class TliExtractor : IFormatExtractor
                 {
                     continue;
                 }
+            }
+            // encrypted members decrypt in place when a password works;
+            // otherwise (or without keys) the raw bytes pass through
+            if (TliCrypto.IsEncrypted(content)
+                && TliCrypto.TryDecrypt(content, _passwords, out byte[] plain))
+            {
+                content = plain;
             }
             yield return ArtifactBuilder.Flat(source, flat, content);
         }
