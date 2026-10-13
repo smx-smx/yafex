@@ -21,6 +21,7 @@ using NUnit.Framework;
 
 using Yafex;
 using Yafex.FileFormats.Ufs;
+using Yafex.FileSystems.Ufs;
 using static UnitTests.Synthetic;
 
 namespace UnitTests;
@@ -299,7 +300,7 @@ public class UfsTests
     public void Ufs2_ReadsIndirectBlocks()
     {
         using var stream = new MemoryStream(BuildUfs2(), writable: false);
-        var ctx = DiscUtils.Ufs.UfsContext.Open(stream);
+        var ctx = UfsContext.Open(stream);
         var file = ctx.ReadFile(3);
         Assert.AreEqual(12 * 8192 + 500, file.Length);
         for (int lbn = 0; lbn < 12; lbn++)
@@ -348,7 +349,7 @@ public class UfsTests
             .Detect(Mem(BuildUfsStale()));
         Assert.AreEqual(90, res.Confidence);
         using var stream = new MemoryStream(BuildUfsStale(), writable: false);
-        var ctx = DiscUtils.Ufs.UfsContext.Open(stream);
+        var ctx = UfsContext.Open(stream);
         CollectionAssert.AreEqual(
             Encoding.ASCII.GetBytes("hello, ufs1!"), ctx.ReadFile(3));
     }
