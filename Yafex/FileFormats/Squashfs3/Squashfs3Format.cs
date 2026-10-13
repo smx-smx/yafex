@@ -14,7 +14,7 @@ using System.IO;
 using System.Linq;
 
 using DiscUtils;
-using DiscUtils.SquashFs3;
+using Yafex.FileSystems.Squashfs3;
 
 using log4net;
 

@@ -11,7 +11,7 @@
 // Synthetic squashfs3 tests: a minimal 3.1 image (superblock, one compressed
 // inode metablock, stored dir metablocks, data blocks both compressed and
 // stored, one fragment, symlink, empty file, subdir) is built in-memory
-// against the DiscUtils driver. Fully in-memory, no fixtures.
+// against the Yafex-native driver. Fully in-memory, no fixtures.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,7 +22,7 @@ using System.Text;
 using NUnit.Framework;
 
 using DiscUtils;
-using DiscUtils.SquashFs3;
+using Yafex.FileSystems.Squashfs3;
 
 using Yafex;
 using Yafex.FileFormats.Lzo;
