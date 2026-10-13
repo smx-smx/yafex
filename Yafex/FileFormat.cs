@@ -49,6 +49,7 @@ namespace Yafex
         Ufs,
         AndroidBoot,
         AmdPsp,
-        Squashfs2
+        Squashfs2,
+        Tli
     }
 }
