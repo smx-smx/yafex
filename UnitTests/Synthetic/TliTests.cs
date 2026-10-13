@@ -18,6 +18,7 @@ using NUnit.Framework;
 
 using Yafex;
 using Yafex.FileFormats.Tli;
+using Yafex.Fuse;
 using Yafex.Support;
 
 using static UnitTests.Synthetic;
@@ -165,5 +166,30 @@ public class TliTests
         Assert.AreEqual("cfg_opt", artifacts[1].Name);
         CollectionAssert.AreEqual(kernel, artifacts[0].Data.ToArray());
         CollectionAssert.AreEqual(config, artifacts[1].Data.ToArray());
+    }
+
+    [Test]
+    public void Expander_MatchesContainerRejectsGarbage()
+    {
+        var exp = new TliExpander();
+        var img = BuildImage(new byte[] { 1, 2, 3 }, new byte[] { 4, 5 });
+        Assert.IsTrue(exp.Matches(new MemoryVirtualFile("update.tli", img)));
+        var rnd = new byte[1024];
+        new Random(7).NextBytes(rnd);
+        Assert.IsFalse(exp.Matches(new MemoryVirtualFile("x.bin", rnd)));
+        Assert.IsFalse(exp.Matches(new MemoryVirtualFile("short.bin", new byte[16])));
+    }
+
+    [Test]
+    public void Expander_ListsEntries()
+    {
+        var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
+        var img = BuildImage(kernel, new byte[] { 0x11, 0x22 });
+        var exp = new TliExpander();
+        var node = exp.Expand(new MemoryVirtualFile("update.tli", img), new List<object>());
+        node.EnsureLoaded();
+        var names = node.Tree.Keys.ToList();
+        CollectionAssert.Contains(names, "kernel");
+        CollectionAssert.Contains(names, "cfg_opt");
     }
 }
