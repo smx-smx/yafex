@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 
 using Yafex.Fuse;
+using Yafex.Support;
 
 namespace Yafex.FileFormats.Tli;
 
@@ -43,5 +44,39 @@ public class TliAddon : IFormatAddon
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));
+    }
+
+    // Lazy mount: one range view per tar-archived image (no copies),
+    // mirroring the extractor.
+    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    {
+        if (source is not MFile input)
+        {
+            return null;
+        }
+        if (result is not TliDetectionResult typed || typed.Image == null)
+        {
+            return null;
+        }
+        try
+        {
+            VfsMount.TryRoot(input, "tli", out var vfs, out var root);
+            var keepAlive = new List<object>();
+            foreach (var e in TliParser.ListEntries(typed.Image, typed.TarStart))
+            {
+                string name = TliParser.SafeName(e.Name);
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+                VfsMount.AddRange(root, input, name, e.DataOffset, e.Size,
+                    $"tli image {e.Name}", keepAlive);
+            }
+            return vfs;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 }

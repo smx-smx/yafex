@@ -108,6 +108,13 @@ public static class TliParser
         return true;
     }
 
+    /// <summary>Flatten tar member names for artifact output.</summary>
+    public static string SafeName(string name)
+    {
+        string flat = name.Replace('/', '_').Replace('\\', '_').Trim();
+        return flat;
+    }
+
     /// <summary>Locate the tar archive following the header.</summary>
     public static bool TryFindTar(byte[] image, long headerEnd, out long tarStart)
     {
@@ -354,7 +361,7 @@ public class TliExtractor : IFormatExtractor
     {
         foreach (var e in TliParser.ListEntries(_image, _tarStart))
         {
-            string flat = e.Name.Replace('/', '_').Replace('\\', '_').Trim();
+            string flat = TliParser.SafeName(e.Name);
             if (flat.Length == 0)
             {
                 continue;
