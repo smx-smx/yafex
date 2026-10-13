@@ -12,8 +12,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-using DiscUtils.Archives;
-
 namespace Yafex.FileFormats.Tar;
 
 /// <summary>
@@ -29,12 +27,12 @@ public static class TarFormat
         return name.Replace('/', '_').Replace('\\', '_').Trim();
     }
 
-    public static TarFile? OpenAt(byte[] image, long start)
+    public static YafexTarReader? OpenAt(byte[] image, long start)
     {
         try
         {
             var stream = new MemoryStream(image, (int)start, image.Length - (int)start, false);
-            var tar = new TarFile(stream);
+            var tar = new YafexTarReader(stream);
             foreach (var _ in tar.Entries)
             {
                 return tar;
@@ -51,7 +49,7 @@ public static class TarFormat
         long limit = Math.Min(image.Length - 512, 65536);
         for (long pos = 0; pos < limit; pos++)
         {
-            if (TarFile.IsHeader(image, (int)pos) && OpenAt(image, pos) != null)
+            if (YafexTarReader.IsHeader(image, (int)pos) && OpenAt(image, pos) != null)
             {
                 return pos;
             }

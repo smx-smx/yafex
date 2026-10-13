@@ -11,8 +11,7 @@
 using System;
 using System.Collections.Generic;
 
-using DiscUtils.Archives;
-
+using Yafex.FileFormats.Tar;
 using Yafex.Fuse;
 using Yafex.Support;
 
@@ -78,7 +77,7 @@ public class TliAddon : IFormatAddon
             var keepAlive = new List<object>();
             using var stream = new System.IO.MemoryStream(
                 typed.Image, (int)typed.TarStart, typed.Image.Length - (int)typed.TarStart, false);
-            foreach (var e in new TarFile(stream).Entries)
+            foreach (var e in new YafexTarReader(stream).Entries)
             {
                 string name = TliParser.SafeName(e.Name);
                 if (name.Length == 0)

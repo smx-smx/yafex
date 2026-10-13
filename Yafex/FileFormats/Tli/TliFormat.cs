@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-using DiscUtils.Archives;
+using Yafex.FileFormats.Tar;
 
 namespace Yafex.FileFormats.Tli;
 
@@ -110,7 +110,7 @@ public static class TliParser
         long limit = Math.Min(image.Length - 512, headerEnd + 65536);
         for (long pos = headerEnd; pos < limit; pos++)
         {
-            if (TarFile.IsHeader(image, (int)pos))
+            if (YafexTarReader.IsHeader(image, (int)pos))
             {
                 tarStart = pos;
                 return true;
@@ -120,13 +120,13 @@ public static class TliParser
     }
 
     /// <summary>Open the tar archive at an absolute image offset.</summary>
-    public static TarFile OpenTar(byte[] image, long tarStart)
+    public static YafexTarReader OpenTar(byte[] image, long tarStart)
     {
         var stream = new MemoryStream(image, (int)tarStart, image.Length - (int)tarStart, false);
-        return new TarFile(stream);
+        return new YafexTarReader(stream);
     }
 
-    public static int CountEntries(TarFile tar)
+    public static int CountEntries(YafexTarReader tar)
     {
         int count = 0;
         foreach (var _ in tar.Entries)

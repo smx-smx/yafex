@@ -8,7 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-// Synthetic tar tests (DiscUtils.Archives). Fully in-memory: no disk.
+// Synthetic tar tests (Yafex-native reader). Fully in-memory: no disk.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,7 +17,7 @@ using System.Text;
 
 using NUnit.Framework;
 
-using DiscUtils.Archives;
+using Yafex.FileFormats.Tar;
 
 namespace UnitTests;
 
@@ -79,10 +79,10 @@ public class TarTests
         return ms.ToArray();
     }
 
-    internal static List<TarFileEntry> ReadAll(byte[] img)
+    internal static List<YafexTarEntry> ReadAll(byte[] img)
     {
         using var ms = new MemoryStream(img, false);
-        return new TarFile(ms).Entries.ToList();
+        return new YafexTarReader(ms).Entries.ToList();
     }
 
     [Test]
@@ -111,7 +111,7 @@ public class TarTests
     {
         var img = BuildArchive();
         using var ms = new MemoryStream(img, false);
-        var tar = new TarFile(ms);
+        var tar = new YafexTarReader(ms);
         Assert.IsTrue(tar.FileExists("hello.txt"));
         using var s = tar.OpenFile("hello.txt");
         var buf = new byte[(int)s.Length];
@@ -149,9 +149,9 @@ public class TarTests
     public void IsHeader_AcceptsValidRejectsGarbage()
     {
         var img = BuildArchive();
-        Assert.IsTrue(TarFile.IsHeader(img, 0));
-        Assert.IsFalse(TarFile.IsHeader(img, 1));
-        Assert.IsFalse(TarFile.IsHeader(new byte[1024], 0));
-        Assert.IsFalse(TarFile.IsHeader(img, img.Length));
+        Assert.IsTrue(YafexTarReader.IsHeader(img, 0));
+        Assert.IsFalse(YafexTarReader.IsHeader(img, 1));
+        Assert.IsFalse(YafexTarReader.IsHeader(new byte[1024], 0));
+        Assert.IsFalse(YafexTarReader.IsHeader(img, img.Length));
     }
 }

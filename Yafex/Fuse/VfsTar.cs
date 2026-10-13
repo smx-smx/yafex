@@ -13,8 +13,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using DiscUtils.Archives;
-
 using Yafex.FileFormats.Tar;
 
 namespace Yafex.Fuse;
@@ -77,7 +75,7 @@ public sealed class TarExpander : IContentExpander
             }
             var nodes = new List<IVfsNode>();
             using var stream = new MemoryStream(image, (int)start, image.Length - (int)start, false);
-            var tar = new TarFile(stream);
+            var tar = new YafexTarReader(stream);
             foreach (var e in tar.Entries)
             {
                 var slice = new SliceVirtualFile(TarFormat.SafeName(e.Name), file, start + e.Offset, e.Length);
