@@ -1,0 +1,70 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Yafex.Gui.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        x:Class="Yafex.Gui.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Yafex">
+
+    <Design.DataContext>
+        <vm:MainViewModel />
+    </Design.DataContext>
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open firmware…" Click="OnOpenClicked" />
+                <MenuItem Header="Load _keys file…" Click="OnKeysClicked" />
+                <Separator />
+                <MenuItem Header="_Save selected file…" Click="OnSaveClicked" />
+                <Separator />
+                <MenuItem Header="_Close" Click="OnCloseClicked" />
+            </MenuItem>
+        </Menu>
+
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ProbeLine}"
+                   FontFamily="monospace" Margin="8,4,8,0" IsVisible="{Binding ProbeLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+        <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="Gray" Padding="8,4">
+            <TextBlock Text="{Binding Status}" />
+        </Border>
+
+        <Grid ColumnDefinitions="380,*">
+            <TreeView Grid.Column="0" ItemsSource="{Binding Roots}"
+                      SelectedItem="{Binding Selected, Mode=TwoWay}" Margin="4">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding Name}" />
+                            <TextBlock Text="{Binding Size}" Opacity="0.6" FontSize="11" />
+                        </StackPanel>
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+
+            <TabControl Grid.Column="1" Margin="4">
+                <TabItem Header="Hex">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding HexPreview}" FontFamily="monospace"
+                                 IsReadOnly="True" AcceptsReturn="True" />
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Text">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding TextPreview}"
+                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Info">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding InfoPreview}" FontFamily="monospace"
+                                 IsReadOnly="True" AcceptsReturn="True" />
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </DockPanel>
+</Window>

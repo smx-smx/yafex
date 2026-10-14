@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Yafex\Yafex.csproj" />
+    <ProjectReference Include="..\Yafex.Gui\Yafex.Gui.csproj" />
   </ItemGroup>
 
 </Project>
