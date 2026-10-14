@@ -50,6 +50,7 @@ namespace Yafex
         AmdPsp,
         Squashfs2,
         Tli,
-        Tar
+        Tar,
+        Ubi
     }
 }

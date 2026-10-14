@@ -53,6 +53,7 @@ using Yafex.FileFormats.AmdPsp;
 using Yafex.FileFormats.Squashfs2;
 using Yafex.FileFormats.Tli;
 using Yafex.FileFormats.Tar;
+using Yafex.FileFormats.Ubi;
 
 namespace Yafex
 {
@@ -138,6 +139,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, Squashfs2Addon>(key);
             services.AddKeyedSingleton<IFormatAddon, TliAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, TarAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, UbiAddon>(key);
         }
     }
 }

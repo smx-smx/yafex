@@ -154,6 +154,7 @@ public static class ContentExpanders
         new AmdPspExpander(),
         new TliExpander(),
         new TarExpander(),
+        new UbiExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
