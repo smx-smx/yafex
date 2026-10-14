@@ -20,7 +20,7 @@ using System.Text;
 
 using NUnit.Framework;
 
-using DiscUtils.Vdfs;
+using Yafex.FileSystems.Vdfs;
 
 using Yafex.Fuse;
 
