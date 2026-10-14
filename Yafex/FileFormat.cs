@@ -51,6 +51,7 @@ namespace Yafex
         Squashfs2,
         Tli,
         Tar,
-        Ubi
+        Ubi,
+        Ubifs
     }
 }

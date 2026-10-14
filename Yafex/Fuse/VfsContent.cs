@@ -155,6 +155,7 @@ public static class ContentExpanders
         new TliExpander(),
         new TarExpander(),
         new UbiExpander(),
+        new UbifsExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
