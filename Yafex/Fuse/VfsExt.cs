@@ -15,7 +15,7 @@ using System.IO;
 using log4net;
 
 using DiscUtils;
-using DiscUtils.Ext;
+using Yafex.FileSystems.Ext;
 
 namespace Yafex.Fuse;
 
