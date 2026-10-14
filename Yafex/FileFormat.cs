@@ -54,6 +54,7 @@ namespace Yafex
         Ubi,
         Ubifs,
         BroadcomImg,
-        Spv
+        Spv,
+        AdbImg
     }
 }

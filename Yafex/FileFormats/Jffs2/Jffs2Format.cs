@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using log4net;
+
 using Yafex.FileSystems.Jffs2;
 
 namespace Yafex.FileFormats.Jffs2;
@@ -88,6 +90,8 @@ public class Jffs2Lister : IFormatLister
 
 public class Jffs2Extractor : IFormatExtractor
 {
+    private static readonly ILog log = LogManager.GetLogger(nameof(Jffs2Extractor));
+
     private readonly byte[] _image;
 
     public Jffs2Extractor(Jffs2DetectionResult result)
@@ -124,7 +128,17 @@ public class Jffs2Extractor : IFormatExtractor
             }
             else if (link)
             {
-                var raw = ctx.ReadFile(e.Ino);
+                byte[] raw;
+                try
+                {
+                    raw = ctx.ReadFile(e.Ino);
+                }
+                catch (Exception ex)
+                {
+                    // hostile entries (e.g. undecryptable blobs): keep siblings
+                    log.Warn($"skipping jffs2 entry '{path}'", ex);
+                    continue;
+                }
                 int len = raw.Length;
                 while (len > 0 && raw[len - 1] == 0) len--;
                 yield return (path, System.Text.Encoding.ASCII.GetBytes(
@@ -132,7 +146,18 @@ public class Jffs2Extractor : IFormatExtractor
             }
             else
             {
-                yield return (path, ctx.ReadFile(e.Ino));
+                byte[] content;
+                try
+                {
+                    content = ctx.ReadFile(e.Ino);
+                }
+                catch (Exception ex)
+                {
+                    // hostile entries (e.g. undecryptable blobs): keep siblings
+                    log.Warn($"skipping jffs2 entry '{path}'", ex);
+                    continue;
+                }
+                yield return (path, content);
             }
         }
     }

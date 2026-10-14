@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using log4net;
+
 using Yafex.FileSystems.Ubifs;
 
 namespace Yafex.FileFormats.Ubifs;
@@ -85,6 +87,8 @@ public class UbifsLister : IFormatLister
 
 public class UbifsExtractor : IFormatExtractor
 {
+    private static readonly ILog log = LogManager.GetLogger(nameof(UbifsExtractor));
+
     private readonly byte[] _image;
 
     public UbifsExtractor(UbifsDetectionResult result)
@@ -121,11 +125,33 @@ public class UbifsExtractor : IFormatExtractor
             }
             else if (link)
             {
-                yield return (path, ctx.ReadSymlink(e.Ino));
+                byte[] target;
+                try
+                {
+                    target = ctx.ReadSymlink(e.Ino);
+                }
+                catch (Exception ex)
+                {
+                    // hostile entries: keep siblings
+                    log.Warn($"skipping ubifs entry '{path}'", ex);
+                    continue;
+                }
+                yield return (path, target);
             }
             else
             {
-                yield return (path, ctx.ReadFile(e.Ino));
+                byte[] content;
+                try
+                {
+                    content = ctx.ReadFile(e.Ino);
+                }
+                catch (Exception ex)
+                {
+                    // hostile entries: keep siblings
+                    log.Warn($"skipping ubifs entry '{path}'", ex);
+                    continue;
+                }
+                yield return (path, content);
             }
         }
     }

@@ -178,6 +178,34 @@ public class Jffs2Tests
         Assert.AreEqual(0, res.Confidence);
     }
 
+    internal static byte[] BuildImageUndecryptable()
+    {
+        var img = new List<byte>();
+        PutU16(img, 0x1985);
+        PutU16(img, 0x2003);
+        PutU32(img, 12);
+        PutU32(img, 0);
+        var good = Encoding.ASCII.GetBytes("good-bytes");
+        PutDirent(img, 1, 2, "good.txt", 8);
+        PutInode(img, 2, good, (uint)good.Length, 0);
+        // LZMA-mode (or encrypted) member the reader cannot decode
+        PutDirent(img, 1, 3, "bad.bin", 8);
+        PutInode(img, 3, new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }, 4, 8);
+        while (img.Count < 256) img.Add(0xFF);
+        return img.ToArray();
+    }
+
+    [Test]
+    public void Extract_SkipsUndecryptableKeepsSiblings()
+    {
+        var mem = Mem(BuildImageUndecryptable(), "mode.pak");
+        var det = (Jffs2DetectionResult)new Jffs2Addon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var artifacts = new Jffs2Addon().CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("good.txt", artifacts[0].Name);
+        CollectionAssert.AreEqual(Encoding.ASCII.GetBytes("good-bytes"), artifacts[0].Data.ToArray());
+    }
+
     [Test]
     public void Slice_Jffs2Expands()
     {

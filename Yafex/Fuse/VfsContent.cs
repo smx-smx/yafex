@@ -158,6 +158,7 @@ public static class ContentExpanders
         new UbifsExpander(),
         new BroadcomImgExpander(),
         new SpvExpander(),
+        new AdbImgExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
