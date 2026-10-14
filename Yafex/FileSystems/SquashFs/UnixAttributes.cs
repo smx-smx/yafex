@@ -10,7 +10,7 @@
 #endregion
 using System.IO;
 
-using DiscUtils;
+using Yafex.FileSystems.Base;
 
 namespace Yafex.FileSystems.SquashFs;
 

@@ -23,10 +23,10 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using DiscUtils.Compression;
-using DiscUtils.Streams;
-using DiscUtils;
-using DiscUtils.Vfs;
+using Yafex.FileSystems.Base.Compression;
+using Yafex.FileSystems.Base.Streams;
+using Yafex.FileSystems.Base;
+using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.SquashFs
 {

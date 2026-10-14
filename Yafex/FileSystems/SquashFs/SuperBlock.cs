@@ -21,7 +21,7 @@
 //
 
 using System;
-using DiscUtils.Streams;
+using Yafex.FileSystems.Base.Streams;
 
 namespace Yafex.FileSystems.SquashFs
 {

@@ -22,8 +22,8 @@
 
 using System;
 using System.Collections.Generic;
-using DiscUtils;
-using DiscUtils.Vfs;
+using Yafex.FileSystems.Base;
+using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.SquashFs
 {

@@ -21,7 +21,7 @@ using System.Text;
 
 using NUnit.Framework;
 
-using DiscUtils;
+using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Squashfs3;
 
 using Yafex;

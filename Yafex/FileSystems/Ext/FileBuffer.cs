@@ -22,8 +22,8 @@
 
 using System;
 using System.Collections.Generic;
-using DiscUtils.Streams;
-using Buffer=DiscUtils.Streams.Buffer;
+using Yafex.FileSystems.Base.Streams;
+using Buffer=Yafex.FileSystems.Base.Streams.Buffer;
 
 namespace Yafex.FileSystems.Ext
 {

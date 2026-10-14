@@ -22,7 +22,6 @@
 
 using System;
 using System.Text;
-using DiscUtils.Internal;
 
 namespace Yafex.FileSystems.Fat
 {

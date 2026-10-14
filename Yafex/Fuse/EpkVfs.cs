@@ -8,7 +8,7 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using DiscUtils;
+using Yafex.FileSystems.Base;
 
 using System;
 using System.Collections.Generic;

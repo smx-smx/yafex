@@ -13,7 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using DiscUtils;
+using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Squashfs3;
 
 using log4net;

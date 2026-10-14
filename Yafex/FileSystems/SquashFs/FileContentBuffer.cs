@@ -22,7 +22,7 @@
 
 using System;
 using System.Collections.Generic;
-using DiscUtils.Streams;
+using Yafex.FileSystems.Base.Streams;
 
 namespace Yafex.FileSystems.SquashFs
 {

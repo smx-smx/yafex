@@ -4,7 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 
-using DiscUtils.Vfs;
+using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.Jffs2
 {

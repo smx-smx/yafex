@@ -1,7 +1,3 @@
-[submodule "extern/DiscUtils"]
-	path = extern/DiscUtils
-	url = https://github.com/smx-smx/discutils.git
-	branch = next
 [submodule "extern/Smx.SharpIO"]
 	path = extern/Smx.SharpIO
 	url = https://github.com/smx-smx/Smx.SharpIO.git

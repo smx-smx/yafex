@@ -22,7 +22,7 @@
 
 using System.Text;
 
-using DiscUtils;
+using Yafex.FileSystems.Base;
 
 namespace Yafex.FileSystems.Ext
 {

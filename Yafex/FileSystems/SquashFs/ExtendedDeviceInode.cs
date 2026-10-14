@@ -20,7 +20,7 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-using DiscUtils.Streams;
+using Yafex.FileSystems.Base.Streams;
 
 namespace Yafex.FileSystems.SquashFs
 {

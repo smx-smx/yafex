@@ -20,9 +20,9 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-using DiscUtils.Streams;
-using DiscUtils;
-using DiscUtils.Vfs;
+using Yafex.FileSystems.Base.Streams;
+using Yafex.FileSystems.Base;
+using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.Ext
 {

@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Yafex.FileSystems.Squashfs2
 {
-    public sealed class Squashfs2Context : DiscUtils.Vfs.VfsContext
+    public sealed class Squashfs2Context : Yafex.FileSystems.Base.Vfs.VfsContext
     {
         private readonly Stream _stream;
 

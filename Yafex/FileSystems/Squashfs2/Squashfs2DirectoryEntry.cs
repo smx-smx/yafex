@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-using DiscUtils.Vfs;
+using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.Squashfs2
 {

@@ -22,7 +22,7 @@
 
 namespace Yafex.FileSystems.Ext
 {
-    using DiscUtils.Streams;
+    using Yafex.FileSystems.Base.Streams;
     using System.IO;
 
     internal class JournalSuperBlock : IByteArraySerializable
