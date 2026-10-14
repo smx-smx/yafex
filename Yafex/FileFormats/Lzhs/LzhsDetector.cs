@@ -50,8 +50,12 @@ namespace Yafex.FileFormats.Lzhs
             {
                 var decoder = new LzhsDecoder(data);
 
-                foreach (var item in decoder.AsEnumerable()) ;
-                if (decoder.VerifyChecksum())
+                byte[] decoded = decoder.DecodeToArray();
+                // An empty decode carries no content; without this, any
+                // header-shaped prefix with a zero checksum (e.g. UBI
+                // eraseblock headers) vacuously verifies, like the
+                // comp == 0 case above.
+                if (decoded.Length > 0 && decoder.VerifyChecksum())
                 {
                     return new SimpleDetectionResult(50);
                 }

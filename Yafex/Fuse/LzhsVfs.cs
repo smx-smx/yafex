@@ -276,8 +276,25 @@ public sealed class LzhsFsExpander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
+        // cheap header shape first, then a full table walk: the shape
+        // alone false-positives on unrelated blobs (e.g. UBI eraseblocks),
+        // which would steal their mount branch and fail expansion
         return ExpanderSniff.At(file, LzhsFsVirtualFile.HeadingSize, 32,
-            hdr => FirstChunkSane(hdr, file.Length));
+            hdr => FirstChunkSane(hdr, file.Length))
+            && TableValid(file);
+    }
+
+    private static bool TableValid(IVirtualFile file)
+    {
+        try
+        {
+            LzhsFsVirtualFile.WalkTable(file);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private static bool FirstChunkSane(byte[] hdr, long total)

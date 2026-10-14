@@ -30,11 +30,30 @@ public sealed class Jffs2Expander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        return ExpanderSniff.Head(file, 12, head =>
+        // probe up to 64KB: Detect requires the whole first node
+        // (totlen <= length), so a 12-byte peek only matches images
+        // leading with a cleanmarker and misses real images that open
+        // with a dirent/inode (e.g. Askey boot regions)
+        try
         {
-            using var ms = new MemoryStream(head, writable: false);
+            using var s = file.OpenRead();
+            long len = Math.Min(s.Length, 65536);
+            if (len < 12) return false;
+            var buf = new byte[len];
+            int off = 0;
+            while (off < buf.Length)
+            {
+                int n = s.Read(buf, off, buf.Length - off);
+                if (n <= 0) return false;
+                off += n;
+            }
+            using var ms = new MemoryStream(buf, writable: false);
             return Jffs2FileSystem.Detect(ms);
-        });
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

@@ -20,6 +20,7 @@ using NUnit.Framework;
 
 using Yafex;
 using Yafex.FileFormats.Jffs2;
+using Yafex.Fuse;
 
 using static UnitTests.Synthetic;
 
@@ -175,5 +176,30 @@ public class Jffs2Tests
         var res = new Jffs2Addon().CreateDetector(new Dictionary<string, string>())
             .Detect(Mem(Encoding.ASCII.GetBytes("definitely not jffs2.......")));
         Assert.AreEqual(0, res.Confidence);
+    }
+
+    [Test]
+    public void Slice_Jffs2Expands()
+    {
+        // region slices (as produced by container expanders) must expand
+        // exactly like whole files
+        var img = BuildImage();
+        var src = new MemoryVirtualFile("full.bin", img);
+        var slice = new SliceVirtualFile("boot.jffs2", src, 0, img.Length);
+        var exp = new Jffs2Expander();
+        Assert.IsTrue(exp.Matches(slice));
+        var node = exp.Expand(slice, new List<object>());
+        node.EnsureLoaded();
+        CollectionAssert.Contains(node.Tree.Keys.ToList(), "a.txt");
+    }
+
+    [Test]
+    public void Range_Jffs2Matches()
+    {
+        // CreateVfs range views (backed by IDataSource windows) must match
+        var img = BuildImage();
+        var ds = Mem(img, "full.bin");
+        var range = new RangeVirtualFile("boot.jffs2", ds, 0, img.Length);
+        Assert.IsTrue(new Jffs2Expander().Matches(range));
     }
 }
