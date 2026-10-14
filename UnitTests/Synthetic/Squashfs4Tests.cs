@@ -190,4 +190,23 @@ public class Squashfs4Tests
         var res = new Squashfs4Addon().CreateDetector(new Dictionary<string, string>()).Detect(Mem(rnd));
         Assert.AreEqual(0, res.Confidence);
     }
+
+    [Test]
+    public void XattrsPresent_StillOpens()
+    {
+        // images carrying an extended-attribute table (e.g. Novatek
+        // vendor images) must list/extract; xattr metadata is ignored
+        var img = BuildImage();
+        var sb = new byte[96];
+        Array.Copy(img, sb, 96);
+        // point the xattr table somewhere plausible instead of -1
+        sb[56] = 0x01;
+        Array.Copy(sb, img, 96);
+        var mem = Mem(img, "sq4x.img");
+        var det = (Squashfs4DetectionResult)new Squashfs4Addon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        Assert.AreEqual(90, det.Confidence);
+        var artifacts = new Squashfs4Addon().CreateExtractor(det).Extract(mem).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        CollectionAssert.AreEqual(Hello, artifacts[0].Data.ToArray());
+    }
 }

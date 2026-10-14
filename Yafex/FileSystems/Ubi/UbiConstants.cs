@@ -27,13 +27,15 @@ internal static class UbiConstants
     public const int VidCrcOff = 60;
     public const byte Version = 1;
 
-    // Volume-table (layout volume) record stride of the ASCII-name variant
-    // found in the wild (Broadcom): type/flags/pad/namelen bytes plus an
-    // inline ASCII name, CRC-ish trailer ignored.
+    // Volume-table (layout volume) record stride; the observed variant is
+    // [reserved u32][align u32][datapad u32][type u8][upd u8][namelen u16be]
+    // [name ASCII, 128-byte field][flags u8][unused][crc], matching the
+    // documented big-endian layout (short names read identically).
     public const int VtblRecordStride = 172;
     public const int VtblTypeOff = 12;
-    public const int VtblNameLenOff = 15;
+    public const int VtblNameLenOff = 14;
     public const int VtblNameOff = 16;
+    public const int VtblNameMax = 128;
     public const int MaxVolumes = 128;
 
     private static readonly uint[] CrcTable = BuildCrcTable();

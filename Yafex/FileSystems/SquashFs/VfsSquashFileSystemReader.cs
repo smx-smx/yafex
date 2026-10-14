@@ -67,9 +67,12 @@ namespace Yafex.FileSystems.SquashFs
                 throw new IOException("Unsupported compression used: " + _context.SuperBlock.Compression);
             }
 
+            // Extended attributes are not surfaced by the read paths
+            // (content, names, sizes); their presence no longer blocks
+            // opening the image, it just means xattr metadata is ignored.
             if (_context.SuperBlock.ExtendedAttrsTableStart != -1)
             {
-                throw new IOException("Unsupported extended attributes present");
+                System.Diagnostics.Debug.WriteLine("squashfs extended attributes present but ignored");
             }
 
             if (_context.SuperBlock.MajorVersion != 4)

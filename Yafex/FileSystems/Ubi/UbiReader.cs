@@ -169,9 +169,10 @@ public sealed class UbiReader
         {
             int at = r * UbiConstants.VtblRecordStride;
             byte volType = table[at + UbiConstants.VtblTypeOff];
-            int nameLen = table[at + UbiConstants.VtblNameLenOff];
+            int nameLen = (table[at + UbiConstants.VtblNameLenOff] << 8)
+                | table[at + UbiConstants.VtblNameLenOff + 1];
             if (volType == 0 && nameLen == 0) continue; // empty slot
-            if (volType > 2 || nameLen < 1 || nameLen > 127) break;
+            if (volType > 2 || nameLen < 1 || nameLen > UbiConstants.VtblNameMax) break;
             if (at + UbiConstants.VtblNameOff + nameLen > table.Length) break;
             bool printable = true;
             for (int k = 0; k < nameLen; k++)
