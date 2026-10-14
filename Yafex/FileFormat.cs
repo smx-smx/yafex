@@ -52,6 +52,7 @@ namespace Yafex
         Tli,
         Tar,
         Ubi,
-        Ubifs
+        Ubifs,
+        BroadcomImg
     }
 }

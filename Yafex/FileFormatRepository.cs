@@ -55,6 +55,7 @@ using Yafex.FileFormats.Tli;
 using Yafex.FileFormats.Tar;
 using Yafex.FileFormats.Ubi;
 using Yafex.FileFormats.Ubifs;
+using Yafex.FileFormats.BroadcomImg;
 
 namespace Yafex
 {
@@ -142,6 +143,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, TarAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UbiAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UbifsAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, BroadcomImgAddon>(key);
         }
     }
 }
