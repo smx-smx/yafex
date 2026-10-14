@@ -53,6 +53,7 @@ namespace Yafex
         Tar,
         Ubi,
         Ubifs,
-        BroadcomImg
+        BroadcomImg,
+        Spv
     }
 }
