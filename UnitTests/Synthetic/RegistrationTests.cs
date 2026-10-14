@@ -37,12 +37,9 @@ public class RegistrationTests
     }
 
     // Formats intentionally without a registered addon. Keep this list
-    // empty unless there is a platform-level reason (like below).
+    // empty unless there is a platform-level reason.
     private static readonly HashSet<FileFormat> UnregisteredOk = new HashSet<FileFormat>
     {
-        // Cygwin-only v4 path (shells out to unsquashfs); the managed
-        // Squashfs4 addon serves all platforms instead.
-        FileFormat.Squashfs,
     };
 
     [Test]

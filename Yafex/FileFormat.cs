@@ -12,7 +12,6 @@ namespace Yafex
 {
     public enum FileFormat
     {
-        Squashfs,
         Gzip,
         EpkV1,
         EpkV2,

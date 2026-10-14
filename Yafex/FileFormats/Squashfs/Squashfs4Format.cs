@@ -18,9 +18,9 @@ using Yafex.FileSystems.SquashFs;
 
 namespace Yafex.FileFormats.Squashfs;
 
-// Standalone squashfs 4.x support through the DiscUtils reader (the legacy
-// native-lib detector only works under Cygwin). Mount expansion already
-// handles 4.x via SquashfsExpander; this covers --probe/--list/--extract.
+// Standalone squashfs 4.x support through the Yafex-native reader.
+// Mount expansion already handles 4.x via SquashfsExpander; this covers
+// --probe/--list/--extract.
 
 public record Squashfs4DetectionResult(int Confidence, byte[]? Image) : DetectionResult(Confidence);
 
