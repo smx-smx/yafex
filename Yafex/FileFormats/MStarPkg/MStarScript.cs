@@ -82,17 +82,65 @@ namespace Yafex.FileFormats.MStarPkg
 
         private static IEnumerable<MStarPartition> ParseRaw(string mbootScript, long dataLength)
         {
+            var lines = Regex.Split(mbootScript, "\r?\n");
             var seen = new HashSet<(uint, uint)>();
-            foreach (var line in Regex.Split(mbootScript, "\r?\n"))
+            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < lines.Length; i++)
             {
-                if (!line.StartsWith("filepartload ")) continue;
-                // No section name available: name by file offset.
-                var parsed = ParseLine(line, null, dataLength);
+                if (!lines[i].StartsWith("filepartload ")) continue;
+                // Null name falls back to img_{offset:X} in ParseLine.
+                var parsed = ParseLine(lines[i], PeekPartitionName(lines, i), dataLength);
                 if (parsed == null) continue;
                 if (!seen.Add((parsed.Offset, parsed.Size))) continue;
+                parsed.Name = Uniquify(parsed.Name, usedNames);
                 yield return parsed;
             }
             yield break;
+        }
+
+        /// <summary>Partition name from the command consuming a bare
+        /// <c>filepartload</c> line (<c>mmc/nand/ubi write</c> target,
+        /// <c>store_secure_info</c> key without its <c>Sign</c> suffix);
+        /// null when the next lines name nothing (e.g. <c>mmc write.boot</c>).</summary>
+        private static string? PeekPartitionName(string[] lines, int at)
+        {
+            for (int j = at + 1; j < lines.Length && j <= at + 3; j++)
+            {
+                var tokens = lines[j].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 0) continue;
+                if (tokens[0] == "filepartload") break;
+                // All write forms take ADDR NAME (name 4th), except the
+                // continuations (name 3rd); unlzo takes ADDR SIZE NAME.
+                string? name = tokens[0] switch
+                {
+                    "mmc" when tokens.Length >= 4 && tokens[1] == "write.p" => tokens[3],
+                    "mmc" when tokens.Length >= 3 && tokens[1] == "write.p.continue" => tokens[2],
+                    "mmc" when tokens[1] == "write.boot" => "boot",
+                    "mmc" when tokens.Length >= 4 && tokens[1].StartsWith("unlzo") => tokens[3],
+                    "nand" when tokens.Length >= 4 && tokens[1] == "write.e" => tokens[3],
+                    "ubi" when tokens.Length >= 4 && (tokens[1] == "write" || tokens[1] == "write_cont") => tokens[3],
+                    "store_secure_info" when tokens.Length >= 2 => StripSignSuffix(tokens[1]),
+                    "store_nuttx_config" when tokens.Length >= 2 => tokens[1],
+                    _ => null,
+                };
+                if (name != null)
+                {
+                    name = Support.PathNames.Flatten(name, $"img_{at:X}");
+                    if (name.Length > 0) return name;
+                }
+            }
+            return null;
+        }
+
+        private static string StripSignSuffix(string s)
+            => s.EndsWith("Sign", StringComparison.Ordinal) && s.Length > 4 ? s[..^4] : s;
+
+        private static string Uniquify(string name, HashSet<string> usedNames)
+        {
+            if (usedNames.Add(name)) return name;
+            int n = 2;
+            while (!usedNames.Add($"{name}_{n}")) n++;
+            return $"{name}_{n}";
         }
 
         private static MStarPartition? ParseLine(string partLoad, string? partName, long dataLength)

@@ -81,6 +81,45 @@ public class MStarPkgTests
     }
 
     [Test]
+    public void Extract_BareLinesTakeNameFromConsumer()
+    {
+        var buf = Zeros(0x6000);
+        var script =
+            "filepartload 20200000 MstarUpgrade.bin 4000 100\n" +
+            "mmc write.p 20200000 recovery 100 1\n" +
+            "filepartload 81100000 usb.bin 1000 100\n" +
+            "ubi write 80100000 RFS 100 100\n" +
+            "filepartload 81100000 usb.bin 2000 100\n" +
+            "nand write.e 80100000 KL 100\n" +
+            "filepartload 81100000 usb.bin 3000 100\n" +
+            "store_secure_info kernelSign 81100000\n" +
+            "filepartload 81100000 usb.bin 4100 100\n" +
+            "mmc write.boot 1 80100000 0 100\n" +
+            "filepartload 81100000 usb.bin 1000 100\n"; // same offset: deduped
+        WriteAscii(buf, 0, script);
+        var artifacts = new MStarPkgExtractor().Extract(Mem(buf, "test.bin")).ToList();
+        var names = artifacts.Select(a => a.Name).ToList();
+        CollectionAssert.AreEqual(
+            new[] { "recovery.pak", "RFS.pak", "KL.pak", "kernel.pak", "boot.pak" },
+            names);
+    }
+
+    [Test]
+    public void Extract_RepeatNamesUniquified()
+    {
+        var buf = Zeros(0x6000);
+        var script =
+            "filepartload 81100000 usb.bin 1000 100\n" +
+            "ubi write 80100000 APP 100 100\n" +
+            "filepartload 81100000 usb.bin 2000 100\n" +
+            "ubi write 80100000 APP 100 100\n";
+        WriteAscii(buf, 0, script);
+        var artifacts = new MStarPkgExtractor().Extract(Mem(buf, "test.bin")).ToList();
+        var names = artifacts.Select(a => a.Name).ToList();
+        CollectionAssert.AreEqual(new[] { "APP.pak", "APP_2.pak" }, names);
+    }
+
+    [Test]
     public void Short_Detects0()
     {
         var res = new MStarPkgDetector().Detect(Mem(new byte[16]));
