@@ -63,6 +63,28 @@ public class RegistrationTests
         }
     }
 
+    private static IEnumerable<Type> ConcreteTypes<T>()
+    {
+        return typeof(T).Assembly.GetTypes()
+            .Where(t => typeof(T).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
+    }
+
+    [Test]
+    public void EveryAddonClass_IsRegistered()
+    {
+        var registered = Repo().GetAddons().Values.Select(a => a.GetType()).ToHashSet();
+        var missing = ConcreteTypes<IFormatAddon>().Where(t => !registered.Contains(t)).ToList();
+        Assert.IsEmpty(missing, "addons not in RegisterFileFormats: " + string.Join(",", missing.Select(t => t.Name)));
+    }
+
+    [Test]
+    public void EveryExpanderClass_IsRegistered()
+    {
+        var registered = ContentExpanders.All.Select(e => e.GetType()).ToHashSet();
+        var missing = ConcreteTypes<IContentExpander>().Where(t => !registered.Contains(t)).ToList();
+        Assert.IsEmpty(missing, "expanders not in ContentExpanders: " + string.Join(",", missing.Select(t => t.Name)));
+    }
+
     [Test]
     public void ExpanderNames_AreUnique()
     {
