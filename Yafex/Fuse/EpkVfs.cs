@@ -35,11 +35,26 @@ namespace Yafex.Fuse
     public class PakVfsFile : VfsNode, IVfsFile, IVfsStreamable
     {
         private readonly IVirtualFile _image;
+        private long _length = -1;
 
         public PakVfsFile(IVirtualFile image, int mode)
-            : base(image.Name, mode, image.Length)
+            : base(image.Name, mode, 0)
         {
             _image = image;
+        }
+
+        /// <summary>
+        /// Read on first use: some lengths cost I/O (gzip trailer, described
+        /// metadata), and trees are built long before most nodes are stat'ed.
+        /// </summary>
+        public override long Size
+        {
+            get
+            {
+                if (_length < 0) _length = _image.Length;
+                return _length;
+            }
+            set => _length = value;
         }
 
         public override VfsNodeType Type => VfsNodeType.File;

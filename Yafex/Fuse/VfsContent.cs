@@ -417,6 +417,22 @@ public sealed class InflateStream : Stream
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
+/// <summary>Text produced on first use (metadata described only when read).</summary>
+public sealed class LazyTextVirtualFile : IVirtualFile
+{
+    private readonly Lazy<byte[]> _content;
+
+    public LazyTextVirtualFile(string name, Func<string> content)
+    {
+        Name = name;
+        _content = new Lazy<byte[]>(() => Encoding.UTF8.GetBytes(content()));
+    }
+
+    public string Name { get; }
+    public long Length => _content.Value.Length;
+    public Stream OpenRead() => new MemoryStream(_content.Value, writable: false);
+}
+
 /// <summary>In-memory text file (metadata sidecars).</summary>
 public sealed class TextVirtualFile : IVirtualFile
 {
@@ -610,28 +626,32 @@ public sealed class SliceStream : Stream
 /// </summary>
 public static class VfsBuilder
 {
+    /// <summary>
+    /// Adds <paramref name="image"/> plus its opted-in views. The `.raw` and
+    /// `.meta` views are <see cref="ImageViewFile"/> siblings tied to the
+    /// image: consumers show them as files (mount) or fold them into the
+    /// image's entry (GUI, listings without --views). Metadata is described
+    /// only when read.
+    /// </summary>
     public static void AddImage(
         IVfsNode parent,
         IVirtualFile image,
         VfsImageViews views,
         ICollection<object> keepAlive,
-        Func<IVirtualFile, VfsNode>? makeFile = null,
         IVirtualFile? raw = null,
         Func<string>? describe = null)
     {
-        makeFile ??= img => new PakVfsFile(img, Helpers.OctalLiteral(0444));
-
         if (views.HasFlag(VfsImageViews.Decrypted))
         {
-            parent.AddNode(makeFile(image));
+            parent.AddNode(new PakVfsFile(image, Helpers.OctalLiteral(0444)));
         }
         if (views.HasFlag(VfsImageViews.Raw) && raw != null)
         {
-            parent.AddNode(makeFile(new RenamedVirtualFile(raw, image.Name + ".raw")));
+            parent.AddNode(new ImageViewFile(new RenamedVirtualFile(raw, image.Name + ".raw"), ImageViewKind.Raw, image.Name));
         }
         if (views.HasFlag(VfsImageViews.Metadata) && describe != null)
         {
-            parent.AddNode(makeFile(new TextVirtualFile(image.Name + ".meta", describe())));
+            parent.AddNode(new ImageViewFile(new LazyTextVirtualFile(image.Name + ".meta", describe), ImageViewKind.Metadata, image.Name));
         }
         if (views.HasFlag(VfsImageViews.Expanded))
         {
@@ -778,16 +798,55 @@ public sealed class NestedVfsDirectory : LazyVfsDirectory
     }
 }
 
-/// <summary>Whether mounts show nested `.d` views (FUSE has no "open as" gesture).</summary>
-public static class NestedViews
+public enum ImageViewKind
 {
-    /// <summary>Mounts list `.d` views whose content sniffs positive. Off: never.</summary>
-    public static bool ShowInMount { get; set; } = true;
+    /// <summary>Stored (e.g. still encrypted/compressed) bytes: `&lt;name&gt;.raw`.</summary>
+    Raw,
+    /// <summary>Text metadata (`key: value` lines): `&lt;name&gt;.meta`.</summary>
+    Metadata,
+}
 
-    /// <summary>A nested view a mount must not list or resolve.</summary>
-    public static bool IsHiddenInMount(IVfsNode node)
+/// <summary>
+/// A `.raw` or `.meta` view of another file in the same folder (its
+/// <see cref="OwnerName"/>). Listed as a file only where a filesystem needs
+/// it; other consumers fold it into the owner's entry.
+/// </summary>
+public sealed class ImageViewFile : PakVfsFile
+{
+    public ImageViewFile(IVirtualFile content, ImageViewKind kind, string ownerName)
+        : base(content, Helpers.OctalLiteral(0444))
     {
-        return node is NestedVfsDirectory nested && (!ShowInMount || !nested.HasContent);
+        Kind = kind;
+        OwnerName = ownerName;
+    }
+
+    public ImageViewKind Kind { get; }
+
+    /// <summary>Name of the file this is a view of (same folder).</summary>
+    public string OwnerName { get; }
+}
+
+/// <summary>
+/// Which views a mount lists. FUSE has no "open as" or "show stored bytes"
+/// gestures, so views are files and folders there by default.
+/// </summary>
+public static class MountViews
+{
+    /// <summary>List nested `.d` views whose content sniffs positive.</summary>
+    public static bool ShowNested { get; set; } = true;
+
+    /// <summary>List `.raw` / `.meta` views.</summary>
+    public static bool ShowFileViews { get; set; } = true;
+
+    /// <summary>A view a mount must not list or resolve.</summary>
+    public static bool IsHidden(IVfsNode node)
+    {
+        return node switch
+        {
+            NestedVfsDirectory nested => !ShowNested || !nested.HasContent,
+            ImageViewFile => !ShowFileViews,
+            _ => false,
+        };
     }
 }
 

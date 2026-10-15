@@ -124,14 +124,14 @@ public class NestedExpansionTests
         var big = (NestedVfsDirectory)fw.Tree["big.bin.d"].Node;
         try
         {
-            Assert.IsFalse(NestedViews.IsHiddenInMount(gz));
-            Assert.IsTrue(NestedViews.IsHiddenInMount(big));
-            NestedViews.ShowInMount = false;
-            Assert.IsTrue(NestedViews.IsHiddenInMount(gz));
+            Assert.IsFalse(MountViews.IsHidden(gz));
+            Assert.IsTrue(MountViews.IsHidden(big));
+            MountViews.ShowNested = false;
+            Assert.IsTrue(MountViews.IsHidden(gz));
         }
         finally
         {
-            NestedViews.ShowInMount = true;
+            MountViews.ShowNested = true;
         }
     }
 

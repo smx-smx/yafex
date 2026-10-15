@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -135,5 +136,46 @@ public class VfsWalkTests
         Assert.AreSame(b, VfsBuilder.EnsureDirectory(root, new[] { "a", "b" }));
         b.AddNode(Text("f", "x"));
         CollectionAssert.AreEqual(new[] { "a", "a/b", "a/b/f" }, VfsWalk.Walk(root).Select(e => e.Path));
+    }
+
+    [Test]
+    public void ImageViews_FoldedByDefault_DescribedLazily()
+    {
+        var root = new YafexDirectory("", Helpers.OctalLiteral(0755));
+        int described = 0;
+        VfsBuilder.AddImage(root, new TextVirtualFile("boot.pak", "payload"),
+            VfsImageViews.Decrypted | VfsImageViews.Raw | VfsImageViews.Metadata, new List<object>(),
+            raw: new TextVirtualFile("x", "enc-payload"),
+            describe: () => { described++; return "offset: 0x100\nflags: 1"; });
+        Assert.AreEqual(0, described, "metadata is described only when read");
+
+        CollectionAssert.AreEqual(new[] { "boot.pak" }, VfsWalk.Walk(root).Select(e => e.Path));
+        CollectionAssert.AreEqual(new[] { "boot.pak", "boot.pak.meta", "boot.pak.raw" },
+            VfsWalk.Walk(root, includeViews: true).Select(e => e.Path));
+        var views = VfsWalk.FileViewsOf(root);
+        Assert.IsTrue(views.All(v => v.OwnerName == "boot.pak"));
+        Assert.AreEqual(ImageViewKind.Raw, views.Single(v => v.Name.EndsWith(".raw")).Kind);
+
+        var sw = new StringWriter();
+        VfsListing.WriteFlat(root, sw, withMetadata: true);
+        StringAssert.Contains("boot.pak", sw.ToString());
+        StringAssert.Contains("offset: 0x100", sw.ToString());
+        Assert.AreEqual(1, described);
+    }
+
+    [Test]
+    public void MountViews_HideFileViewsOnRequest()
+    {
+        var view = new ImageViewFile(new TextVirtualFile("a.meta", "k: v"), ImageViewKind.Metadata, "a");
+        try
+        {
+            Assert.IsFalse(MountViews.IsHidden(view));
+            MountViews.ShowFileViews = false;
+            Assert.IsTrue(MountViews.IsHidden(view));
+        }
+        finally
+        {
+            MountViews.ShowFileViews = true;
+        }
     }
 }

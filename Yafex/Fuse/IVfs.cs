@@ -44,7 +44,7 @@ namespace Yafex.Fuse
             {
                 if (!node.Tree.TryGetValue(iter.Current, out var nodeLink)) return null;
                 node = nodeLink.Node;
-                if (NestedViews.IsHiddenInMount(node)) return null;
+                if (MountViews.IsHidden(node)) return null;
                 node.EnsureLoaded();
             }
 

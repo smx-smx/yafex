@@ -28,7 +28,8 @@ public interface IVfsStreamable
 /// <param name="Path">`/`-separated path relative to the walk root.</param>
 /// <param name="Depth">0 for the root's direct children.</param>
 /// <param name="Error">Why a directory failed to expand (it then has no children).</param>
-public sealed record VfsEntry(string Path, IVfsNode Node, int Depth, Exception? Error = null)
+/// <param name="Parent">Directory holding the node.</param>
+public sealed record VfsEntry(string Path, IVfsNode Node, int Depth, Exception? Error = null, IVfsNode? Parent = null)
 {
     public bool IsDirectory => Node.Type == VfsNodeType.Directory;
     public long Size => IsDirectory ? 0 : Node.Size;
@@ -52,15 +53,17 @@ public static class VfsWalk
     /// deep, and only when a sniff finds content; 0 walks the image's own
     /// structure only.
     /// </summary>
-    public static IEnumerable<VfsEntry> Walk(IVfsNode root, int nestedDepth = 0)
+    /// <param name="includeViews">Also yield `.raw`/`.meta` view files (<see cref="ImageViewFile"/>).</param>
+    public static IEnumerable<VfsEntry> Walk(IVfsNode root, int nestedDepth = 0, bool includeViews = false)
     {
-        return WalkChildren(root, "", 0, nestedDepth);
+        return WalkChildren(root, "", 0, nestedDepth, includeViews);
     }
 
-    private static IEnumerable<VfsEntry> WalkChildren(IVfsNode dir, string prefix, int depth, int nestedLeft)
+    private static IEnumerable<VfsEntry> WalkChildren(IVfsNode dir, string prefix, int depth, int nestedLeft, bool includeViews)
     {
         foreach (var child in AllChildren(dir))
         {
+            if (child is ImageViewFile && !includeViews) continue;
             int childNested = nestedLeft;
             if (child is NestedVfsDirectory nested)
             {
@@ -70,12 +73,12 @@ public static class VfsWalk
             var path = prefix + child.Name;
             if (child.Type != VfsNodeType.Directory)
             {
-                yield return new VfsEntry(path, child, depth);
+                yield return new VfsEntry(path, child, depth, null, dir);
                 continue;
             }
             var error = Load(child);
-            yield return new VfsEntry(path, child, depth, error);
-            foreach (var sub in WalkChildren(child, path + "/", depth + 1, childNested))
+            yield return new VfsEntry(path, child, depth, error, dir);
+            foreach (var sub in WalkChildren(child, path + "/", depth + 1, childNested, includeViews))
             {
                 yield return sub;
             }
@@ -84,11 +87,29 @@ public static class VfsWalk
 
     /// <summary>
     /// Loaded children of <paramref name="dir"/>, ordinal by name: its own
-    /// structure, without nested `.d` views (see <see cref="NestedViewsOf"/>).
+    /// structure, without views (see <see cref="NestedViewsOf"/>, <see cref="FileViewsOf"/>).
     /// </summary>
     public static IReadOnlyList<IVfsNode> Children(IVfsNode dir)
     {
-        return AllChildren(dir).Where(n => n is not NestedVfsDirectory).ToList();
+        return AllChildren(dir).Where(n => n is not NestedVfsDirectory and not ImageViewFile).ToList();
+    }
+
+    /// <summary>`.raw`/`.meta` views of <paramref name="dir"/>'s files.</summary>
+    public static IReadOnlyList<ImageViewFile> FileViewsOf(IVfsNode dir)
+    {
+        return AllChildren(dir).OfType<ImageViewFile>().ToList();
+    }
+
+    /// <summary>The `.meta` view of <paramref name="name"/> in <paramref name="dir"/> as text, or null.</summary>
+    public static string? MetadataOf(IVfsNode dir, string name)
+    {
+        if (!dir.Tree.TryGetValue(name + ".meta", out var link)
+            || link.Node is not ImageViewFile { Kind: ImageViewKind.Metadata } meta)
+        {
+            return null;
+        }
+        using var reader = new StreamReader(OpenRead(meta));
+        return reader.ReadToEnd();
     }
 
     /// <summary>Nested `.d` views of <paramref name="dir"/>'s files (not sniffed).</summary>
@@ -189,20 +210,32 @@ public static class VfsListing
     /// One line per entry: `d|f  size  path`, sizes right-aligned; failed
     /// expansions get a trailing `!` note.
     /// </summary>
-    public static void WriteFlat(IVfsNode root, TextWriter output, int nestedDepth = 0)
+    /// <param name="includeViews">List `.raw`/`.meta` views as files too.</param>
+    /// <param name="withMetadata">Print each entry's metadata (its `.meta` view) indented below it.</param>
+    public static void WriteFlat(IVfsNode root, TextWriter output, int nestedDepth = 0,
+        bool includeViews = false, bool withMetadata = false)
     {
-        foreach (var e in VfsWalk.Walk(root, nestedDepth))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth, includeViews))
         {
             var kind = e.IsDirectory ? 'd' : 'f';
             var line = $"{kind} {e.Size,12} {e.Path}{(e.IsDirectory ? "/" : "")}";
             output.WriteLine(e.Error == null ? line : $"{line}  ! {e.Error.Message}");
+            if (withMetadata && e.Parent != null && e.Node is not ImageViewFile)
+            {
+                string? meta = null;
+                try { meta = VfsWalk.MetadataOf(e.Parent, e.Node.Name); } catch (Exception) { }
+                foreach (var m in (meta ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    output.WriteLine($"{"",15}{m.TrimEnd()}");
+                }
+            }
         }
     }
 
     /// <summary>Indented tree, same order and error notes as <see cref="WriteFlat"/>.</summary>
-    public static void WriteTree(IVfsNode root, TextWriter output, int nestedDepth = 0)
+    public static void WriteTree(IVfsNode root, TextWriter output, int nestedDepth = 0, bool includeViews = false)
     {
-        foreach (var e in VfsWalk.Walk(root, nestedDepth))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth, includeViews))
         {
             var indent = new string(' ', e.Depth * 2);
             var line = e.IsDirectory
@@ -225,12 +258,12 @@ public static class VfsExport
     /// <see cref="OperationCanceledException"/> when <paramref name="cancel"/> fires.
     /// </summary>
     public static int Export(IVfsNode root, string destDir, Action<VfsEntry>? progress = null,
-        System.Threading.CancellationToken cancel = default, int nestedDepth = 0)
+        System.Threading.CancellationToken cancel = default, int nestedDepth = 0, bool includeViews = false)
     {
         var baseDir = Path.GetFullPath(destDir);
         Directory.CreateDirectory(baseDir);
         int written = 0;
-        foreach (var e in VfsWalk.Walk(root, nestedDepth))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth, includeViews))
         {
             cancel.ThrowIfCancellationRequested();
             var target = SafeTarget(baseDir, e.Path);

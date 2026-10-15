@@ -44,7 +44,7 @@ namespace Yafex.Fuse
             set => _mode = value;
         }
 
-        public long Size { get => _size; set => _size = value; }
+        public virtual long Size { get => _size; set => _size = value; }
 
 
         public IDictionary<string, VfsNodeLink> Tree => _tree;

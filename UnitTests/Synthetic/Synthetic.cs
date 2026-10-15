@@ -45,8 +45,8 @@ internal static class Synthetic
         var vfs = VfsMount.CreateLazy(addon, det, ds);
         if (vfs == null) throw new InvalidOperationException("no lazy tree");
         var sw = new StringWriter();
-        VfsListing.WriteFlat(vfs.Root, sw, VfsWalk.AllNested);
-        foreach (var e in VfsWalk.Walk(vfs.Root, VfsWalk.AllNested).Where(e => !e.IsDirectory && e.Path.EndsWith(".meta")))
+        VfsListing.WriteFlat(vfs.Root, sw, VfsWalk.AllNested, includeViews: true);
+        foreach (var e in VfsWalk.Walk(vfs.Root, VfsWalk.AllNested, includeViews: true).Where(e => !e.IsDirectory && e.Path.EndsWith(".meta")))
         {
             using var r = new StreamReader(VfsWalk.OpenRead(e.Node));
             sw.WriteLine(r.ReadToEnd());
