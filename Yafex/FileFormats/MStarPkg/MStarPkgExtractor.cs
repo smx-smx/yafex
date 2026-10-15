@@ -23,15 +23,17 @@ namespace Yafex.FileFormats.MStarPkg
         {
         }
 
-        private static IEnumerable<MStarPartition> ParseMBootScript(string mbootScript)
-            => MStarScript.Parse(mbootScript);
+        private static IEnumerable<MStarPartition> ParseMBootScript(string mbootScript, long dataLength)
+            => MStarScript.Parse(mbootScript, dataLength);
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
         {
+            var scriptLen = (int)Math.Min(
+                MStarPkgDetector.SCRIPT_PARSE_SIZE, source.Data.Length);
             var mbootScript = Encoding.ASCII.GetString(
-                source.Data.Slice(0, MStarPkgDetector.MBOOT_SCRIPT_SIZE).ToArray()
+                source.Data.Slice(0, scriptLen).ToArray()
             );
-            var partitions = ParseMBootScript(mbootScript);
+            var partitions = ParseMBootScript(mbootScript, source.Data.Length);
 
             var stem = Path.GetFileNameWithoutExtension(
                 source.Name ?? "mstar");

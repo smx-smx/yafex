@@ -34,11 +34,13 @@ namespace Yafex.FileFormats.MStarPkg
         {
             try
             {
+                var scriptLen = (int)Math.Min(
+                    MStarPkgDetector.SCRIPT_PARSE_SIZE, input.Data.Length);
                 var script = System.Text.Encoding.ASCII.GetString(
-                    input.Data.Span.Slice(0, MStarPkgDetector.MBOOT_SCRIPT_SIZE).ToArray());
+                    input.Data.Span.Slice(0, scriptLen).ToArray());
                 VfsMount.TryRoot(input, "mstar", out var vfs, out var root);
                 var keepAlive = new System.Collections.Generic.List<object>();
-                foreach (var part in MStarScript.Parse(script))
+                foreach (var part in MStarScript.Parse(script, input.Data.Length))
                 {
                     VfsMount.AddRange(root, input, $"{part.Name}.pak",
                         part.Offset, part.Size, part.ToString(), keepAlive);

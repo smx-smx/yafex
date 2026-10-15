@@ -16,6 +16,11 @@ namespace Yafex.FileFormats.MStarPkg
     {
         public const int MBOOT_SCRIPT_SIZE = 0x4000;
 
+        /// <summary>Window parsed for partitions: newer scripts run past
+        /// the 16KB detection head (e.g. arcelik_new2's script ends at
+        /// ~25KB); all observed script regions fit in 64KB.</summary>
+        public const int SCRIPT_PARSE_SIZE = 0x10000;
+
         public MStarPkgDetector()
         {
         }
@@ -31,7 +36,12 @@ namespace Yafex.FileFormats.MStarPkg
                 source.Data.Span.Slice(0, MBOOT_SCRIPT_SIZE).ToArray()
             );
 
-            if (script.Contains("setenv MstarUpgrade_complete"))
+            // u-boot-style upgrades end the script with setenv
+            // MstarUpgrade_complete; mboot-style ones only share the
+            // filepartload command (verified archive-wide: the marker hits
+            // only mstar/*.bin in the head window).
+            if (script.Contains("setenv MstarUpgrade_complete")
+                || script.Contains("filepartload"))
             {
                 return new SimpleDetectionResult(100);
             }

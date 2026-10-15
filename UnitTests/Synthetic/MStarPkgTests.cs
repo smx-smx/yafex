@@ -40,6 +40,47 @@ public class MStarPkgTests
     }
 
     [Test]
+    public void WithFilepartload_Detects100()
+    {
+        // mboot-style scripts (Seiki/hisense/toshiba) have no setenv marker.
+        var buf = Zeros(0x4000);
+        WriteAscii(buf, 0, "xxx filepartload 81100000 usb.bin 2000 100 yyy");
+        var res = new MStarPkgDetector().Detect(Mem(buf));
+        Assert.AreEqual(100, res.Confidence);
+    }
+
+    [Test]
+    public void Extract_BareFallback_YieldsOffsetNames()
+    {
+        var buf = Zeros(0x5000);
+        var script =
+            "filepartload 81100000 usb.bin 2000 100\n" + // bare hex
+            "filepartload 0x20200000 $(UpgradeImage) 0x4000 0x100\n" + // 0x prefix
+            "filepartload 81100000 usb.bin 2000 100\n" + // duplicate: skipped
+            "filepartload 81100000 usb.bin 400 0\n" + // zero size: skipped
+            "filepartload 81100000 usb.bin 6000 100\n"; // out of range: skipped
+        WriteAscii(buf, 0, script);
+        var artifacts = new MStarPkgExtractor().Extract(Mem(buf, "test.bin")).ToList();
+        Assert.AreEqual(2, artifacts.Count);
+        Assert.AreEqual("img_2000.pak", artifacts[0].Name);
+        Assert.AreEqual("img_4000.pak", artifacts[1].Name);
+        Assert.AreEqual(0x100, artifacts[0].Data.ToArray().Length);
+    }
+
+    [Test]
+    public void Extract_NamedSectionsBeatBareLines()
+    {
+        var buf = Zeros(0x5000);
+        var script =
+            "# File Partition: part1\nfilepartload 0 0 0x4000 0x100\n" +
+            "filepartload 81100000 usb.bin 2000 100\n"; // stray: ignored
+        WriteAscii(buf, 0, script);
+        var artifacts = new MStarPkgExtractor().Extract(Mem(buf, "test.bin")).ToList();
+        Assert.AreEqual(1, artifacts.Count);
+        Assert.AreEqual("part1.pak", artifacts[0].Name);
+    }
+
+    [Test]
     public void Short_Detects0()
     {
         var res = new MStarPkgDetector().Detect(Mem(new byte[16]));

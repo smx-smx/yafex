@@ -31,6 +31,29 @@ namespace Yafex.FileFormats.MStarPkg
     public static class MStarScript
     {
         public static IEnumerable<MStarPartition> Parse(string mbootScript)
+            => Parse(mbootScript, long.MaxValue);
+
+        /// <summary>Named <c># File Partition:</c> sections first; images
+        /// whose script has none (bare <c>filepartload</c> sequences, e.g.
+        /// hisense/toshiba) fall back to offset-named entries.
+        /// Out-of-range entries are skipped.</summary>
+        public static IEnumerable<MStarPartition> Parse(string mbootScript, long dataLength)
+        {
+            bool any = false;
+            foreach (var part in ParseNamed(mbootScript, dataLength))
+            {
+                any = true;
+                yield return part;
+            }
+            if (any) yield break;
+            foreach (var part in ParseRaw(mbootScript, dataLength))
+            {
+                yield return part;
+            }
+            yield break;
+        }
+
+        private static IEnumerable<MStarPartition> ParseNamed(string mbootScript, long dataLength)
         {
             string search = "# File Partition: ";
             var parts = mbootScript.Split(search);
@@ -51,32 +74,61 @@ namespace Yafex.FileFormats.MStarPkg
                 var partLoad = lines.Where(x => x.StartsWith("filepartload ")).FirstOrDefault();
                 if (partLoad == null) continue;
 
-                var args = partLoad.Split(' ');
-                if (args.Length < 5) continue;
+                var parsed = ParseLine(partLoad, partName, dataLength);
+                if (parsed != null) yield return parsed;
+            }
+            yield break;
+        }
 
-                var partOffset = args[3];
-                if (partOffset == null) continue;
-
-                var partSize = args[4];
-                if (partSize == null) continue;
-
-                MStarPartition? parsed = null;
-                try
-                {
-                    parsed = new MStarPartition()
-                    {
-                        Name = partName,
-                        Offset = Convert.ToUInt32(partOffset, 16),
-                        Size = Convert.ToUInt32(partSize, 16)
-                    };
-                }
-                catch (Exception ex) when (ex is FormatException || ex is OverflowException)
-                {
-                    continue;
-                }
+        private static IEnumerable<MStarPartition> ParseRaw(string mbootScript, long dataLength)
+        {
+            var seen = new HashSet<(uint, uint)>();
+            foreach (var line in Regex.Split(mbootScript, "\r?\n"))
+            {
+                if (!line.StartsWith("filepartload ")) continue;
+                // No section name available: name by file offset.
+                var parsed = ParseLine(line, null, dataLength);
+                if (parsed == null) continue;
+                if (!seen.Add((parsed.Offset, parsed.Size))) continue;
                 yield return parsed;
             }
             yield break;
         }
+
+        private static MStarPartition? ParseLine(string partLoad, string? partName, long dataLength)
+        {
+            var args = partLoad.Split(' ');
+            if (args.Length < 5) return null;
+
+            var partOffset = args[3];
+            if (partOffset == null) return null;
+
+            var partSize = args[4];
+            if (partSize == null) return null;
+
+            MStarPartition? parsed = null;
+            try
+            {
+                // Offsets come with or without a 0x prefix (toshiba uses
+                // bare hex); strip it so Convert always sees plain hex.
+                var offset = Convert.ToUInt32(StripHexPrefix(partOffset), 16);
+                var size = Convert.ToUInt32(StripHexPrefix(partSize), 16);
+                if (size == 0 || (long)offset + size > dataLength) return null;
+                parsed = new MStarPartition()
+                {
+                    Name = partName ?? $"img_{offset:X}",
+                    Offset = offset,
+                    Size = size,
+                };
+            }
+            catch (Exception ex) when (ex is FormatException || ex is OverflowException)
+            {
+                return null;
+            }
+            return parsed;
+        }
+
+        private static string StripHexPrefix(string s)
+            => s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s[2..] : s;
     }
 }
