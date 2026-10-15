@@ -22,22 +22,22 @@ namespace Yafex.CygwinLauncher
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <see>https://stackoverflow.com/a/3472250/11782802</see>
-    public class methodof<T>
+    public class MethodOf<T>
     {
         private MethodInfo method;
 
-        public methodof(T func)
+        public MethodOf(T func)
         {
             Delegate del = (Delegate)(object)func;
             this.method = del.Method;
         }
 
-        public static implicit operator methodof<T>(T methodof)
+        public static implicit operator MethodOf<T>(T methodof)
         {
-            return new methodof<T>(methodof);
+            return new MethodOf<T>(methodof);
         }
 
-        public static implicit operator MethodInfo(methodof<T> methodof)
+        public static implicit operator MethodInfo(MethodOf<T> methodof)
         {
             return methodof.method;
         }

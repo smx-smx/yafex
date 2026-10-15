@@ -209,7 +209,7 @@ namespace Yafex.CygwinLauncher
             var thisPath = Assembly.GetExecutingAssembly().Location;
             var thisDir = Path.GetDirectoryName(thisPath);
 
-            MethodInfo x = (methodof<Func<IntPtr, int, int>>)Program.Entry;
+            MethodInfo x = (MethodOf<Func<IntPtr, int, int>>)Program.Entry;
             var klass = x.DeclaringType;
             var targetAsm = klass.Assembly;
             var targetAsmName = targetAsm.GetName().Name;
