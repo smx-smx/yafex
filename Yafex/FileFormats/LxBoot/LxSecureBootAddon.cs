@@ -28,9 +28,12 @@ namespace Yafex.FileFormats.LxBoot
             return new LxSecureBootDetector();
         }
 
+        protected override bool IsUsable(LxSecureBootDetectionResult result) => result.Context != null;
+
         protected override IFormatExtractor CreateExtractor(LxSecureBootDetectionResult result)
         {
-            return new LxSecureBootExtractor(result.Context);
+            // IsUsable above guarantees a non-null context.
+            return new LxSecureBootExtractor(result.Context!);
         }
 
         public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

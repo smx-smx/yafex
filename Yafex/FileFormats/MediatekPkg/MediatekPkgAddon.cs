@@ -45,7 +45,8 @@ public class MediatekPkgAddon : FormatAddon<MediatekPkgDetectionResult>
 
     protected override IFormatExtractor CreateExtractor(MediatekPkgDetectionResult result)
     {
-        return new MediatekPkgExtractor(result.Context, _keys);
+        // IsUsable above guarantees a non-null context.
+        return new MediatekPkgExtractor(result.Context!, _keys);
     }
 
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

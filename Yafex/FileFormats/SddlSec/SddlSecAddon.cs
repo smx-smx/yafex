@@ -21,9 +21,12 @@ namespace Yafex.FileFormats.SddlSec
             return new SddlSecDetector(args);
         }
 
+        protected override bool IsUsable(SddlSecDetectionResult result) => result.Context != null;
+
         protected override IFormatExtractor CreateExtractor(SddlSecDetectionResult result)
         {
-            return new SddlSecExtractor(result.Context, _keys);
+            // IsUsable above guarantees a non-null context.
+            return new SddlSecExtractor(result.Context!, _keys);
         }
 
         public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

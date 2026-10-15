@@ -21,7 +21,9 @@ namespace Yafex.FileFormats.EpkV3
 
         public Epk3NewExtractor(Epk3NewDetectionResult result)
         {
-            this.ctx = result.Context;
+            // IsUsable guarantees a non-null context (FormatAddon rejects
+            // unusable results before construction).
+            this.ctx = result.Context!;
         }
 
         public IEnumerable<IDataSource> Extract(IDataSource source)
