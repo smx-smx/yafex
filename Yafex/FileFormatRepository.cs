@@ -63,6 +63,7 @@ using Yafex.FileFormats.AdbImg;
 using Yafex.FileFormats.MtkBdp;
 using Yafex.FileFormats.Funai;
 using Yafex.FileFormats.Zipper;
+using Yafex.FileFormats.Sparse;
 
 namespace Yafex
 {
@@ -161,6 +162,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, FunaiBdpAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, FunaiMstarAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, ZipperAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, SparseAddon>(key);
         }
     }
 }

@@ -167,6 +167,8 @@ public static class ContentExpanders
         new SpvExpander(),
         new AdbImgExpander(),
         new MtkBdpExpander(),
+        new SparseExpander(),
+        new Lz4SparseExpander(),
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
