@@ -61,6 +61,7 @@ using Yafex.FileFormats.BroadcomImg;
 using Yafex.FileFormats.Spv;
 using Yafex.FileFormats.AdbImg;
 using Yafex.FileFormats.MtkBdp;
+using Yafex.FileFormats.Funai;
 
 namespace Yafex
 {
@@ -154,6 +155,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, SpvAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, AdbImgAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MtkBdpAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, FunaiUpgAddon>(key);
         }
     }
 }

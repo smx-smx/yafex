@@ -58,6 +58,7 @@ namespace Yafex
         BroadcomImg,
         Spv,
         AdbImg,
-        MtkBdp
+        MtkBdp,
+        FunaiUpg
     }
 }
