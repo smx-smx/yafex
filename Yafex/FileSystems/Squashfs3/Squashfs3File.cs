@@ -167,79 +167,6 @@ namespace Yafex.FileSystems.Squashfs3
         }
     }
 
-    internal sealed class Squashfs3MemoryBuffer : IBuffer
-    {
-        private readonly byte[] _data;
-
-        public Squashfs3MemoryBuffer(byte[] data)
-        {
-            _data = data;
-        }
-
-        public bool CanRead
-        {
-            get { return true; }
-        }
-
-        public bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public long Capacity
-        {
-            get { return _data.Length; }
-        }
-
-        public IEnumerable<StreamExtent> Extents
-        {
-            get { yield return new StreamExtent(0, _data.Length); }
-        }
-
-        public int Read(long pos, byte[] buffer, int offset, int count)
-        {
-            if (pos >= _data.Length)
-            {
-                return 0;
-            }
-            int take = count;
-            if (pos + take > _data.Length)
-            {
-                take = _data.Length - (int)pos;
-            }
-            Array.Copy(_data, (int)pos, buffer, offset, take);
-            return take;
-        }
-
-        public void Write(long pos, byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Clear(long pos, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Flush()
-        {
-        }
-
-        public void SetCapacity(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IEnumerable<StreamExtent> GetExtentsInRange(long start, long count)
-        {
-            if (start < _data.Length)
-            {
-                long len = start + count > _data.Length ? _data.Length - start : count;
-                yield return new StreamExtent(start, len);
-            }
-        }
-    }
-
     public class Squashfs3File : IVfsFile
     {
         protected readonly Squashfs3Context Context;
@@ -269,7 +196,6 @@ namespace Yafex.FileSystems.Squashfs3
             get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
-
 
         public virtual FileAttributes FileAttributes
         {
@@ -319,7 +245,7 @@ namespace Yafex.FileSystems.Squashfs3
 
         protected override IBuffer OpenContent()
         {
-            return new Squashfs3MemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 
@@ -378,7 +304,7 @@ namespace Yafex.FileSystems.Squashfs3
 
         protected override IBuffer OpenContent()
         {
-            return new Squashfs3MemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 }

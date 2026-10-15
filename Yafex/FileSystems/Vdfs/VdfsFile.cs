@@ -110,79 +110,6 @@ namespace Yafex.FileSystems.Vdfs
         }
     }
 
-    internal sealed class VdfsMemoryBuffer : IBuffer
-    {
-        private readonly byte[] _data;
-
-        public VdfsMemoryBuffer(byte[] data)
-        {
-            _data = data;
-        }
-
-        public bool CanRead
-        {
-            get { return true; }
-        }
-
-        public bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public long Capacity
-        {
-            get { return _data.Length; }
-        }
-
-        public IEnumerable<StreamExtent> Extents
-        {
-            get { yield return new StreamExtent(0, _data.Length); }
-        }
-
-        public int Read(long pos, byte[] buffer, int offset, int count)
-        {
-            if (pos >= _data.Length)
-            {
-                return 0;
-            }
-            int take = count;
-            if (pos + take > _data.Length)
-            {
-                take = _data.Length - (int)pos;
-            }
-            Array.Copy(_data, (int)pos, buffer, offset, take);
-            return take;
-        }
-
-        public void Write(long pos, byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Clear(long pos, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Flush()
-        {
-        }
-
-        public void SetCapacity(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IEnumerable<StreamExtent> GetExtentsInRange(long start, long count)
-        {
-            if (start < _data.Length)
-            {
-                long len = start + count > _data.Length ? _data.Length - start : count;
-                yield return new StreamExtent(start, len);
-            }
-        }
-    }
-
     public class VdfsFile : IVfsFile
     {
         protected readonly VdfsContext Context;
@@ -272,17 +199,17 @@ namespace Yafex.FileSystems.Vdfs
             bool compressed = (Entry.Flags & VdfsConstants.FlagCompressed) != 0;
             if (compressed)
             {
-                return new VdfsMemoryBuffer(Context.ReadCompressed(Record));
+                return new ReadOnlyByteBuffer(Context.ReadCompressed(Record));
             }
             if (Record.Value.Length < VdfsConstants.FileRecordSize)
             {
-                return new VdfsMemoryBuffer(new byte[0]);
+                return ReadOnlyByteBuffer.Empty;
             }
             ulong blocks = VdfsConstants.ReadU64(
                 Record.Value, VdfsConstants.FolderRecordSize + VdfsConstants.ForkBlocksOff);
             if (blocks == 0)
             {
-                return new VdfsMemoryBuffer(Context.ReadForkData(Record));
+                return new ReadOnlyByteBuffer(Context.ReadForkData(Record));
             }
             // Extent-mapped: resolve once, serve windows from the volume.
             var fork = new byte[VdfsConstants.ForkDataLen];
@@ -327,7 +254,7 @@ namespace Yafex.FileSystems.Vdfs
 
         protected override IBuffer OpenContent()
         {
-            return new VdfsMemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 
@@ -380,7 +307,7 @@ namespace Yafex.FileSystems.Vdfs
 
         protected override IBuffer OpenContent()
         {
-            return new VdfsMemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 }

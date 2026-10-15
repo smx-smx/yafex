@@ -19,73 +19,6 @@ using Yafex.FileSystems.Base.Vfs;
 using Yafex.Support;
 namespace Yafex.FileSystems.Ubifs
 {
-    internal sealed class UbifsMemoryBuffer : IBuffer
-    {
-        private readonly byte[] _data;
-
-        public UbifsMemoryBuffer(byte[] data)
-        {
-            _data = data;
-        }
-
-        public bool CanRead
-        {
-            get { return true; }
-        }
-
-        public bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public long Capacity
-        {
-            get { return _data.Length; }
-        }
-
-        public IEnumerable<StreamExtent> Extents
-        {
-            get { yield return new StreamExtent(0, _data.Length); }
-        }
-
-        public int Read(long pos, byte[] buffer, int offset, int count)
-        {
-            if (pos >= _data.Length)
-            {
-                return 0;
-            }
-            if (pos + count > _data.Length)
-            {
-                count = (int)(_data.Length - pos);
-            }
-            Array.Copy(_data, pos, buffer, offset, count);
-            return count;
-        }
-
-        public void Write(long pos, byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Clear(long pos, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Flush()
-        {
-        }
-
-        public void SetCapacity(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IEnumerable<StreamExtent> GetExtentsInRange(long start, long count)
-        {
-            yield return new StreamExtent(0, _data.Length);
-        }
-    }
 
     public class UbifsFile : IVfsFile
     {
@@ -117,7 +50,6 @@ namespace Yafex.FileSystems.Ubifs
             set { throw new NotSupportedException(); }
         }
 
-
         public virtual FileAttributes FileAttributes
         {
             get { return FileAttributes.ReadOnly | FileAttributes.Normal; }
@@ -143,7 +75,7 @@ namespace Yafex.FileSystems.Ubifs
 
         protected virtual IBuffer OpenContent()
         {
-            return new UbifsMemoryBuffer(Context.ReadFile(Inode.Ino));
+            return new ReadOnlyByteBuffer(Context.ReadFile(Inode.Ino));
         }
     }
 
@@ -175,7 +107,7 @@ namespace Yafex.FileSystems.Ubifs
 
         protected override IBuffer OpenContent()
         {
-            return new UbifsMemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 
@@ -232,7 +164,7 @@ namespace Yafex.FileSystems.Ubifs
 
         protected override IBuffer OpenContent()
         {
-            return new UbifsMemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 }

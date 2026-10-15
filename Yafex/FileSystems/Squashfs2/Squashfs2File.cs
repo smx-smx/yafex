@@ -167,74 +167,6 @@ namespace Yafex.FileSystems.Squashfs2
         }
     }
 
-    internal sealed class Squashfs2MemoryBuffer : IBuffer
-    {
-        private readonly byte[] _data;
-
-        public Squashfs2MemoryBuffer(byte[] data)
-        {
-            _data = data;
-        }
-
-        public bool CanRead
-        {
-            get { return true; }
-        }
-
-        public bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public long Capacity
-        {
-            get { return _data.Length; }
-        }
-
-        public IEnumerable<StreamExtent> Extents
-        {
-            get { yield return new StreamExtent(0, _data.Length); }
-        }
-
-        public int Read(long pos, byte[] buffer, int offset, int count)
-        {
-            if (pos >= _data.Length)
-            {
-                return 0;
-            }
-            if (pos + count > _data.Length)
-            {
-                count = (int)(_data.Length - pos);
-            }
-            Array.Copy(_data, pos, buffer, offset, count);
-            return count;
-        }
-
-        public void Write(long pos, byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Clear(long pos, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public void Flush()
-        {
-        }
-
-        public void SetCapacity(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IEnumerable<StreamExtent> GetExtentsInRange(long start, long count)
-        {
-            yield return new StreamExtent(0, _data.Length);
-        }
-    }
-
     public class Squashfs2File : IVfsFile
     {
         protected readonly Squashfs2Context Context;
@@ -264,7 +196,6 @@ namespace Yafex.FileSystems.Squashfs2
             get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
-
 
         public virtual FileAttributes FileAttributes
         {
@@ -314,7 +245,7 @@ namespace Yafex.FileSystems.Squashfs2
 
         protected override IBuffer OpenContent()
         {
-            return new Squashfs2MemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 
@@ -373,7 +304,7 @@ namespace Yafex.FileSystems.Squashfs2
 
         protected override IBuffer OpenContent()
         {
-            return new Squashfs2MemoryBuffer(new byte[0]);
+            return ReadOnlyByteBuffer.Empty;
         }
     }
 }
