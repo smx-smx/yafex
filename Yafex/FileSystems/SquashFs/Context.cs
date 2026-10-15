@@ -28,20 +28,23 @@ namespace Yafex.FileSystems.SquashFs
 {
     internal class Context : VfsContext
     {
-        public MetablockReader DirectoryReader { get; set; }
+        // Populated by VfsSquashFileSystemReader during open (before any
+        // read path runs); the table readers stay null only when the image
+        // has no such table, in which case their read paths are unreachable.
+        public MetablockReader DirectoryReader { get; set; } = null!;
 
-        public MetablockReader[] FragmentTableReaders { get; set; }
+        public MetablockReader[] FragmentTableReaders { get; set; } = null!;
 
-        public MetablockReader InodeReader { get; set; }
+        public MetablockReader InodeReader { get; set; } = null!;
 
-        public Stream RawStream { get; set; }
+        public Stream RawStream { get; set; } = null!;
 
-        public ReadBlock ReadBlock { get; set; }
+        public ReadBlock ReadBlock { get; set; } = null!;
 
-        public ReadMetaBlock ReadMetaBlock { get; set; }
-        public SuperBlock SuperBlock { get; set; }
+        public ReadMetaBlock ReadMetaBlock { get; set; } = null!;
+        public SuperBlock SuperBlock { get; set; } = null!;
 
-        public MetablockReader[] UidGidTableReaders { get; set; }
+        public MetablockReader[] UidGidTableReaders { get; set; } = null!;
 
         /// <summary>
         /// Parsed directory listings by inode number. Directory objects are

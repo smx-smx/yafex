@@ -39,7 +39,7 @@ namespace Yafex.FileSystems.SquashFs
         private readonly BlockCache<Block> _blockCache;
 
         private readonly Context _context;
-        private byte[] _ioBuffer;
+        private byte[]? _ioBuffer;
         private readonly BlockCache<Metablock> _metablockCache;
 
         public VfsSquashFileSystemReader(Stream stream)

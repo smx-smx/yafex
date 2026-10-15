@@ -44,8 +44,8 @@ namespace Yafex.FileSystems.SquashFs
         /// <summary>A directory's entries, in on-disk order and by name.</summary>
         internal sealed class Listing
         {
-            public List<DirectoryEntry> Entries;
-            public Dictionary<string, DirectoryEntry> ByName;
+            public required List<DirectoryEntry> Entries;
+            public required Dictionary<string, DirectoryEntry> ByName;
         }
 
         public ICollection<DirectoryEntry> AllEntries => GetListing().Entries;
