@@ -23,7 +23,6 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using Yafex.FileSystems.Base.Compression;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Base.Vfs;
@@ -307,8 +306,8 @@ namespace Yafex.FileSystems.SquashFs
                 else
                 {
                     using (
-                        ZlibStream zlibStream = new ZlibStream(new MemoryStream(_ioBuffer, 0, readLen, false),
-                            CompressionMode.Decompress, true))
+                        ZLibStream zlibStream = new ZLibStream(new MemoryStream(_ioBuffer, 0, readLen, false),
+                            CompressionMode.Decompress))
                     {
                         block.Available = StreamUtilities.ReadMaximum(zlibStream, block.Data, 0, (int)_context.SuperBlock.BlockSize);
                     }
@@ -366,8 +365,8 @@ namespace Yafex.FileSystems.SquashFs
                 else
                 {
                     using (
-                        ZlibStream zlibStream = new ZlibStream(new MemoryStream(_ioBuffer, 0, readLen, false),
-                            CompressionMode.Decompress, true))
+                        ZLibStream zlibStream = new ZLibStream(new MemoryStream(_ioBuffer, 0, readLen, false),
+                            CompressionMode.Decompress))
                     {
                         block.Available = StreamUtilities.ReadMaximum(zlibStream, block.Data, 0, MetadataBufferSize);
                     }
