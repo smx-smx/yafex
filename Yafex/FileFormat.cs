@@ -59,6 +59,7 @@ namespace Yafex
         Spv,
         AdbImg,
         MtkBdp,
-        FunaiUpg
+        FunaiUpg,
+        FunaiPhl
     }
 }
