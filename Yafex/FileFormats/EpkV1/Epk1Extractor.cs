@@ -21,8 +21,6 @@ namespace Yafex.FileFormats.EpkV1
 {
     internal class Epk1Extractor : IFormatExtractor
     {
-        private DetectionResult result;
-
         private readonly Epk1Type epkType;
 
         private static readonly ILog log = LogManager.GetLogger(nameof(Epk1Extractor));

@@ -13,12 +13,17 @@ namespace Yafex.FileSystems.Squashfs2
     internal static class Squashfs2Decompress
     {
         private static readonly object _gate = new object();
+#if NETSTANDARD2_0
+        // Only referenced by the adaptive LZMA path below, which needs
+        // netstandard2.0 (SharpCompress); guard to avoid unused-field
+        // warnings in builds where that path is compiled out.
         private static bool _adaptiveDetected;
         private static int _adaptiveLc;
         private static int _adaptiveLp;
         private static int _adaptivePb;
         private static int _adaptiveDict;
         private static int _adaptiveOffset;
+#endif
 
         public static byte[] Uncompress(byte[] stored, long expected)
         {

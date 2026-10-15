@@ -23,13 +23,6 @@ using Yafex.CygwinLauncher;
 
 namespace Yafex.CygwinLauncher
 {
-    class ProgramOptions
-    {
-        public string CygwinPath;
-        internal string RunnerPath;
-        internal string RunnerImpl;
-    }
-
     class Program
     {
         static bool TryTake(IEnumerator<string> it, out string arg)

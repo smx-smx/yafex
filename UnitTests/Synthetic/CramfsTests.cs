@@ -62,7 +62,6 @@ public class CramfsTests
         public uint Size;
         public byte Gid = 5;
         public string Name = "";
-        public long DataOffset;
     }
 
     private static void PutU32(List<byte> b, uint v) => b.AddRange(BitConverter.GetBytes(v));
