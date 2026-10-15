@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -134,6 +135,26 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
     /// <summary>Entry being previewed, or null.</summary>
     public EntryViewModel? Entry { get; private set; }
 
+    /// <summary>The file has stored bytes (`.raw` view) distinct from its content.</summary>
+    [ObservableProperty]
+    public partial bool HasStored { get; private set; }
+
+    /// <summary>Hex/Text show the stored bytes instead of the (decrypted) content.</summary>
+    [ObservableProperty]
+    public partial bool ShowStored { get; set; }
+
+    private FormatFinder? _finder;
+    private CancellationTokenSource? _contentCts;
+    private bool _resetting;
+
+    partial void OnShowStoredChanged(bool value)
+    {
+        var entry = Entry;
+        if (_resetting || entry == null || entry.IsDirectory) return;
+        var target = value && entry.StoredView != null ? entry.StoredView : entry.Node;
+        _ = LoadContentAsync(entry, target, detect: false);
+    }
+
     public async Task ShowAsync(EntryViewModel? entry, FormatFinder? finder)
     {
         _cts?.Cancel();
@@ -142,6 +163,7 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
         Clear();
         if (entry == null || entry.BaseFolder.Source.IsClosed) return;
         Entry = entry;
+        _finder = finder;
         var source = entry.BaseFolder.Source;
 
         HasSelection = true;
@@ -162,12 +184,88 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
         }
 
         IsFile = true;
+        HasStored = entry.StoredView != null;
         Info.Add(new InfoRow("Size", Format.SizeDetailed(entry.Size)));
         Info.Add(new InfoRow("Mode", Format.Mode(node.Mode, false)));
-        long size = entry.Size;
+        if (entry.StoredView != null)
+        {
+            Info.Add(new InfoRow("Stored size", Format.SizeDetailed(entry.StoredView.Size)));
+        }
+        if (entry.MetadataView != null)
+        {
+            var meta = entry.MetadataView;
+            try
+            {
+                var text = await Task.Run(() =>
+                {
+                    using var lease = source.Lease() ?? throw new OperationCanceledException();
+                    using var reader = new System.IO.StreamReader(VfsWalk.OpenRead(meta));
+                    return reader.ReadToEnd();
+                }, cts.Token);
+                if (cts.IsCancellationRequested) return;
+                foreach (var row in ParseMetadata(text))
+                {
+                    // sizes the format also reports are already shown above
+                    if (long.TryParse(row.Value, out var n)
+                        && (n == entry.Size || n == entry.StoredView?.Size)
+                        && (row.Key == "Size" || row.Key == "Raw")) continue;
+                    Info.Add(row);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Info.Add(new InfoRow("Metadata", $"unreadable: {ex.Message}"));
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+        await LoadContentAsync(entry, node, detect: true);
+    }
+
+    /// <summary>`key: value` lines as info rows; other lines under "Metadata".</summary>
+    public static IEnumerable<InfoRow> ParseMetadata(string text)
+    {
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            int colon = line.IndexOf(':');
+            if (colon > 0 && colon < 32)
+            {
+                var key = line[..colon].Trim();
+                yield return new InfoRow(char.ToUpperInvariant(key[0]) + key[1..], line[(colon + 1)..].Trim());
+            }
+            else
+            {
+                yield return new InfoRow("Metadata", line);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Hex, text and image views of <paramref name="node"/> (the content or its
+    /// stored bytes); <paramref name="detect"/> also sniffs for nested formats.
+    /// </summary>
+    private async Task LoadContentAsync(EntryViewModel entry, IVfsNode node, bool detect)
+    {
+        _contentCts?.Cancel();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts?.Token ?? CancellationToken.None);
+        _contentCts = cts;
+        var source = entry.BaseFolder.Source;
+        var finder = _finder;
+
+        Hex?.Dispose();
+        long size = node.Size;
         _hexFactory = () => new HexDocument(() => VfsWalk.OpenRead(node), size, _hexBytesPerLine);
         Hex = _hexFactory();
-        SwitchTab(PreviewTab.Hex);
+        Text = string.Empty;
+        TextNote = null;
+        Image?.Dispose();
+        Image = null;
+        HasImage = false;
+        if (detect) SwitchTab(PreviewTab.Hex);
 
         IsAnalyzing = true;
         try
@@ -175,7 +273,7 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
             var result = await Task.Run(() =>
             {
                 using var lease = source.Lease() ?? throw new OperationCanceledException();
-                return Analyze(node, finder, cts.Token);
+                return Analyze(node, detect ? finder : null, detect, cts.Token);
             }, cts.Token);
             if (cts.IsCancellationRequested) return;
             Text = result.Text;
@@ -185,17 +283,20 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
                 Image = result.Image;
                 HasImage = true;
             }
-            Detected = result.Detected;
-            if (result.Detected != null)
+            if (detect)
             {
-                entry.IsContainer = true;
-                Info.Add(new InfoRow("Contains", result.Detected + " — open to browse"));
+                Detected = result.Detected;
+                if (result.Detected != null)
+                {
+                    entry.IsContainer = true;
+                    Info.Add(new InfoRow("Contains", result.Detected + " — open to browse"));
+                }
+                if (result.Error != null)
+                {
+                    Info.Add(new InfoRow("Read error", result.Error));
+                }
+                SwitchTab(result.Image != null ? PreviewTab.Image : result.LooksLikeText ? PreviewTab.Text : PreviewTab.Hex);
             }
-            if (result.Error != null)
-            {
-                Info.Add(new InfoRow("Read error", result.Error));
-            }
-            SwitchTab(result.Image != null ? PreviewTab.Image : result.LooksLikeText ? PreviewTab.Text : PreviewTab.Hex);
         }
         catch (OperationCanceledException)
         {
@@ -208,7 +309,7 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
 
     private sealed record Analysis(string Text, string? TextNote, bool LooksLikeText, Bitmap? Image, string? Detected, string? Error);
 
-    private static Analysis Analyze(IVfsNode node, FormatFinder? finder, CancellationToken cancel)
+    private static Analysis Analyze(IVfsNode node, FormatFinder? finder, bool detect, CancellationToken cancel)
     {
         var file = new VfsNodeVirtualFile(node);
         byte[] head;
@@ -251,26 +352,29 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
         cancel.ThrowIfCancellationRequested();
 
         string? detected = null;
-        try
+        if (detect)
         {
-            var expander = ContentExpanders.FindMatch(file);
-            if (expander != null)
+            try
             {
-                detected = expander.Name;
-            }
-            else if (finder != null && head.Length > 0)
-            {
-                var probe = new MemoryDataSource(new Memory64<byte>(head)) { Name = node.Name, Flags = DataSourceFlags.Input };
-                var hits = finder.ProbeAll(probe);
-                if (hits.Count > 0)
+                var expander = ContentExpanders.FindMatch(file);
+                if (expander != null)
                 {
-                    detected = Services.NestedMount.FormatName(hits[0].Format);
+                    detected = expander.Name;
+                }
+                else if (finder != null && head.Length > 0)
+                {
+                    var probe = new MemoryDataSource(new Memory64<byte>(head)) { Name = node.Name, Flags = DataSourceFlags.Input };
+                    var hits = finder.ProbeAll(probe);
+                    if (hits.Count > 0)
+                    {
+                        detected = Services.NestedMount.FormatName(hits[0].Format);
+                    }
                 }
             }
-        }
-        catch (Exception)
-        {
-            // detection is a hint only
+            catch (Exception)
+            {
+                // detection is a hint only
+            }
         }
         return new Analysis(text, note, looksLikeText, image, detected, null);
     }
@@ -319,6 +423,11 @@ public sealed partial class PreviewViewModel : ViewModelBase, IDisposable
 
     private void Clear()
     {
+        _contentCts?.Cancel();
+        _resetting = true;
+        ShowStored = false;
+        _resetting = false;
+        HasStored = false;
         Entry = null;
         HasSelection = false;
         IsFile = false;

@@ -59,6 +59,14 @@ public sealed partial class EntryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsPlainFile))]
     public partial bool IsContainer { get; set; }
 
+    /// <summary>Stored (e.g. still encrypted) bytes of this file, when the format offers them.</summary>
+    public ImageViewFile? StoredView { get; set; }
+
+    /// <summary>Format metadata of this file (`key: value` text), when offered.</summary>
+    public ImageViewFile? MetadataView { get; set; }
+
+    public bool HasStored => StoredView != null;
+
     /// <summary>A file not (yet) known to hold a browsable format.</summary>
     public bool IsPlainFile => !IsDirectory && !IsContainer;
 

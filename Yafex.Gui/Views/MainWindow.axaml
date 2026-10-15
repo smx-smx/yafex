@@ -191,6 +191,15 @@
                                     <PathIcon Data="{StaticResource IconExport}" />
                                 </MenuItem.Icon>
                             </MenuItem>
+                            <MenuItem Header="Save stored bytes…" Command="{Binding SaveStoredCommand}"
+                                      IsVisible="{Binding SelectedEntry.HasStored, FallbackValue=False}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconExport}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Include stored bytes and metadata in exports"
+                                      ToggleType="CheckBox" IsChecked="{Binding ExportIncludesViews}" />
+                            <Separator />
                             <MenuItem Header="Copy path" Command="{Binding CopyPathCommand}">
                                 <MenuItem.Icon>
                                     <PathIcon Data="{StaticResource IconCopy}" />
@@ -277,8 +286,14 @@
                                Text="Select an item to preview it" IsVisible="{Binding !Preview.HasSelection}" />
                     <DockPanel IsVisible="{Binding Preview.HasSelection}">
                         <StackPanel DockPanel.Dock="Top" Margin="14,12,14,4" Spacing="8">
-                            <TextBlock Classes="heading" Text="{Binding Preview.Title}" TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding Preview.Title}" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="heading" Text="{Binding Preview.Title}" TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" ToolTip.Tip="{Binding Preview.Title}" />
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Preview.ShowStored}"
+                                              IsVisible="{Binding Preview.HasStored}"
+                                              OnContent="Stored bytes" OffContent="Content" Margin="8,0,0,0"
+                                              ToolTip.Tip="Hex/Text: show the bytes as stored in the image (e.g. still encrypted) instead of the content" />
+                            </Grid>
                             <Border Classes="badge" HorizontalAlignment="Left"
                                     IsVisible="{Binding Preview.Detected, Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">

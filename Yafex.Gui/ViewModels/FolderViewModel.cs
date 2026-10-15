@@ -88,6 +88,9 @@ public sealed partial class FolderViewModel : ViewModelBase
     public IReadOnlyDictionary<string, NestedVfsDirectory> NestedViews { get; private set; }
         = new Dictionary<string, NestedVfsDirectory>();
 
+    /// <summary>`.raw`/`.meta` views of this folder's files, folded into their entries.</summary>
+    public IReadOnlyList<ImageViewFile> FileViews { get; private set; } = Array.Empty<ImageViewFile>();
+
     [ObservableProperty]
     public partial bool IsExpanded { get; set; }
 
@@ -127,25 +130,28 @@ public sealed partial class FolderViewModel : ViewModelBase
     private async Task<IReadOnlyList<IVfsNode>> LoadCoreAsync()
     {
         IsLoading = true;
-        var (items, nested, error) = await Task.Run(() =>
+        var (items, nested, fileViews, error) = await Task.Run(() =>
         {
             var none = (IReadOnlyList<NestedVfsDirectory>)Array.Empty<NestedVfsDirectory>();
+            var noViews = (IReadOnlyList<ImageViewFile>)Array.Empty<ImageViewFile>();
             using var lease = Source.Lease();
             if (lease == null)
             {
-                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, "image closed");
+                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, noViews, "image closed");
             }
             try
             {
                 var children = VfsWalk.Children(Node);
-                return (children, VfsWalk.NestedViewsOf(Node), (Node as LazyVfsDirectory)?.LoadError?.Message);
+                return (children, VfsWalk.NestedViewsOf(Node), VfsWalk.FileViewsOf(Node),
+                    (Node as LazyVfsDirectory)?.LoadError?.Message);
             }
             catch (Exception ex)
             {
-                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, ex.Message);
+                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, noViews, ex.Message);
             }
         });
         Items = items;
+        FileViews = fileViews;
         var views = new Dictionary<string, NestedVfsDirectory>();
         foreach (var view in nested)
         {

@@ -348,7 +348,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         if (CurrentFolder != folder) return;
         _folderEntries = items
-            .Select(n => new EntryViewModel(n, folder) { IsContainer = folder.ContainerFor(n.Name) != null })
+            .Select(n => new EntryViewModel(n, folder)
+            {
+                IsContainer = folder.ContainerFor(n.Name) != null,
+                StoredView = folder.FileViews.FirstOrDefault(v => v.OwnerName == n.Name && v.Kind == ImageViewKind.Raw),
+                MetadataView = folder.FileViews.FirstOrDefault(v => v.OwnerName == n.Name && v.Kind == ImageViewKind.Metadata),
+            })
             .OrderBy(e => e.IsDirectory ? 0 : 1)
             .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -635,6 +640,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ---- export ------------------------------------------------------------
 
+    /// <summary>Exports also write each file's `.raw` (stored bytes) and `.meta` views.</summary>
+    [ObservableProperty]
+    public partial bool ExportIncludesViews { get; set; }
+
     /// <summary>Exports the given entries (or the selection) into a folder the user picks.</summary>
     [RelayCommand]
     private async Task ExportAsync(IList? items)
@@ -645,7 +654,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var dest = await Dialogs.PickFolderAsync(entries.Count == 1 ? $"Export “{entries[0].Name}” to…" : $"Export {entries.Count} items to…");
         if (dest != null)
         {
-            await ExportToAsync(entries.Select(e => (e.Node, e.Name)).ToList(), dest, entries[0].BaseFolder.Source);
+            var list = new List<(IVfsNode, string)>();
+            foreach (var e in entries)
+            {
+                list.Add((e.Node, e.Name));
+                if (!ExportIncludesViews) continue;
+                if (e.StoredView != null) list.Add((e.StoredView, e.StoredView.Name));
+                if (e.MetadataView != null) list.Add((e.MetadataView, e.MetadataView.Name));
+            }
+            await ExportToAsync(list, dest, entries[0].BaseFolder.Source, ExportIncludesViews);
+        }
+    }
+
+    /// <summary>Saves a file's stored (still encrypted/compressed) bytes as `&lt;name&gt;.raw`.</summary>
+    [RelayCommand]
+    private async Task SaveStoredAsync(EntryViewModel? entry)
+    {
+        entry ??= SelectedEntry;
+        if (entry?.StoredView == null || Dialogs == null) return;
+        var dest = await Dialogs.PickFolderAsync($"Save stored bytes of “{entry.Name}” to…");
+        if (dest != null)
+        {
+            await ExportToAsync(new List<(IVfsNode, string)> { (entry.StoredView, entry.StoredView.Name) }, dest, entry.BaseFolder.Source);
         }
     }
 
@@ -657,7 +687,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var dest = await Dialogs.PickFolderAsync($"Export “{folder.Name}” to…");
         if (dest != null)
         {
-            await ExportToAsync(new List<(IVfsNode, string)> { (folder.Node, folder.Name) }, dest, folder.Source);
+            await ExportToAsync(new List<(IVfsNode, string)> { (folder.Node, folder.Name) }, dest, folder.Source, ExportIncludesViews);
         }
     }
 
@@ -665,7 +695,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Writes each item under <paramref name="destDir"/> (folders recursively,
     /// same layout as `--export`). Returns the number of files written.
     /// </summary>
-    public async Task<int> ExportToAsync(IReadOnlyList<(IVfsNode Node, string Name)> items, string destDir, SourceViewModel source)
+    public async Task<int> ExportToAsync(IReadOnlyList<(IVfsNode Node, string Name)> items, string destDir, SourceViewModel source,
+        bool includeViews = false)
     {
         var cts = new CancellationTokenSource();
         _operationCts = cts;
@@ -687,7 +718,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     {
                         Volatile.Write(ref current, e.Path);
                         if (!e.IsDirectory) Interlocked.Increment(ref files);
-                    }, cts.Token);
+                    }, cts.Token, includeViews: includeViews);
                 }
                 else
                 {

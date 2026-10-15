@@ -353,4 +353,65 @@ public class GuiTests
     {
         Assert.AreEqual(expected, Format.NameMatcher(pattern)(name));
     }
+
+    /// <summary>A source whose root holds boot.pak with .raw and .meta views.</summary>
+    private static SourceViewModel ImageWithViews()
+    {
+        var root = new YafexDirectory("img", Helpers.OctalLiteral(0755));
+        VfsBuilder.AddImage(root, new TextVirtualFile("boot.pak", "decrypted text"),
+            VfsImageViews.Decrypted | VfsImageViews.Raw | VfsImageViews.Metadata, new List<object>(),
+            raw: new TextVirtualFile("x", "\u0001\u0002ENCRYPTED"),
+            describe: () => "offset: 0x17C\nsize: 14\nsigned image");
+        return new SourceViewModel("/tmp/img", new NestedTree(root, "test", new MemoryStream()), new[] { "test" });
+    }
+
+    [Test]
+    public async Task FileViews_FoldIntoTheirEntry()
+    {
+        using var vm = new MainWindowViewModel();
+        using var source = ImageWithViews();
+        await vm.GoToAsync(source.Root);
+        var entry = vm.Entries.Single();
+        Assert.AreEqual("boot.pak", entry.Name);
+        Assert.IsTrue(entry.HasStored);
+        Assert.AreEqual("boot.pak.meta", entry.MetadataView?.Name);
+    }
+
+    [Test]
+    public async Task Preview_ShowsMetadataRowsAndStoredBytes()
+    {
+        using var vm = new MainWindowViewModel();
+        using var source = ImageWithViews();
+        await vm.GoToAsync(source.Root);
+        var entry = vm.Entries.Single();
+        await vm.Preview.ShowAsync(entry, null);
+        Assert.AreEqual("0x17C", vm.Preview.Info.Single(r => r.Key == "Offset").Value);
+        Assert.AreEqual("signed image", vm.Preview.Info.Single(r => r.Key == "Metadata").Value);
+        Assert.IsTrue(vm.Preview.Info.Any(r => r.Key == "Stored size"));
+        Assert.IsTrue(vm.Preview.HasStored);
+        Assert.AreEqual("decrypted text", vm.Preview.Text);
+
+        vm.Preview.ShowStored = true;
+        for (int i = 0; i < 100 && !vm.Preview.Text.Contains("ENCRYPTED"); i++) await Task.Delay(10);
+        StringAssert.Contains("ENCRYPTED", vm.Preview.Text);
+        Assert.AreEqual("01", vm.Preview.Hex![0].Hex[..2]);
+
+        vm.Preview.ShowStored = false;
+        for (int i = 0; i < 100 && vm.Preview.Text != "decrypted text"; i++) await Task.Delay(10);
+        Assert.AreEqual("decrypted text", vm.Preview.Text);
+    }
+
+    [Test]
+    public async Task Export_IncludesViewsOnRequest()
+    {
+        using var vm = new MainWindowViewModel();
+        using var source = ImageWithViews();
+        await vm.GoToAsync(source.Root);
+        var dest = TempDir();
+        Assert.AreEqual(1, await vm.ExportToAsync(new[] { (source.Root.Node, "img") }, dest, source));
+        Assert.IsFalse(File.Exists(Path.Combine(dest, "img", "boot.pak.raw")));
+        var dest2 = TempDir();
+        Assert.AreEqual(3, await vm.ExportToAsync(new[] { (source.Root.Node, "img") }, dest2, source, includeViews: true));
+        StringAssert.Contains("offset: 0x17C", File.ReadAllText(Path.Combine(dest2, "img", "boot.pak.meta")));
+    }
 }
