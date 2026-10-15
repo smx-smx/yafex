@@ -48,16 +48,18 @@ public static class VfsMount
     /// <see cref="IFormatAddon.CreateVfs"/> when it has one, else the content
     /// expander registry over the whole input (the expansion nested members
     /// get; also covers expander-only filesystems such as FAT/ext/GPT that no
-    /// addon detects). Null when neither applies.
+    /// addon detects). Null when neither applies. <paramref name="name"/>
+    /// overrides the input's name for the expander fallback (MFile names drop
+    /// the extension, which expanders such as gzip derive names from).
     /// </summary>
-    public static YafexVfs? CreateLazy(IFormatAddon? addon, DetectionResult? result, IDataSource input)
+    public static YafexVfs? CreateLazy(IFormatAddon? addon, DetectionResult? result, IDataSource input, string? name = null)
     {
         if (addon != null && result != null)
         {
             var vfs = addon.CreateVfs(input, result);
             if (vfs != null) return vfs;
         }
-        var image = new RangeVirtualFile(input.Name, input, 0, input.Data.Length);
+        var image = new RangeVirtualFile(name ?? input.Name ?? "image", input, 0, input.Data.Length);
         var keepAlive = new List<object> { image };
         if (!ContentExpanders.TryExpand(image, keepAlive, out var dir) || dir == null)
         {

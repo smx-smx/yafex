@@ -194,15 +194,18 @@ public static class VfsExport
     /// <summary>
     /// Exports every descendant of <paramref name="root"/> under
     /// <paramref name="destDir"/>. Unreadable files are logged and skipped
-    /// (siblings continue). Returns the number of files written.
+    /// (siblings continue). Returns the number of files written; throws
+    /// <see cref="OperationCanceledException"/> when <paramref name="cancel"/> fires.
     /// </summary>
-    public static int Export(IVfsNode root, string destDir, Action<VfsEntry>? progress = null)
+    public static int Export(IVfsNode root, string destDir, Action<VfsEntry>? progress = null,
+        System.Threading.CancellationToken cancel = default)
     {
         var baseDir = Path.GetFullPath(destDir);
         Directory.CreateDirectory(baseDir);
         int written = 0;
         foreach (var e in VfsWalk.Walk(root))
         {
+            cancel.ThrowIfCancellationRequested();
             var target = SafeTarget(baseDir, e.Path);
             if (target == null)
             {
