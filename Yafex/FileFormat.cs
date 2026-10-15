@@ -62,6 +62,7 @@ namespace Yafex
         FunaiUpg,
         FunaiPhl,
         FunaiBdp,
-        FunaiMstar
+        FunaiMstar,
+        Zipper
     }
 }
