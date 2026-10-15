@@ -118,7 +118,8 @@ namespace Yafex.FileSystems.Ext
             uint deviceId = 0;
             if (fileType == UnixFileType.Character || fileType == UnixFileType.Block)
             {
-                if (inode.DirectBlocks[0] != 0)
+                // Device nodes use direct blocks for device ids.
+                if (inode.DirectBlocks![0] != 0)
                 {
                     deviceId = inode.DirectBlocks[0];
                 }

@@ -34,11 +34,13 @@ namespace Yafex.FileSystems.Ext
         public uint CreationTime;
         public uint DeletionTime;
         public uint DirAcl;
-        public uint[] DirectBlocks;
+        // Exactly one storage mode is populated by ReadFrom(); the others
+        // stay null (see the explicit null assignments there).
+        public uint[]? DirectBlocks;
         public uint DoubleIndirectBlock;
 
-        public ExtentBlock Extents;
-        public byte[] FastSymlink;
+        public ExtentBlock? Extents;
+        public byte[]? FastSymlink;
         public uint FileAcl;
         public uint FileSize;
         public uint FileVersion;

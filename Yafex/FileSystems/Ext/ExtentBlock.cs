@@ -28,9 +28,11 @@ namespace Yafex.FileSystems.Ext
 {
     internal class ExtentBlock : IByteArraySerializable
     {
-        public Extent[] Extents;
-        public ExtentHeader Header;
-        public ExtentIndex[] Index;
+        // ReadFrom() populates exactly one of Extents/Index based on
+        // Header.Depth (the other stays null); Header is always assigned.
+        public Extent[]? Extents;
+        public ExtentHeader Header = null!;
+        public ExtentIndex[]? Index;
 
         public int Size
         {

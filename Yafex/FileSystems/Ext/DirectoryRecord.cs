@@ -41,7 +41,7 @@ namespace Yafex.FileSystems.Ext
         public byte FileType;
 
         public uint Inode;
-        public string Name;
+        public string Name = null!;
 
         public DirectoryRecord(Encoding nameEncoding)
         {

@@ -28,12 +28,14 @@ namespace Yafex.FileSystems.Ext
 {
     internal class Context : VfsContext
     {
-        public ExtFileSystemOptions Options { get; set; }
+        public ExtFileSystemOptions Options { get; set; } = null!;
 
-        public Stream RawStream { get; set; }
+        public Stream RawStream { get; set; } = null!;
 
-        public SuperBlock SuperBlock { get; set; }
+        public SuperBlock SuperBlock { get; set; } = null!;
 
-        public JournalSuperBlock JournalSuperblock { get; set; }
+        // Only present when the superblock names a journal inode; read with
+        // an explicit null check.
+        public JournalSuperBlock? JournalSuperblock { get; set; }
     }
 }

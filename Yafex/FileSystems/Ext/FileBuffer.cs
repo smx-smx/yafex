@@ -73,7 +73,9 @@ namespace Yafex.FileSystems.Ext
                 uint physicalBlock = 0;
                 if (logicalBlock < 12)
                 {
-                    physicalBlock = _inode.DirectBlocks[logicalBlock];
+                    // FileBuffer only serves non-extent inodes, which always
+                    // populate DirectBlocks.
+                    physicalBlock = _inode.DirectBlocks![logicalBlock];
                 }
                 else
                 {

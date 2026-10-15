@@ -66,7 +66,9 @@ namespace Yafex.FileSystems.Ext
             int totalRead = 0;
             int totalBytesRemaining = (int)Math.Min(count, _inode.FileSize - pos);
 
-            ExtentBlock extents = _inode.Extents;
+            // This buffer only serves extent-based inodes (see
+            // Inode.GetContentBuffer), which always populate Extents.
+            ExtentBlock extents = _inode.Extents!;
 
             while (totalBytesRemaining > 0)
             {

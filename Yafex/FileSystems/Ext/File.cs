@@ -31,7 +31,7 @@ namespace Yafex.FileSystems.Ext
 {
     internal class File : IVfsFile
     {
-        private IBuffer _content;
+        private IBuffer? _content;
 
         public File(Context context, uint inodeNum, Inode inode)
         {

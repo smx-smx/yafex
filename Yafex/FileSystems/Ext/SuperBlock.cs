@@ -59,19 +59,20 @@ namespace Yafex.FileSystems.Ext
         public uint FreeBlocksCount;
         public uint FreeBlocksCountHigh;
         public uint FreeInodesCount;
-        public uint[] HashSeed;
+        // Assigned by ReadFrom() immediately after construction at every site.
+        public uint[] HashSeed = null!;
         public IncompatibleFeatures IncompatibleFeatures;
 
         public uint InodesCount;
         public ushort InodeSize;
         public uint InodesPerGroup;
-        public uint[] JournalBackup;
+        public uint[] JournalBackup = null!;
         public uint JournalDevice;
         public uint JournalInode;
 
         public Guid JournalSuperBlockUniqueId;
         public uint LastCheckTime;
-        public string LastMountPoint;
+        public string LastMountPoint = null!;
         public uint LastOrphan;
         public uint LogBlockSize;
         public uint LogFragSize;
@@ -96,7 +97,7 @@ namespace Yafex.FileSystems.Ext
         public uint RevisionLevel;
         public ushort State;
         public Guid UniqueId;
-        public string VolumeName;
+        public string VolumeName = null!;
         public ushort WantExtraInodeSize;
         public uint WriteTime;
 
