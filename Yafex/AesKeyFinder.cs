@@ -14,7 +14,6 @@ using Smx.SharpIO;
 using Smx.SharpIO.Memory.Buffers;
 
 using System;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -78,11 +77,8 @@ namespace Yafex
             [MaybeNullWhen(false)]
             out KeyFinderResult? result) where T : AesDecryptor
         {
-            var algos = ImmutableArray.Create(KeyAlgo.Aes128, KeyAlgo.Aes256, KeyAlgo.Aes);
-
             var keys = bundle.GetKeyCollection(_bundleId)
-                .Where(k => algos.Contains(k.keyAlgo)
-                    && (k.key.Length == 16 || k.key.Length == 24 || k.key.Length == 32));
+                .Where(k => k.key.Length == 16 || k.key.Length == 24 || k.key.Length == 32);
             foreach (var k in keys)
             {
                 logger.FineFormat("Trying {0} ({1})",

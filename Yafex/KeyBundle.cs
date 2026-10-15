@@ -21,7 +21,6 @@ namespace Yafex
     /// <c>CipherAlgorithmType</c> SslStream enum).</summary>
     public enum KeyAlgo
     {
-        Aes,
         Aes128,
         Aes256,
     }
