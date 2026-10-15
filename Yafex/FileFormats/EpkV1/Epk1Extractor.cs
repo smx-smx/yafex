@@ -140,7 +140,8 @@ namespace Yafex.FileFormats.EpkV1
             {
                 Epk1Type.BigEndian => ExtractEpk1Be(source),
                 Epk1Type.Old => ExtractEpk1Old(source),
-                Epk1Type.New => ExtractEpk1New(source)
+                Epk1Type.New => ExtractEpk1New(source),
+                _ => throw new ArgumentOutOfRangeException(nameof(epkType), epkType, null),
             };
             return artifacts;
         }
