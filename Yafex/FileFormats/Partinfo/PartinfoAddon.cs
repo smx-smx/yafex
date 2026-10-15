@@ -24,6 +24,8 @@ namespace Yafex.FileFormats.Partinfo
             return new PartinfoDetector();
         }
 
+        protected override bool IsUsable(PartinfoDetectionResult result) => result.Context != null;
+
         protected override IFormatExtractor CreateExtractor(PartinfoDetectionResult result)
         {
             return new PartinfoExtractor(result);

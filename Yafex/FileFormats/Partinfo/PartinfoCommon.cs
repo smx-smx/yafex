@@ -22,7 +22,8 @@ namespace Yafex.FileFormats.Partinfo
 {
     public class PartinfoDevice
     {
-        public string name { get; private set; }
+        // Set by every From* factory via object initializer.
+        public string name { get; private set; } = null!;
         public UInt64 size { get; private set; }
         public UInt64 phys { get; private set; }
         public UInt32 virt { get; private set; }
@@ -88,10 +89,11 @@ namespace Yafex.FileFormats.Partinfo
 
     public class PartinfoPartition
     {
-        public string name { get; private set; }
+        // Set by every From* factory via object initializer.
+        public string name { get; private set; } = null!;
         public UInt64 offset { get; private set; }
         public UInt64 size { get; private set; }
-        public string filename { get; private set; }
+        public string filename { get; private set; } = null!;
         public UInt32 filesize { get; private set; }
         public UInt32 sw_ver { get; private set; }
         public bool used { get; private set; }

@@ -25,7 +25,9 @@ namespace Yafex.FileFormats.Partinfo
 
         public PartinfoExtractor(PartinfoDetectionResult result)
         {
-            this.ctx = result.Context;
+            // IsUsable guarantees a non-null context (FormatAddon rejects
+            // unusable results before construction).
+            this.ctx = result.Context!;
         }
 
         private PartinfoTable GetPartinfoTable(ReadOnlySpan64<byte> data)
