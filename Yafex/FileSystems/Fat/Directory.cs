@@ -380,7 +380,7 @@ namespace Yafex.FileSystems.Fat
                     // once the owning entry arrives
                     byte[] raw = new byte[32];
                     _dirStream.Position = streamPos;
-                    _dirStream.Read(raw, 0, raw.Length);
+                    _dirStream.ReadExactly(raw, 0, raw.Length);
                     lfnSlots.Add(raw);
                 }
                 else if (entry.Name.IsDeleted())
