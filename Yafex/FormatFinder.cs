@@ -16,18 +16,10 @@ using System.Linq;
 
 namespace Yafex
 {
-    ref struct FinderArg
-    {
-        public FileFormat fmt;
-        public Span<byte> data;
-    }
-
     public class FormatFinder
     {
         private readonly FileFormatRepository repo;
         private readonly ProgramOptions _opts;
-
-        private delegate int GetConfidenceDelegate(FinderArg arg);
 
         private static readonly ILog log = LogManager.GetLogger(typeof(FormatFinder));
 
@@ -37,97 +29,56 @@ namespace Yafex
             _opts = opts;
         }
 
-        private DetectionResult Detect(FileFormat fmt, IDataSource source)
+        private DetectionResult Detect(FileFormat fmt, IFormatAddon addon, IDataSource source)
         {
             var formatName = (Enum.GetName(fmt) ?? string.Empty).ToLowerInvariant();
             if(!_opts.FormatOptions.TryGetValue(formatName, out var fmtOpts))
             {
                 fmtOpts = new Dictionary<string, string>();
             }
-
-            repo.TryGetAddonForFormat(fmt, out var addon);
-            return addon!.CreateDetector(fmtOpts).Detect(source);
+            return addon.CreateDetector(fmtOpts).Detect(source);
         }
 
+        /// <summary>
+        /// Best match for the input, or (null, null) when nothing matched.
+        /// Ties keep the first-registered format.
+        /// </summary>
         public (IFormatAddon?, DetectionResult?) DetectFormatAddon(IDataSource source)
         {
-            var formats = repo.GetRegisteredFormats();
-            if (formats.Count() < 1)
-                return (null, null);
-
-
-            int bestConfidence = 0;
-            IFormatAddon? bestAddon = null;
-            DetectionResult bestResult = null!;
-            FileFormat? bestFormat = null;
-            var tied = new List<string>();
-
-            foreach (var fmt in formats)
+            var hits = ProbeAll(source);
+            if (hits.Count == 0)
             {
-                repo.TryGetAddonForFormat(fmt, out var addon);
-                DetectionResult? result = null;
-                try
-                {
-                    try
-                    {
-                        result = Detect(fmt, source);
-                    } catch(Exception ex)
-                    {
-                        log.Debug($"Detector for {Enum.GetName(fmt)} failed", ex);
-                    }
-
-                    if (result == null)
-                    {
-                        continue;
-                    }
-
-                    if (result.Confidence > bestConfidence)
-                    {
-                        bestConfidence = result.Confidence;
-                        bestAddon = addon;
-                        bestResult = result;
-                        bestFormat = fmt;
-                        tied.Clear();
-                    }
-                    else if (result.Confidence == bestConfidence && bestConfidence > 0)
-                    {
-                        // first-registered wins: keep the winner, record the tie
-                        tied.Add(Enum.GetName(fmt) ?? fmt.ToString());
-                    }
-                }
-                catch (DllNotFoundException ex)
-                {
-                    log.Error("Failed to load native addon", ex);
-                }
+                return (null, null);
             }
 
-            if (tied.Count > 0 && bestFormat != null)
+            var best = hits[0];
+            var tied = hits.Skip(1)
+                .TakeWhile(h => h.Result.Confidence == best.Result.Confidence)
+                .Select(h => Enum.GetName(h.Format) ?? h.Format.ToString())
+                .ToList();
+            if (tied.Count > 0)
             {
                 log.DebugFormat("detection tie at {0} between {1} (winner) and {2}",
-                    bestConfidence, Enum.GetName((FileFormat)bestFormat), string.Join(",", tied));
+                    best.Result.Confidence, Enum.GetName(best.Format), string.Join(",", tied));
             }
-
-            return (bestAddon, bestResult);
+            return (best.Addon, best.Result);
         }
 
         /// <summary>
         /// Tests the input against every registered format, returning all matches
-        /// with confidence &gt; 0 ordered by descending confidence. Detectors that
-        /// throw are skipped (logged) instead of aborting the probe.
+        /// with confidence &gt; 0 ordered by descending confidence (stable: ties
+        /// keep registration order). Detectors that throw are skipped (logged)
+        /// instead of aborting the probe.
         /// </summary>
         public List<(FileFormat Format, IFormatAddon Addon, DetectionResult Result)> ProbeAll(IDataSource source)
         {
             var hits = new List<(FileFormat Format, IFormatAddon Addon, DetectionResult Result)>();
-            foreach (var fmt in repo.GetRegisteredFormats())
+            foreach (var (fmt, addon) in repo.GetAddons())
             {
-                if (!repo.TryGetAddonForFormat(fmt, out var addon) || addon == null)
-                {
-                    continue;
-                }
                 DetectionResult? result;
                 try
                 {
-                    result = Detect(fmt, source);
+                    result = Detect(fmt, addon, source);
                 }
                 catch (Exception ex)
                 {
@@ -140,8 +91,7 @@ namespace Yafex
                 }
                 hits.Add((fmt, addon, result));
             }
-            hits.Sort((a, b) => b.Result.Confidence.CompareTo(a.Result.Confidence));
-            return hits;
+            return hits.OrderByDescending(h => h.Result.Confidence).ToList();
         }
     }
 }
