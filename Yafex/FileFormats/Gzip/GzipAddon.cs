@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Gzip;
 
-public class GzipAddon : IFormatAddon
+public class GzipAddon : FormatAddon<GzipDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Gzip;
+    public override FileFormat FileFormat => FileFormat.Gzip;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new GzipDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(GzipDetectionResult typed)
     {
-        if (result is not GzipDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new GzipExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(GzipDetectionResult typed)
     {
-        return result is GzipDetectionResult typed
-            ? new GzipLister(typed)
-            : null;
+        return new GzipLister(typed);
     }
 }

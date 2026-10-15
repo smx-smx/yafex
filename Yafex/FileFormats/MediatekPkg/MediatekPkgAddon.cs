@@ -25,9 +25,9 @@ public enum MtkPkgVariant
     New
 }
 
-public class MediatekPkgAddon : IFormatAddon<MediatekPkgDetectionResult>
+public class MediatekPkgAddon : FormatAddon<MediatekPkgDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.MediatekPkg;
+    public override FileFormat FileFormat => FileFormat.MediatekPkg;
 
     private readonly KeysRepository _keys;
 
@@ -36,24 +36,24 @@ public class MediatekPkgAddon : IFormatAddon<MediatekPkgDetectionResult>
         _keys = keys;
     }
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new MediatekPkgDetector(_keys);
     }
 
-    public IFormatExtractor CreateExtractor(MediatekPkgDetectionResult result)
+    protected override bool IsUsable(MediatekPkgDetectionResult result) => result.Context != null;
+
+    protected override IFormatExtractor CreateExtractor(MediatekPkgDetectionResult result)
     {
         return new MediatekPkgExtractor(result.Context, _keys);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(MediatekPkgDetectionResult typed)
     {
-        return result is MediatekPkgDetectionResult typed && typed.Context != null
-            ? new MediatekPkgLister(typed)
-            : null;
+        return new MediatekPkgLister(typed);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input) return null;
         if (result is not MediatekPkgDetectionResult typed) return null;

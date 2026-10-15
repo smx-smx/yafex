@@ -19,35 +19,26 @@ namespace Yafex.FileFormats.LxBoot
 {
     public record LxSecureBootDetectionResult(int Confidence, LxSecureBootContext? Context) : DetectionResult(Confidence) { }
 
-    public class LxSecureBootAddon : IFormatAddon<LxSecureBootDetectionResult>
+    public class LxSecureBootAddon : FormatAddon<LxSecureBootDetectionResult>
     {
-        public FileFormat FileFormat => FileFormat.LxSecureBoot;
+        public override FileFormat FileFormat => FileFormat.LxSecureBoot;
 
-        public IFormatDetector CreateDetector(IDictionary<string, string> args)
+        public override IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new LxSecureBootDetector();
         }
 
-        public IFormatExtractor CreateExtractor(LxSecureBootDetectionResult result)
+        protected override IFormatExtractor CreateExtractor(LxSecureBootDetectionResult result)
         {
             return new LxSecureBootExtractor(result.Context);
         }
 
-        public IFormatLister? CreateLister(DetectionResult result)
+        protected override IFormatLister? CreateLister(LxSecureBootDetectionResult result)
         {
-            if (result is not LxSecureBootDetectionResult typed || typed.Context == null)
-            {
-                return null;
-            }
-            return new LxSecureBootLister(typed.Context);
+            return result.Context != null ? new LxSecureBootLister(result.Context) : null;
         }
 
-        public IFormatExtractor CreateExtractor<T>(T result) where T : DetectionResult
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not Support.MFile input) return null;
             if (result is not LxSecureBootDetectionResult typed || typed.Context == null) return null;

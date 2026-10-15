@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Nfsb;
 
-public class NfsbAddon : IFormatAddon
+public class NfsbAddon : FormatAddon<NfsbDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Nfsb;
+    public override FileFormat FileFormat => FileFormat.Nfsb;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new NfsbDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(NfsbDetectionResult typed)
     {
-        if (result is not NfsbDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new NfsbExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(NfsbDetectionResult typed)
     {
-        return result is NfsbDetectionResult typed
-            ? new NfsbLister(typed)
-            : null;
+        return new NfsbLister(typed);
     }
 }

@@ -14,26 +14,26 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.AllwinnerImg;
 
-public class AllwinnerImgAddon : IFormatAddon
+public class AllwinnerImgAddon : FormatAddon<AllwinnerImgDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.AllwinnerImg;
+    public override FileFormat FileFormat => FileFormat.AllwinnerImg;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new AllwinnerImgDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(AllwinnerImgDetectionResult result)
     {
-        return new AllwinnerImgExtractor((AllwinnerImgDetectionResult)result);
+        return new AllwinnerImgExtractor(result);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(AllwinnerImgDetectionResult result)
     {
-        return new AllwinnerImgLister((AllwinnerImgDetectionResult)result);
+        return new AllwinnerImgLister(result);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not Support.MFile input) return null;
         if (result is not AllwinnerImgDetectionResult r || r.Context == null) return null;

@@ -15,28 +15,24 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Cramfs;
 
-public class CramfsAddon : IFormatAddon
+public class CramfsAddon : FormatAddon<CramfsDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Cramfs;
+    public override FileFormat FileFormat => FileFormat.Cramfs;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new CramfsDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(CramfsDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(CramfsDetectionResult typed)
     {
-        if (result is not CramfsDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new CramfsExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(CramfsDetectionResult typed)
     {
-        return result is CramfsDetectionResult typed && typed.Image != null
-            ? new CramfsLister(typed)
-            : null;
+        return new CramfsLister(typed);
     }
 }

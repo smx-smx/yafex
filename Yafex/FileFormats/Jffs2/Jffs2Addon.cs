@@ -15,28 +15,24 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Jffs2;
 
-public class Jffs2Addon : IFormatAddon
+public class Jffs2Addon : FormatAddon<Jffs2DetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Jffs2;
+    public override FileFormat FileFormat => FileFormat.Jffs2;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new Jffs2Detector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(Jffs2DetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(Jffs2DetectionResult typed)
     {
-        if (result is not Jffs2DetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new Jffs2Extractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(Jffs2DetectionResult typed)
     {
-        return result is Jffs2DetectionResult typed && typed.Image != null
-            ? new Jffs2Lister(typed)
-            : null;
+        return new Jffs2Lister(typed);
     }
 }

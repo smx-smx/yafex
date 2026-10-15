@@ -18,26 +18,26 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV1
 {
-    public class Epk1Addon : IFormatAddon<Epk1DetectionResult>
+    public class Epk1Addon : FormatAddon<Epk1DetectionResult>
     {
-        public FileFormat FileFormat => FileFormat.EpkV1;
+        public override FileFormat FileFormat => FileFormat.EpkV1;
 
-        public IFormatDetector CreateDetector(IDictionary<string, string> args)
+        public override IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new Epk1Detector();
         }
 
-        public IFormatExtractor CreateExtractor(Epk1DetectionResult result)
+        protected override IFormatExtractor CreateExtractor(Epk1DetectionResult result)
         {
             return new Epk1Extractor(result);
         }
 
-        public IFormatLister? CreateLister(DetectionResult result)
+        protected override IFormatLister? CreateLister(Epk1DetectionResult typed)
         {
-            return result is Epk1DetectionResult typed ? new Epk1Lister(typed) : null;
+            return new Epk1Lister(typed);
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not MFile input) return null;
             return EpkVfs.TryCreate(input, new KeysRepository(KeyBundle.Empty), out var vfs) ? vfs : null;

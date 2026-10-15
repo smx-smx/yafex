@@ -16,35 +16,31 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.BroadcomImg;
 
-public class BroadcomImgAddon : IFormatAddon
+public class BroadcomImgAddon : FormatAddon<BroadcomImgDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.BroadcomImg;
+    public override FileFormat FileFormat => FileFormat.BroadcomImg;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new BroadcomImgDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(BroadcomImgDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(BroadcomImgDetectionResult typed)
     {
-        if (result is not BroadcomImgDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new BroadcomImgExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(BroadcomImgDetectionResult typed)
     {
-        return result is BroadcomImgDetectionResult typed && typed.Image != null
-            ? new BroadcomImgLister(typed)
-            : null;
+        return new BroadcomImgLister(typed);
     }
 
     // Lazy mount: one range view per flash region (no copies). Content
     // expansion (JFFS2 tree, UBI volumes, nested UBIFS) is handled by the
     // expander registry on first access.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input)
         {

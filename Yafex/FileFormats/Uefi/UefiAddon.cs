@@ -16,32 +16,26 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Uefi;
 
-public class UefiAddon : IFormatAddon
+public class UefiAddon : FormatAddon<UefiDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Uefi;
+    public override FileFormat FileFormat => FileFormat.Uefi;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new UefiDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(UefiDetectionResult typed)
     {
-        if (result is not UefiDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new UefiExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(UefiDetectionResult typed)
     {
-        return result is UefiDetectionResult typed
-            ? new UefiLister(typed)
-            : null;
+        return new UefiLister(typed);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not Support.MFile input)
         {

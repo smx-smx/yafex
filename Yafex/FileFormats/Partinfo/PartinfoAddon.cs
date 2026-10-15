@@ -15,21 +15,21 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Partinfo
 {
-    public class PartinfoAddon : IFormatAddon<PartinfoDetectionResult>
+    public class PartinfoAddon : FormatAddon<PartinfoDetectionResult>
     {
-        public FileFormat FileFormat => FileFormat.Partinfo;
+        public override FileFormat FileFormat => FileFormat.Partinfo;
 
-        public IFormatDetector CreateDetector(IDictionary<string, string> args)
+        public override IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new PartinfoDetector();
         }
 
-        public IFormatExtractor CreateExtractor(PartinfoDetectionResult result)
+        protected override IFormatExtractor CreateExtractor(PartinfoDetectionResult result)
         {
             return new PartinfoExtractor(result);
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not Support.MFile input) return null;
             if (result is not PartinfoDetectionResult typed || typed.Context == null) return null;

@@ -17,7 +17,7 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.Tli;
 
-public class TliAddon : IFormatAddon
+public class TliAddon : FormatAddon<TliDetectionResult>
 {
     private readonly KeysRepository _keys;
 
@@ -26,37 +26,33 @@ public class TliAddon : IFormatAddon
         _keys = keys;
     }
 
-    public FileFormat FileFormat => FileFormat.Tli;
+    public override FileFormat FileFormat => FileFormat.Tli;
 
-    public IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
+    public override IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
     {
         { "password", "TLI image password as text (tried before the tli-password bundle entry)" },
     };
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new TliDetector(_keys, args);
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(TliDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(TliDetectionResult typed)
     {
-        if (result is not TliDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new TliExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(TliDetectionResult typed)
     {
-        return result is TliDetectionResult typed && typed.Image != null
-            ? new TliLister(typed)
-            : null;
+        return new TliLister(typed);
     }
 
     // Lazy mount: one range view per tar-archived image (no copies),
     // mirroring the extractor.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input)
         {

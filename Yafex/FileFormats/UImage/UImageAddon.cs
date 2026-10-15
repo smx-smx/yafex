@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.UImage;
 
-public class UImageAddon : IFormatAddon
+public class UImageAddon : FormatAddon<UImageDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.UImage;
+    public override FileFormat FileFormat => FileFormat.UImage;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new UImageDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(UImageDetectionResult typed)
     {
-        if (result is not UImageDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new UImageExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(UImageDetectionResult typed)
     {
-        return result is UImageDetectionResult typed
-            ? new UImageLister(typed)
-            : null;
+        return new UImageLister(typed);
     }
 }

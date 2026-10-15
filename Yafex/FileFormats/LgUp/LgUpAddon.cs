@@ -15,9 +15,9 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.LgUp;
 
-public class LgUpAddon : IFormatAddon<LgUpDetectionResult>
+public class LgUpAddon : FormatAddon<LgUpDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.LgUp;
+    public override FileFormat FileFormat => FileFormat.LgUp;
 
     private readonly KeysRepository _keys;
 
@@ -26,30 +26,29 @@ public class LgUpAddon : IFormatAddon<LgUpDetectionResult>
         _keys = keys;
     }
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new LgUpDetector(_keys, args);
     }
 
-    public IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
+    protected override bool IsUsable(LgUpDetectionResult result) => result.Context != null;
+
+    public override IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
     {
         { "key", "AES key as 16/24/32 bytes of hex (tried before the lgup-keys bundle)" }
     };
 
-    public IFormatExtractor CreateExtractor(LgUpDetectionResult result)
+    protected override IFormatExtractor CreateExtractor(LgUpDetectionResult result)
     {
-        if (result.Context == null) throw new ArgumentNullException(nameof(result.Context));
-        return new LgUpExtractor(result.Context);
+        return new LgUpExtractor(result.Context!);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(LgUpDetectionResult typed)
     {
-        return result is LgUpDetectionResult typed && typed.Context != null
-            ? new LgUpLister(typed)
-            : null;
+        return new LgUpLister(typed);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         return result is LgUpDetectionResult typed && typed.Context != null
             ? new LgUpVfs(typed.Context, source)

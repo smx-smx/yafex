@@ -9,7 +9,6 @@
  */
 #endregion
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 using Yafex.Fuse;
@@ -46,18 +45,44 @@ namespace Yafex
         IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>();
     }
 
-    public interface IFormatAddon<TResult> : IFormatAddon where TResult : DetectionResult
+    /// <summary>
+    /// Base for format addons: checks the detection result's type (and
+    /// <see cref="IsUsable"/>) once, so a format implements typed hooks only.
+    /// A minimal format overrides <see cref="FileFormat"/>,
+    /// <see cref="CreateDetector"/> and <see cref="CreateExtractor(TResult)"/>.
+    /// </summary>
+    public abstract class FormatAddon<TResult> : IFormatAddon where TResult : DetectionResult
     {
-        IFormatExtractor IFormatAddon.CreateExtractor(DetectionResult result)
+        public abstract FileFormat FileFormat { get; }
+
+        public abstract IFormatDetector CreateDetector(IDictionary<string, string> args);
+
+        public IFormatExtractor CreateExtractor(DetectionResult result)
         {
-            if (this is not IFormatAddon<TResult> typedIface
-                || result is not TResult typedResult)
+            if (result is not TResult typed || !IsUsable(typed))
             {
-                throw new InvalidOperationException();
+                throw new ArgumentException($"expected a usable {typeof(TResult).Name}", nameof(result));
             }
-            return typedIface.CreateExtractor(typedResult);
+            return CreateExtractor(typed);
         }
 
-        IFormatExtractor CreateExtractor(TResult result);
+        public IFormatLister? CreateLister(DetectionResult result)
+        {
+            return result is TResult typed && IsUsable(typed) ? CreateLister(typed) : null;
+        }
+
+        public virtual YafexVfs? CreateVfs(IDataSource source, DetectionResult result) => null;
+
+        public virtual IVfsNode CreateVfsNode(IDataSource ds) => new YafexFile(ds, Helpers.OctalLiteral(0444));
+
+        public virtual IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>();
+
+        /// <summary>Payload check beyond the type (e.g. the image was buffered). Default: always.</summary>
+        protected virtual bool IsUsable(TResult result) => true;
+
+        protected abstract IFormatExtractor CreateExtractor(TResult result);
+
+        /// <summary>On-the-fly lister for a usable result. Default: unsupported.</summary>
+        protected virtual IFormatLister? CreateLister(TResult result) => null;
     }
 }

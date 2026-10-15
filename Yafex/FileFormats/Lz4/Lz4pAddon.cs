@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Lz4;
 
-public class Lz4pAddon : IFormatAddon
+public class Lz4pAddon : FormatAddon<Lz4pDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Lz4p;
+    public override FileFormat FileFormat => FileFormat.Lz4p;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new Lz4pDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(Lz4pDetectionResult typed)
     {
-        if (result is not Lz4pDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new Lz4pExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(Lz4pDetectionResult typed)
     {
-        return result is Lz4pDetectionResult typed
-            ? new Lz4pLister(typed)
-            : null;
+        return new Lz4pLister(typed);
     }
 }

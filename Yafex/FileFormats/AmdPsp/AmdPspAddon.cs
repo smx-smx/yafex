@@ -18,34 +18,28 @@ using UefiParser = Yafex.FileFormats.Uefi.Uefi;
 
 namespace Yafex.FileFormats.AmdPsp;
 
-public class AmdPspAddon : IFormatAddon
+public class AmdPspAddon : FormatAddon<AmdPspDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.AmdPsp;
+    public override FileFormat FileFormat => FileFormat.AmdPsp;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new AmdPspDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(AmdPspDetectionResult typed)
     {
-        if (result is not AmdPspDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new AmdPspExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(AmdPspDetectionResult typed)
     {
-        return result is AmdPspDetectionResult typed
-            ? new AmdPspLister(typed)
-            : null;
+        return new AmdPspLister(typed);
     }
 
     // Lazy mount: carved entries plus UEFI volume slices as range views
     // (no copies), mirroring the extractor including the FV supersede rule.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input) return null;
         if (result is not AmdPspDetectionResult typed) return null;

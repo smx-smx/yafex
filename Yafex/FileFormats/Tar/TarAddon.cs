@@ -15,28 +15,24 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Tar;
 
-public class TarAddon : IFormatAddon
+public class TarAddon : FormatAddon<TarDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Tar;
+    public override FileFormat FileFormat => FileFormat.Tar;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new TarDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(TarDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(TarDetectionResult typed)
     {
-        if (result is not TarDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new TarExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(TarDetectionResult typed)
     {
-        return result is TarDetectionResult typed && typed.Image != null
-            ? new TarLister(typed)
-            : null;
+        return new TarLister(typed);
     }
 }

@@ -15,9 +15,9 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Msd11;
 
-public class Msd11Addon : IFormatAddon
+public class Msd11Addon : FormatAddon<Msd11DetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Msd11;
+    public override FileFormat FileFormat => FileFormat.Msd11;
 
     private readonly KeysRepository _keys;
 
@@ -26,33 +26,29 @@ public class Msd11Addon : IFormatAddon
         _keys = keys;
     }
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new Msd11Detector(_keys, args);
     }
 
-    public IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
+    protected override bool IsUsable(Msd11DetectionResult result) => result.Context != null;
+
+    public override IDictionary<string, string> DescribeOptions() => new Dictionary<string, string>
     {
         { "key", "TOC/member passphrase as 16/32 bytes of hex (tried before the MSD11 bundle)" }
     };
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(Msd11DetectionResult typed)
     {
-        if (result is not Msd11DetectionResult typed || typed.Context == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new Msd11Extractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(Msd11DetectionResult typed)
     {
-        return result is Msd11DetectionResult typed && typed.Context != null
-            ? new Msd11Lister(typed)
-            : null;
+        return new Msd11Lister(typed);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not Support.MFile input) return null;
         if (result is not Msd11DetectionResult r || r.Context == null) return null;

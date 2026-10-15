@@ -17,34 +17,30 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.Spv;
 
-public class SpvAddon : IFormatAddon
+public class SpvAddon : FormatAddon<SpvDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Spv;
+    public override FileFormat FileFormat => FileFormat.Spv;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new SpvDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(SpvDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(SpvDetectionResult typed)
     {
-        if (result is not SpvDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new SpvExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(SpvDetectionResult typed)
     {
-        return result is SpvDetectionResult typed && typed.Image != null
-            ? new SpvLister(typed)
-            : null;
+        return new SpvLister(typed);
     }
 
     // Lazy mount: one range view per populated bin (no copies),
     // mirroring the extractor.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input)
         {

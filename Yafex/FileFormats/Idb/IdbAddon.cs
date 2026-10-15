@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Idb;
 
-public class IdbAddon : IFormatAddon
+public class IdbAddon : FormatAddon<IdbDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Idb;
+    public override FileFormat FileFormat => FileFormat.Idb;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new IdbDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(IdbDetectionResult typed)
     {
-        if (result is not IdbDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new IdbExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(IdbDetectionResult typed)
     {
-        return result is IdbDetectionResult typed
-            ? new IdbLister(typed)
-            : null;
+        return new IdbLister(typed);
     }
 }

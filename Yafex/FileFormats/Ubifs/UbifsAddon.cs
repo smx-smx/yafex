@@ -15,28 +15,24 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Ubifs;
 
-public class UbifsAddon : IFormatAddon
+public class UbifsAddon : FormatAddon<UbifsDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Ubifs;
+    public override FileFormat FileFormat => FileFormat.Ubifs;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new UbifsDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(UbifsDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(UbifsDetectionResult typed)
     {
-        if (result is not UbifsDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new UbifsExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(UbifsDetectionResult typed)
     {
-        return result is UbifsDetectionResult typed && typed.Image != null
-            ? new UbifsLister(typed)
-            : null;
+        return new UbifsLister(typed);
     }
 }

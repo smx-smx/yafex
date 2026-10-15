@@ -16,35 +16,31 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.Ufs;
 
-public class UfsAddon : IFormatAddon
+public class UfsAddon : FormatAddon<UfsDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Ufs;
+    public override FileFormat FileFormat => FileFormat.Ufs;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new UfsDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(UfsDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(UfsDetectionResult typed)
     {
-        if (result is not UfsDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new UfsExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(UfsDetectionResult typed)
     {
-        return result is UfsDetectionResult typed && typed.Image != null
-            ? new UfsLister(typed)
-            : null;
+        return new UfsLister(typed);
     }
 
     // Lazy top-level mount: the expander subtree hangs off the VFS root.
     // Lifetime: the factory closure retains the image, the keep-alive
     // set and the reader for as long as the node is reachable.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input) return null;
         if (result is not UfsDetectionResult typed || typed.Image == null) return null;

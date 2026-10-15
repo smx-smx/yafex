@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.IntelHex;
 
-public class IntelHexAddon : IFormatAddon
+public class IntelHexAddon : FormatAddon<IntelHexDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.IntelHex;
+    public override FileFormat FileFormat => FileFormat.IntelHex;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new IntelHexDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(IntelHexDetectionResult typed)
     {
-        if (result is not IntelHexDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new IntelHexExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(IntelHexDetectionResult typed)
     {
-        return result is IntelHexDetectionResult typed
-            ? new IntelHexLister(typed)
-            : null;
+        return new IntelHexLister(typed);
     }
 }

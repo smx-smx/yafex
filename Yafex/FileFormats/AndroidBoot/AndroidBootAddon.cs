@@ -16,34 +16,28 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.AndroidBoot;
 
-public class AndroidBootAddon : IFormatAddon
+public class AndroidBootAddon : FormatAddon<AndroidBootDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.AndroidBoot;
+    public override FileFormat FileFormat => FileFormat.AndroidBoot;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new AndroidBootDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(AndroidBootDetectionResult typed)
     {
-        if (result is not AndroidBootDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new AndroidBootExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(AndroidBootDetectionResult typed)
     {
-        return result is AndroidBootDetectionResult typed
-            ? new AndroidBootLister(typed)
-            : null;
+        return new AndroidBootLister(typed);
     }
 
     // Lazy mount: header + each segment as a range view (no copies);
     // kernel-embedded DTB (e.g. edk-fajita) gets its own view too.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input) return null;
         if (result is not AndroidBootDetectionResult typed) return null;

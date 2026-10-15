@@ -16,34 +16,30 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.AdbImg;
 
-public class AdbImgAddon : IFormatAddon
+public class AdbImgAddon : FormatAddon<AdbImgDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.AdbImg;
+    public override FileFormat FileFormat => FileFormat.AdbImg;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new AdbImgDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(AdbImgDetectionResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(AdbImgDetectionResult typed)
     {
-        if (result is not AdbImgDetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new AdbImgExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(AdbImgDetectionResult typed)
     {
-        return result is AdbImgDetectionResult typed && typed.Image != null
-            ? new AdbImgLister(typed)
-            : null;
+        return new AdbImgLister(typed);
     }
 
     // Lazy mount: a range view of the payload plus the signature blob,
     // mirroring the extractor.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input)
         {

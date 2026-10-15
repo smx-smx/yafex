@@ -15,9 +15,9 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.MediatekPkgOld;
 
-public class MediatekPkgOldAddon : IFormatAddon<MediatekPkgOldDetectionResult>
+public class MediatekPkgOldAddon : FormatAddon<MediatekPkgOldDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.MediatekPkgOld;
+    public override FileFormat FileFormat => FileFormat.MediatekPkgOld;
 
     private readonly KeysRepository _keys;
 
@@ -26,24 +26,24 @@ public class MediatekPkgOldAddon : IFormatAddon<MediatekPkgOldDetectionResult>
         _keys = keys;
     }
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new MediatekPkgOldDetector(_keys);
     }
 
-    public IFormatExtractor CreateExtractor(MediatekPkgOldDetectionResult result)
+    protected override bool IsUsable(MediatekPkgOldDetectionResult result) => result.Context != null;
+
+    protected override IFormatExtractor CreateExtractor(MediatekPkgOldDetectionResult result)
     {
         return new MediatekPkgOldExtractor(result.Context!, _keys);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(MediatekPkgOldDetectionResult typed)
     {
-        return result is MediatekPkgOldDetectionResult typed && typed.Context != null
-            ? new MediatekPkgOldLister(typed)
-            : null;
+        return new MediatekPkgOldLister(typed);
     }
 
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (source is not MFile input) return null;
         if (result is not MediatekPkgOldDetectionResult typed) return null;

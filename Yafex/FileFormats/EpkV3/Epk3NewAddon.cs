@@ -15,9 +15,9 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV3
 {
-    public class Epk3NewAddon : IFormatAddon<Epk3NewDetectionResult>
+    public class Epk3NewAddon : FormatAddon<Epk3NewDetectionResult>
     {
-        public FileFormat FileFormat => FileFormat.EpkV3b;
+        public override FileFormat FileFormat => FileFormat.EpkV3b;
 
         private readonly KeysRepository _keysRepo;
 
@@ -26,24 +26,24 @@ namespace Yafex.FileFormats.EpkV3
             _keysRepo = keysRepo;
         }
 
-        public IFormatDetector CreateDetector(IDictionary<string, string> args)
+        public override IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new Epk3NewDetector(_keysRepo);
         }
 
-        public IFormatExtractor CreateExtractor(Epk3NewDetectionResult result)
+        protected override bool IsUsable(Epk3NewDetectionResult result) => result.Context != null;
+
+        protected override IFormatExtractor CreateExtractor(Epk3NewDetectionResult result)
         {
             return new Epk3NewExtractor(result);
         }
 
-        public IFormatLister? CreateLister(DetectionResult result)
+        protected override IFormatLister? CreateLister(Epk3NewDetectionResult typed)
         {
-            return result is Epk3NewDetectionResult typed && typed.Context != null
-                ? new Epk3NewLister(typed)
-                : null;
+            return new Epk3NewLister(typed);
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not MFile input) return null;
             return EpkVfs.TryCreate(input, _keysRepo, out var vfs) ? vfs : null;

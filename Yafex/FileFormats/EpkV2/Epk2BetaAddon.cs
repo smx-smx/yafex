@@ -5,9 +5,9 @@ using Yafex.Support;
 
 namespace Yafex.FileFormats.EpkV2
 {
-    public class Epk2BetaAddon : IFormatAddon<Epk2DetectionResult<EPK_V2_BETA_HEADER>>
+    public class Epk2BetaAddon : FormatAddon<Epk2DetectionResult<EPK_V2_BETA_HEADER>>
     {
-        public FileFormat FileFormat => FileFormat.EpkV2Beta;
+        public override FileFormat FileFormat => FileFormat.EpkV2Beta;
 
         private readonly KeysRepository _keysRepo;
 
@@ -16,24 +16,24 @@ namespace Yafex.FileFormats.EpkV2
             _keysRepo = keysRepo;
         }
 
-        public IFormatDetector CreateDetector(IDictionary<string, string> args)
+        public override IFormatDetector CreateDetector(IDictionary<string, string> args)
         {
             return new Epk2BetaDetector(_keysRepo);
         }
 
-        public IFormatExtractor CreateExtractor(Epk2DetectionResult<EPK_V2_BETA_HEADER> result)
+        protected override bool IsUsable(Epk2DetectionResult<EPK_V2_BETA_HEADER> result) => result.Context != null;
+
+        protected override IFormatExtractor CreateExtractor(Epk2DetectionResult<EPK_V2_BETA_HEADER> result)
         {
             return new Epk2BetaExtractor(result);
         }
 
-        public IFormatLister? CreateLister(DetectionResult result)
+        protected override IFormatLister? CreateLister(Epk2DetectionResult<EPK_V2_BETA_HEADER> typed)
         {
-            return result is Epk2DetectionResult<EPK_V2_BETA_HEADER> typed && typed.Context != null
-                ? new Epk2Lister<EPK_V2_BETA_HEADER>(typed)
-                : null;
+            return new Epk2Lister<EPK_V2_BETA_HEADER>(typed);
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not MFile input) return null;
             return EpkVfs.TryCreate(input, _keysRepo, out var vfs) ? vfs : null;

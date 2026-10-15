@@ -37,34 +37,30 @@ public abstract record DiscImageDetectionResult(int Confidence, byte[]? Image, l
 /// driver. A format supplies its detector and how to open the driver; listing
 /// (--list), flat extraction and the lazy mount tree (--mount/--tree/GUI) are shared.
 /// </summary>
-public abstract class DiscImageAddon<TResult> : IFormatAddon
+public abstract class DiscImageAddon<TResult> : FormatAddon<TResult>
     where TResult : DiscImageDetectionResult
 {
-    public abstract FileFormat FileFormat { get; }
-
-    public abstract IFormatDetector CreateDetector(IDictionary<string, string> args);
-
     /// <summary>Opens the driver over <paramref name="image"/> (positioned at the filesystem start).</summary>
     public abstract DiscFileSystem OpenFileSystem(Stream image);
 
     /// <summary>Heading printed by the lister.</summary>
     protected virtual string DisplayName => FileFormat.ToString();
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(TResult result) => result.Image != null;
+
+    protected override IFormatExtractor CreateExtractor(TResult result)
     {
-        return new DiscImageExtractor(OpenFor(Require(result)));
+        return new DiscImageExtractor(OpenFor(result));
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(TResult result)
     {
-        return result is TResult { Image: not null } typed
-            ? new DiscImageLister(DisplayName, OpenFor(typed))
-            : null;
+        return new DiscImageLister(DisplayName, OpenFor(result));
     }
 
     // Lifetime: the factory closure keeps the image and driver alive for as
     // long as the mount node is reachable.
-    public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         if (result is not TResult { Image: not null } typed) return null;
         var open = OpenFor(typed);
@@ -75,15 +71,6 @@ public abstract class DiscImageAddon<TResult> : IFormatAddon
     }
 
     private Func<DiscFileSystem> OpenFor(TResult result) => () => OpenFileSystem(result.OpenImage());
-
-    private static TResult Require(DetectionResult result)
-    {
-        if (result is not TResult { Image: not null } typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
-        return typed;
-    }
 }
 
 /// <summary>Recursive `d`/`f` listing of a <see cref="DiscFileSystem"/>.</summary>

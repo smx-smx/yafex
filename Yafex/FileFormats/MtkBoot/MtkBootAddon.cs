@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.MtkBoot;
 
-public class MtkBootAddon : IFormatAddon
+public class MtkBootAddon : FormatAddon<MtkBootDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.MtkBoot;
+    public override FileFormat FileFormat => FileFormat.MtkBoot;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new MtkBootDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(MtkBootDetectionResult typed)
     {
-        if (result is not MtkBootDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new MtkBootExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(MtkBootDetectionResult typed)
     {
-        return result is MtkBootDetectionResult typed
-            ? new MtkBootLister(typed)
-            : null;
+        return new MtkBootLister(typed);
     }
 }

@@ -15,28 +15,24 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Lzo;
 
-public class LgLzoAddon : IFormatAddon
+public class LgLzoAddon : FormatAddon<LgLzoDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.LgLzo;
+    public override FileFormat FileFormat => FileFormat.LgLzo;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new LgLzoDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override bool IsUsable(LgLzoDetectionResult result) => result.Context != null;
+
+    protected override IFormatExtractor CreateExtractor(LgLzoDetectionResult typed)
     {
-        if (result is not LgLzoDetectionResult typed || typed.Context == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new LgLzoExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(LgLzoDetectionResult typed)
     {
-        return result is LgLzoDetectionResult typed && typed.Context != null
-            ? new LgLzoLister(typed)
-            : null;
+        return new LgLzoLister(typed);
     }
 }

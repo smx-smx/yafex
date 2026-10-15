@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.MstarSb;
 
-public class MstarSbAddon : IFormatAddon
+public class MstarSbAddon : FormatAddon<MstarSbDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.MstarSb;
+    public override FileFormat FileFormat => FileFormat.MstarSb;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new MstarSbDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(MstarSbDetectionResult typed)
     {
-        if (result is not MstarSbDetectionResult)
-        {
-            throw new ArgumentException(nameof(result));
-        }
-        return new MstarSbExtractor((MstarSbDetectionResult)result);
+        return new MstarSbExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(MstarSbDetectionResult typed)
     {
-        return result is MstarSbDetectionResult typed
-            ? new MstarSbLister(typed)
-            : null;
+        return new MstarSbLister(typed);
     }
 }

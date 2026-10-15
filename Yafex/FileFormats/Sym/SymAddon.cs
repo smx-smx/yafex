@@ -15,28 +15,22 @@ using Yafex.Fuse;
 
 namespace Yafex.FileFormats.Sym;
 
-public class SymAddon : IFormatAddon
+public class SymAddon : FormatAddon<SymDetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Sym;
+    public override FileFormat FileFormat => FileFormat.Sym;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new SymDetector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    protected override IFormatExtractor CreateExtractor(SymDetectionResult typed)
     {
-        if (result is not SymDetectionResult typed)
-        {
-            throw new ArgumentException(nameof(result));
-        }
         return new SymExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
+    protected override IFormatLister? CreateLister(SymDetectionResult typed)
     {
-        return result is SymDetectionResult typed
-            ? new SymLister(typed)
-            : null;
+        return new SymLister(typed);
     }
 }
