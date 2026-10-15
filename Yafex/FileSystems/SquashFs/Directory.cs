@@ -41,10 +41,27 @@ namespace Yafex.FileSystems.SquashFs
             }
         }
 
-        public ICollection<DirectoryEntry> AllEntries
+        /// <summary>A directory's entries, in on-disk order and by name.</summary>
+        internal sealed class Listing
         {
-            get
+            public List<DirectoryEntry> Entries;
+            public Dictionary<string, DirectoryEntry> ByName;
+        }
+
+        public ICollection<DirectoryEntry> AllEntries => GetListing().Entries;
+
+        /// <summary>
+        /// The listing, parsed once per filesystem (see <see cref="Context.Listings"/>):
+        /// path lookups otherwise re-read every directory on the way each time.
+        /// </summary>
+        private Listing GetListing()
+        {
+            // the directory reader and the cache are shared by the whole filesystem
+            lock (Context)
             {
+                var key = Inode.InodeNumber;
+                if (Context.Listings.TryGetValue(key, out var cached)) return cached;
+
                 List<DirectoryEntry> records = new List<DirectoryEntry>();
 
                 MetablockReader reader = Context.DirectoryReader;
@@ -70,7 +87,14 @@ namespace Yafex.FileSystems.SquashFs
                     }
                 }
 
-                return records;
+                var byName = new Dictionary<string, DirectoryEntry>(records.Count, StringComparer.Ordinal);
+                foreach (var entry in records)
+                {
+                    byName.TryAdd(entry.FileName, entry);
+                }
+                var listing = new Listing { Entries = records, ByName = byName };
+                Context.Listings[key] = listing;
+                return listing;
             }
         }
 
@@ -81,15 +105,7 @@ namespace Yafex.FileSystems.SquashFs
 
         public DirectoryEntry GetEntryByName(string name)
         {
-            foreach (DirectoryEntry entry in AllEntries)
-            {
-                if (entry.FileName == name)
-                {
-                    return entry;
-                }
-            }
-
-            return null;
+            return GetListing().ByName.TryGetValue(name, out var entry) ? entry : null;
         }
 
         public DirectoryEntry CreateNewFile(string name)

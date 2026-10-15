@@ -333,6 +333,11 @@ namespace Yafex.FileSystems.Base.Vfs
         /// </summary>
         /// <param name="path">The file or directory to inspect.</param>
         /// <returns>The attributes of the file or directory.</returns>
+        public override string GetSymlinkTarget(string path)
+        {
+            return _wrapped.GetSymlinkTarget(path);
+        }
+
         public override FileAttributes GetAttributes(string path)
         {
             return _wrapped.GetAttributes(path);

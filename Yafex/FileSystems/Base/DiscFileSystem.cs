@@ -315,6 +315,13 @@ namespace Yafex.FileSystems.Base
         public abstract FileAttributes GetAttributes(string path);
 
         /// <summary>
+        /// Target of the symlink at <paramref name="path"/> (the link itself is
+        /// not followed), or null when it is not a symlink or the filesystem
+        /// has none.
+        /// </summary>
+        public virtual string GetSymlinkTarget(string path) => null;
+
+        /// <summary>
         /// Sets the attributes of a file or directory.
         /// </summary>
         /// <param name="path">The file or directory to change.</param>

@@ -101,6 +101,9 @@ namespace Yafex.FileSystems.Base
         /// </summary>
         public DiscFileSystem FileSystem { get; }
 
+        /// <summary>Link target when this entry is a symlink (not followed), else null.</summary>
+        public string SymlinkTarget => FileSystem.GetSymlinkTarget(Path);
+
         /// <summary>
         /// Gets the full path of the file or directory.
         /// </summary>

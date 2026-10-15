@@ -356,6 +356,14 @@ namespace Yafex.FileSystems.Base.Vfs
         /// </summary>
         /// <param name="path">The file or directory to inspect.</param>
         /// <returns>The attributes of the file or directory.</returns>
+        public override string GetSymlinkTarget(string path)
+        {
+            if (IsRoot(path)) return null;
+            TDirEntry dirEntry = GetDirectoryEntry(path);
+            if (dirEntry == null || !dirEntry.IsSymlink) return null;
+            return (GetFile(dirEntry) as IVfsSymlink<TDirEntry, TFile>)?.TargetPath;
+        }
+
         public override FileAttributes GetAttributes(string path)
         {
             if (IsRoot(path))

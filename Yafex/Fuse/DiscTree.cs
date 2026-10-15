@@ -75,55 +75,81 @@ public static class DiscTree
         }
     }
 
-    /// <summary>Mount tree builder for any DiscUtils filesystem.</summary>
-    public static void BuildNodes(IVfsNode vfsNode, DiscFileSystem fs)
-    {
-        var gate = new object();
-        BuildNodes(vfsNode, fs.Root, gate);
-    }
-
-    /// <summary>Top-level mount nodes of <paramref name="fs"/>, for expander factories.</summary>
+    /// <summary>
+    /// Top-level mount nodes of <paramref name="fs"/>, for expander factories.
+    /// Subdirectories are lazy: each lists its own entries on first access, so
+    /// opening a filesystem costs one directory, not a walk of the whole tree.
+    /// </summary>
     public static List<IVfsNode> Children(DiscFileSystem fs)
     {
-        var tmp = new YafexDirectory("", Helpers.OctalLiteral(0755));
-        BuildNodes(tmp, fs);
-        return tmp.Tree.Values.Select(l => l.Node).ToList();
+        // DiscUtils drivers share one stream: listings and reads go through one gate
+        return Children(fs.Root, new object());
     }
 
-    private static void BuildNodes(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)
+    private static List<IVfsNode> Children(DiscDirectoryInfo dirNode, object gate)
     {
-        DiscDirectoryInfo[] dirs;
-        DiscFileInfo[] files;
-        try
+        var nodes = new List<IVfsNode>();
+        lock (gate)
         {
-            dirs = dirNode.GetDirectories();
-            files = dirNode.GetFiles();
-        }
-        catch (Exception ex)
-        {
-            // hostile entries (e.g. symlink variants DiscUtils cannot parse):
-            // keep siblings, skip this branch
-            log.Warn($"skipping unreadable disc branch '{dirNode.FullName}'", ex);
-            return;
-        }
-        foreach (var d in dirs)
-        {
-            var subdir = new DiscDirNode(d.Name, Helpers.OctalLiteral(0755));
-            vfsNode.AddNode(subdir);
-            BuildNodes(subdir, d, gate);
-        }
-        foreach (var f in files)
-        {
+            DiscDirectoryInfo[] dirs;
+            DiscFileInfo[] files;
             try
             {
-                vfsNode.AddNode(new DiscFileNode(f, Helpers.OctalLiteral(0666), gate));
+                dirs = dirNode.GetDirectories();
+                files = dirNode.GetFiles();
             }
             catch (Exception ex)
             {
-                // hostile entries (e.g. dangling symlinks whose target cannot
-                // be resolved): keep siblings, skip the entry
-                log.Warn($"skipping unreadable disc entry '{f.FullName}'", ex);
+                // hostile entries (e.g. symlink variants DiscUtils cannot parse):
+                // keep siblings, skip this branch
+                log.Warn($"skipping unreadable disc branch '{dirNode.FullName}'", ex);
+                return nodes;
+            }
+            foreach (var d in dirs)
+            {
+                // symlinked directories are shown as links, never followed:
+                // `X11 -> .` would otherwise be an endless tree, and links like
+                // `lib -> usr/lib` duplicate whole subtrees
+                if (TryLink(d, out var link))
+                {
+                    nodes.Add(link);
+                    continue;
+                }
+                var sub = d;
+                nodes.Add(new LazyVfsDirectory(d.Name, Helpers.OctalLiteral(0755), () => Children(sub, gate)));
+            }
+            foreach (var f in files)
+            {
+                try
+                {
+                    nodes.Add(TryLink(f, out var link) ? link : new DiscFileNode(f, Helpers.OctalLiteral(0666), gate));
+                }
+                catch (Exception ex)
+                {
+                    // hostile entries (e.g. dangling symlinks whose target cannot
+                    // be resolved): keep siblings, skip the entry
+                    log.Warn($"skipping unreadable disc entry '{f.FullName}'", ex);
+                }
             }
         }
+        return nodes;
+    }
+
+    /// <summary>A symlink as a small file holding its target path (like `readlink`).</summary>
+    private static bool TryLink(DiscFileSystemInfo entry, out IVfsNode link)
+    {
+        link = null!;
+        string? target;
+        try
+        {
+            target = entry.SymlinkTarget;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+        if (target == null) return false;
+        link = new PakVfsFile(new TextVirtualFile(entry.Name, target), Helpers.OctalLiteral(0777));
+        return true;
     }
 }

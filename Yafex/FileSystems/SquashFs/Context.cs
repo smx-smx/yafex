@@ -42,5 +42,15 @@ namespace Yafex.FileSystems.SquashFs
         public SuperBlock SuperBlock { get; set; }
 
         public MetablockReader[] UidGidTableReaders { get; set; }
+
+        /// <summary>
+        /// Parsed directory listings by inode number. Directory objects are
+        /// recreated on every path lookup (the VFS file cache only keeps 20
+        /// strong references), so listings are cached here, for the lifetime
+        /// of the (read-only) filesystem. Not keyed by listing position: empty
+        /// directories carry an arbitrary position, often another directory's.
+        /// </summary>
+        public System.Collections.Generic.Dictionary<uint, Directory.Listing> Listings { get; }
+            = new System.Collections.Generic.Dictionary<uint, Directory.Listing>();
     }
 }
