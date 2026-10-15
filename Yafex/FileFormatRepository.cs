@@ -41,6 +41,7 @@ using Yafex.FileFormats.Jffs2;
 using Yafex.FileFormats.Lz4;
 using Yafex.FileFormats.MstarSb;
 using Yafex.FileFormats.MstarSecure;
+using Yafex.FileFormats.MstarEcb;
 using Yafex.FileFormats.MtkBoot;
 using Yafex.FileFormats.Nfsb;
 using Yafex.FileFormats.Sym;
@@ -139,6 +140,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, MtkBootAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MstarSbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, MstarSecureAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, MstarEcbAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UefiAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, UfsAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, AndroidBootAddon>(key);

@@ -45,6 +45,7 @@ namespace Yafex
         MtkBoot,
         MstarSb,
         MstarSecure,
+        MstarEcb,
         Uefi,
         Ufs,
         AndroidBoot,
