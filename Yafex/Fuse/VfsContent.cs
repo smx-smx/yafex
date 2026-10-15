@@ -624,23 +624,29 @@ public static class VfsBuilder
         }
         if (views.HasFlag(VfsImageViews.Expanded))
         {
-            // cheap magic probe at mount; the directory itself stays lazy
-            foreach (var expander in ContentExpanders.All)
+            var expanded = ExpandedView(image, keepAlive);
+            if (expanded != null)
             {
-                var exp = expander;
-                bool match;
-                try { match = exp.Matches(image); }
-                catch (Exception) { continue; }
-                if (!match) continue;
-                parent.AddNode(new LazyVfsDirectory(image.Name + ".d", Helpers.OctalLiteral(0755), () =>
-                {
-                    var dir = exp.Expand(image, keepAlive);
-                    dir.EnsureLoaded();
-                    return dir.Tree.Values.Select(l => l.Node).ToList();
-                }));
-                break;
+                parent.AddNode(expanded);
             }
         }
+    }
+
+    /// <summary>
+    /// `&lt;name&gt;.d/` holding <paramref name="image"/>'s browsable content, or
+    /// null when no expander recognizes it. Only the magic sniff runs now; the
+    /// expansion itself waits until the directory is opened.
+    /// </summary>
+    public static IVfsNode? ExpandedView(IVirtualFile image, ICollection<object> keepAlive)
+    {
+        var expander = ContentExpanders.FindMatch(image);
+        if (expander == null) return null;
+        return new LazyVfsDirectory(image.Name + ".d", Helpers.OctalLiteral(0755), () =>
+        {
+            var dir = expander.Expand(image, keepAlive);
+            dir.EnsureLoaded();
+            return dir.Tree.Values.Select(l => l.Node).ToList();
+        });
     }
 
     /// <summary>
@@ -667,14 +673,20 @@ public static class VfsBuilder
 
     /// <summary>
     /// The common container-member shape: <paramref name="file"/> as a
-    /// read-only node, followed by its nested expansion (if any) flattened
-    /// alongside it. Keeps <paramref name="file"/> alive with the mount.
+    /// read-only node, plus a lazy `&lt;name&gt;.d/` with its nested content when
+    /// it holds a browsable format (same layout as <see cref="AddImage"/>; nested
+    /// names never collide with siblings). Keeps <paramref name="file"/> alive
+    /// with the mount.
     /// </summary>
     public static void AddWithNested(List<IVfsNode> nodes, IVirtualFile file, ICollection<object> keepAlive)
     {
         keepAlive.Add(file);
         nodes.Add(new PakVfsFile(file, Helpers.OctalLiteral(0444)));
-        nodes.AddRange(ExpandNested(file, keepAlive));
+        var expanded = ExpandedView(file, keepAlive);
+        if (expanded != null)
+        {
+            nodes.Add(expanded);
+        }
     }
 
     /// <summary>
