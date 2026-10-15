@@ -18,7 +18,6 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Authentication;
 using System.Security.Cryptography;
 
 using Yafex.Support;
@@ -79,7 +78,7 @@ namespace Yafex
             [MaybeNullWhen(false)]
             out KeyFinderResult? result) where T : AesDecryptor
         {
-            var algos = ImmutableArray.Create(CipherAlgorithmType.Aes128, CipherAlgorithmType.Aes256, CipherAlgorithmType.Aes);
+            var algos = ImmutableArray.Create(KeyAlgo.Aes128, KeyAlgo.Aes256, KeyAlgo.Aes);
 
             var keys = bundle.GetKeyCollection(_bundleId)
                 .Where(k => algos.Contains(k.keyAlgo)

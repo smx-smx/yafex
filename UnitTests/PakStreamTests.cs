@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -32,7 +31,7 @@ public class PakStreamTests
 
         var entry = new KeyEntry
         {
-            keyAlgo = CipherAlgorithmType.Aes128,
+            keyAlgo = KeyAlgo.Aes128,
             keyMode = mode,
             key = key,
             iv = iv,

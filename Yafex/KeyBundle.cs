@@ -12,15 +12,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace Yafex
 {
+    /// <summary>AES key size marker (replaces the obsolete
+    /// <c>CipherAlgorithmType</c> SslStream enum).</summary>
+    public enum KeyAlgo
+    {
+        Aes,
+        Aes128,
+        Aes256,
+    }
+
     public class KeyEntry
     {
-        public CipherAlgorithmType keyAlgo;
+        public KeyAlgo keyAlgo;
         public CipherMode keyMode;
         public required byte[] key;
         public required byte[] iv;
@@ -53,15 +61,15 @@ namespace Yafex
     {
         private readonly Dictionary<string, KeyDTO> _keySecrets;
 
-        private static CipherAlgorithmType ConvertAlgoType(KeyDTO key)
+        private static KeyAlgo ConvertAlgoType(KeyDTO key)
         {
             if (key is Aes128Ecb || key is Aes128Cbc)
             {
-                return CipherAlgorithmType.Aes128;
+                return KeyAlgo.Aes128;
             }
             if (key is Aes256Ecb || key is Aes256Cbc)
             {
-                return CipherAlgorithmType.Aes256;
+                return KeyAlgo.Aes256;
             }
             throw new NotSupportedException(key.ToString());
         }

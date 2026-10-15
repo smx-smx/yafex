@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -76,7 +75,7 @@ public class MediatekPkgExtractor : IFormatExtractor
 
             var vendorKey = new KeyEntry
             {
-                keyAlgo = CipherAlgorithmType.Aes128,
+                keyAlgo = KeyAlgo.Aes128,
                 keyMode = CipherMode.CBC,
                 key = vendorKeyBytes,
                 iv = new byte[16],
