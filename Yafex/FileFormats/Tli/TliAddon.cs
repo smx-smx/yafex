@@ -70,7 +70,7 @@ public class TliAddon : FormatAddon<TliDetectionResult>
                 typed.Image, (int)typed.TarStart, typed.Image.Length - (int)typed.TarStart, false);
             foreach (var e in new YafexTarReader(stream).Entries)
             {
-                string name = TliParser.SafeName(e.Name);
+                string name = Support.PathNames.Flatten(e.Name);
                 if (name.Length == 0)
                 {
                     continue;

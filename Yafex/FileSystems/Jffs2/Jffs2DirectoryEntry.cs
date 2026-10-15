@@ -93,17 +93,17 @@ namespace Yafex.FileSystems.Jffs2
 
         public override DateTime CreationTimeUtc
         {
-            get { return Jffs2File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return Jffs2File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return Jffs2File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

@@ -22,11 +22,6 @@ namespace Yafex.FileFormats.Tar;
 /// </summary>
 public static class TarFormat
 {
-    public static string SafeName(string name)
-    {
-        return name.Replace('/', '_').Replace('\\', '_').Trim();
-    }
-
     public static YafexTarReader? OpenAt(byte[] image, long start)
     {
         try
@@ -139,7 +134,7 @@ public class TarExtractor : IFormatExtractor
         }
         foreach (var e in tar.Entries)
         {
-            string flat = TarFormat.SafeName(e.Name);
+            string flat = Support.PathNames.Flatten(e.Name);
             if (flat.Length == 0 || e.Length > int.MaxValue)
             {
                 continue;

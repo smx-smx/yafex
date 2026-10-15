@@ -38,35 +38,6 @@ internal static class UbiConstants
     public const int VtblNameMax = 128;
     public const int MaxVolumes = 128;
 
-    private static readonly uint[] CrcTable = BuildCrcTable();
-
-    private static uint[] BuildCrcTable()
-    {
-        var table = new uint[256];
-        for (uint i = 0; i < 256; i++)
-        {
-            uint crc = i;
-            for (int j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
-            }
-            table[i] = crc;
-        }
-        return table;
-    }
-
-    /// <summary>Raw IEEE CRC32 (seed ~0, no final xor), matching UBI headers.</summary>
-    public static uint CrcRaw(byte[] data, int offset, int count)
-    {
-        uint crc = 0xFFFFFFFFu;
-        int end = offset + count;
-        for (int i = offset; i < end; i++)
-        {
-            crc = CrcTable[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
-        }
-        return crc;
-    }
-
     public static uint ReadU32BE(byte[] buf, long off)
     {
         return (uint)((buf[off] << 24) | (buf[off + 1] << 16) | (buf[off + 2] << 8) | buf[off + 3]);
@@ -85,7 +56,7 @@ internal static class UbiConstants
         uint vidOff = ReadU32BE(image, offset + 16);
         uint dataOff = ReadU32BE(image, offset + 20);
         if (vidOff < HeaderSize || dataOff <= vidOff || dataOff > 1 << 20) return false;
-        return CrcRaw(image, (int)offset, EcCrcOff) == ReadU32BE(image, offset + EcCrcOff);
+        return Support.Crc32.ComputeRaw(image, (int)offset, EcCrcOff) == ReadU32BE(image, offset + EcCrcOff);
     }
 
     public static bool ValidVid(byte[] image, long offset)
@@ -93,6 +64,6 @@ internal static class UbiConstants
         if (offset < 0 || offset + HeaderSize > image.Length) return false;
         if (ReadU32BE(image, offset) != VidMagic) return false;
         if (image[offset + 4] != Version) return false;
-        return CrcRaw(image, (int)offset, VidCrcOff) == ReadU32BE(image, offset + VidCrcOff);
+        return Support.Crc32.ComputeRaw(image, (int)offset, VidCrcOff) == ReadU32BE(image, offset + VidCrcOff);
     }
 }

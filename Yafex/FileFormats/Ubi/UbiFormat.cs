@@ -25,11 +25,6 @@ namespace Yafex.FileFormats.Ubi;
 /// </summary>
 public static class UbiFormat
 {
-    public static string SafeName(string name)
-    {
-        return name.Replace('/', '_').Replace('\\', '_').Trim();
-    }
-
     public static UbiReader? OpenAt(byte[] image, long start)
     {
         try
@@ -136,7 +131,7 @@ public class UbiExtractor : IFormatExtractor
             {
                 continue;
             }
-            string flat = UbiFormat.SafeName(v.Name);
+            string flat = Support.PathNames.Flatten(v.Name);
             if (flat.Length == 0)
             {
                 continue;

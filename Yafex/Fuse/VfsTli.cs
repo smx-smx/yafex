@@ -125,7 +125,7 @@ public sealed class TliExpander : IContentExpander
             var tar = new YafexTarReader(stream);
             foreach (var e in tar.Entries)
             {
-                var slice = new SliceVirtualFile(TliParser.SafeName(e.Name), file, tarStart + e.Offset, e.Length);
+                var slice = new SliceVirtualFile(Support.PathNames.Flatten(e.Name), file, tarStart + e.Offset, e.Length);
                 VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             return nodes;

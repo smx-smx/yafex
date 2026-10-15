@@ -11,6 +11,15 @@
         public static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
+        /// Unix seconds as a UTC <see cref="DateTime"/>, clamped to the representable
+        /// range (hostile inodes carry garbage timestamps).
+        /// </summary>
+        public static DateTime FromUnixSeconds(long seconds)
+        {
+            return UnixEpoch.AddSeconds(Math.Clamp(seconds, 0L, 253402300799L));
+        }
+
+        /// <summary>
         /// Converts the current Unix time to a DateTimeOffset.
         /// </summary>
         /// <param name="seconds">Seconds since UnixEpoch.</param>

@@ -91,17 +91,17 @@ namespace Yafex.FileSystems.Ufs
 
         public override DateTime CreationTimeUtc
         {
-            get { return UfsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return UfsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return UfsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

@@ -27,11 +27,6 @@ public class AllwinnerImgExtractor : IFormatExtractor
         _ctx = result.Context!;
     }
 
-    private static string BaseName(string path)
-    {
-        var parts = path.Split(['\\', '/'], System.StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? string.Empty : parts[^1].Trim();
-    }
 
     public IEnumerable<IDataSource> Extract(IDataSource source)
     {        var fileData = source.Data;
@@ -52,7 +47,7 @@ public class AllwinnerImgExtractor : IFormatExtractor
             i++;
             // subtypes are padded and not unique; the filename field holds
             // the real basename (e.g. sys_config.fex, Boot0.bin)
-            var fileName = BaseName(part.FileName);
+            var fileName = Support.PathNames.BaseName(part.FileName);
             if (string.IsNullOrEmpty(fileName)) fileName = part.SubType;
             var filePath = Path.Combine(basedir, fileName);
             log.Info($"#{i}/{parts.Count} saving Part (type='{part.MainType}'," +

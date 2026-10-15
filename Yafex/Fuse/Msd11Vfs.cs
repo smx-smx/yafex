@@ -134,7 +134,7 @@ public static class Msd11Vfs
             var keepAlive = new List<object>();
             foreach (var member in ctx.Members)
             {
-                var name = BaseName(member.Name);
+                var name = Support.PathNames.BaseName(member.Name);
                 if (string.IsNullOrEmpty(name)) name = $"id{member.Index}";
                 var stored = new Msd11StoredFile(name, input, member.Offset, member.Size);
                 var file = new Msd11MemberFile(name, input, member, ctx.Key);
@@ -154,9 +154,4 @@ public static class Msd11Vfs
         }
     }
 
-    private static string BaseName(string path)
-    {
-        var parts = path.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? string.Empty : parts[^1].Trim();
-    }
 }

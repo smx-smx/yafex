@@ -61,35 +61,6 @@ internal static class UbifsConstants
     // superblock leb_size field
     public const int SbLebSizeOff = 36;
 
-    private static readonly uint[] CrcTable = BuildCrcTable();
-
-    private static uint[] BuildCrcTable()
-    {
-        var table = new uint[256];
-        for (uint i = 0; i < 256; i++)
-        {
-            uint crc = i;
-            for (int j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
-            }
-            table[i] = crc;
-        }
-        return table;
-    }
-
-    /// <summary>Raw IEEE CRC32 (seed ~0, no final xor), matching UBIFS nodes.</summary>
-    public static uint CrcRaw(byte[] data, int offset, int count)
-    {
-        uint crc = 0xFFFFFFFFu;
-        int end = offset + count;
-        for (int i = offset; i < end; i++)
-        {
-            crc = CrcTable[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
-        }
-        return crc;
-    }
-
     /// <summary>R5 name hash used in UBIFS directory keys.</summary>
     public static uint R5Hash(byte[] name, int offset, int count)
     {

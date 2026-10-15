@@ -123,7 +123,7 @@ public sealed class UbifsContext : VfsContext
             uint len = UbifsConstants.ReadU32(image, at + 16);
             int type = (int)UbifsConstants.ReadU32(image, at + 20);
             if (len < UbifsConstants.HeaderSize || pos + len > end) return;
-            if (UbifsConstants.CrcRaw(image, at + 8, (int)len - 8) != stored) return;
+            if (Support.Crc32.ComputeRaw(image, at + 8, (int)len - 8) != stored) return;
             switch (type)
             {
                 case UbifsConstants.TypeIno: ReadIno(image, at, (int)len, sqnum); break;

@@ -51,7 +51,7 @@ public sealed class SpvExpander : IContentExpander
                 // offsets here are relative to the region start, which the
                 // parser computed against the same base image
                 var slice = new SliceVirtualFile(
-                    SpvParser.SafeName(b.Name) + ".bin", file, b.Offset, length);
+                    Support.PathNames.Flatten(b.Name, "bin") + ".bin", file, b.Offset, length);
                 VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             if (nodes.Count == 0)

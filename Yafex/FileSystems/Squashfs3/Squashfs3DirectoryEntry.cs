@@ -95,17 +95,17 @@ namespace Yafex.FileSystems.Squashfs3
 
         public override DateTime CreationTimeUtc
         {
-            get { return Squashfs3File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return Squashfs3File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return Squashfs3File.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

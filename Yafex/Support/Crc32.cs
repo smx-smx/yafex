@@ -32,11 +32,17 @@ public static class Crc32
 
     public static uint Compute(byte[] buf, int off, int len)
     {
+        return ComputeRaw(buf, off, len) ^ 0xFFFFFFFFu;
+    }
+
+    /// <summary>Seed ~0 without the final xor, as stored by UBI/UBIFS headers.</summary>
+    public static uint ComputeRaw(byte[] buf, int off, int len)
+    {
         uint c = 0xFFFFFFFFu;
         for (int i = 0; i < len; i++)
         {
             c = Table[(c ^ buf[off + i]) & 0xFF] ^ (c >> 8);
         }
-        return c ^ 0xFFFFFFFFu;
+        return c;
     }
 }

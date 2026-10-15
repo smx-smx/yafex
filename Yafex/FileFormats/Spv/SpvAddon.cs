@@ -56,7 +56,7 @@ public class SpvAddon : FormatAddon<SpvDetectionResult>
             var keepAlive = new List<object>();
             foreach (var b in typed.Bins)
             {
-                string name = SpvParser.SafeName(b.Name) + ".bin";
+                string name = Support.PathNames.Flatten(b.Name, "bin") + ".bin";
                 long length = SpvParser.PayloadLength(typed.Image, b);
                 if (length <= 0) continue;
                 VfsMount.AddRange(root, input, name, b.Offset, length,

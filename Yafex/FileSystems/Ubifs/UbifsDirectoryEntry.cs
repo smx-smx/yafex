@@ -84,17 +84,17 @@ namespace Yafex.FileSystems.Ubifs
 
         public override DateTime CreationTimeUtc
         {
-            get { return UbifsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return UbifsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return UbifsFile.UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

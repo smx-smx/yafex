@@ -59,7 +59,7 @@ public static class AllwinnerVfs
             var keepAlive = new List<object>();
             foreach (var part in parts)
             {
-                var name = BaseName(part.FileName);
+                var name = Support.PathNames.BaseName(part.FileName);
                 if (string.IsNullOrEmpty(name)) name = part.SubType;
                 var file = new AwPartFile(name, input, part.Offset, part.StoredLength, part.OriginalLength);
                 VfsBuilder.AddImage(rootDir, file,
@@ -76,9 +76,4 @@ public static class AllwinnerVfs
         }
     }
 
-    private static string BaseName(string path)
-    {
-        var parts = path.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length == 0 ? string.Empty : parts[^1].Trim();
-    }
 }

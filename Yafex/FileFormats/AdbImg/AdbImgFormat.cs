@@ -72,12 +72,6 @@ public static class AdbImgParser
         payloadEnd = OuterHeaderSize + dataLength;
         return true;
     }
-
-    public static string SafeName(string name)
-    {
-        string flat = name.Replace('/', '_').Replace('\\', '_').Trim();
-        return flat.Length == 0 ? "part" : flat;
-    }
 }
 
 public record AdbImgDetectionResult(int Confidence, byte[]? Image, long PayloadStart, long PayloadEnd) : DetectionResult(Confidence);

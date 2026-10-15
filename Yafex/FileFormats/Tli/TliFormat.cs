@@ -31,34 +31,6 @@ public static class TliParser
     public const byte TableId = 0x4B;
     public const int MaxHeaderLength = 65535;
 
-    private static readonly uint[] CrcTable = BuildCrcTable();
-
-    private static uint[] BuildCrcTable()
-    {
-        var table = new uint[256];
-        for (uint i = 0; i < 256; i++)
-        {
-            uint crc = i;
-            for (int j = 0; j < 8; j++)
-            {
-                crc = (crc & 1) != 0 ? 0xEDB88320u ^ (crc >> 1) : crc >> 1;
-            }
-            table[i] = crc;
-        }
-        return table;
-    }
-
-    public static uint Crc32(byte[] data, int offset, int count)
-    {
-        uint crc = 0xFFFFFFFFu;
-        int end = offset + count;
-        for (int i = offset; i < end; i++)
-        {
-            crc = CrcTable[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
-        }
-        return crc ^ 0xFFFFFFFFu;
-    }
-
     /// <summary>Validate the header at offset; returns its length on success.</summary>
     public static bool TryParseHeader(byte[] image, long offset, out int headerLength)
     {
@@ -88,19 +60,12 @@ public static class TliParser
         {
             return false;
         }
-        if (Crc32(image, (int)offset, length - 1) != stored)
+        if (Support.Crc32.Compute(image, (int)offset, length - 1) != stored)
         {
             return false;
         }
         headerLength = length;
         return true;
-    }
-
-    /// <summary>Flatten tar member names for artifact output.</summary>
-    public static string SafeName(string name)
-    {
-        string flat = name.Replace('/', '_').Replace('\\', '_').Trim();
-        return flat;
     }
 
     /// <summary>Locate the tar archive following the header.</summary>
@@ -260,7 +225,7 @@ public class TliExtractor : IFormatExtractor
         var tar = TliParser.OpenTar(_image, _tarStart);
         foreach (var e in tar.Entries)
         {
-            string flat = TliParser.SafeName(e.Name);
+            string flat = Support.PathNames.Flatten(e.Name);
             if (flat.Length == 0 || e.Length > int.MaxValue)
             {
                 continue;

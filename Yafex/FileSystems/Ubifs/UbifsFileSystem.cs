@@ -66,7 +66,7 @@ namespace Yafex.FileSystems.Ubifs
                         if (n <= 0) return false;
                         got += n;
                     }
-                    return UbifsConstants.CrcRaw(node, 8, (int)len - 8)
+                    return Support.Crc32.ComputeRaw(node, 8, (int)len - 8)
                         == UbifsConstants.ReadU32(node, 4);
                 }
                 finally

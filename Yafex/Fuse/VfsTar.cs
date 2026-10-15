@@ -58,7 +58,7 @@ public sealed class TarExpander : IContentExpander
             var tar = new YafexTarReader(stream);
             foreach (var e in tar.Entries)
             {
-                var slice = new SliceVirtualFile(TarFormat.SafeName(e.Name), file, start + e.Offset, e.Length);
+                var slice = new SliceVirtualFile(Support.PathNames.Flatten(e.Name), file, start + e.Offset, e.Length);
                 VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             if (nodes.Count == 0)

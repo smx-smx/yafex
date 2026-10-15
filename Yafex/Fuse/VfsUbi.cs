@@ -64,7 +64,7 @@ public sealed class UbiExpander : IContentExpander
                 {
                     continue;
                 }
-                var mem = new MemoryVirtualFile(UbiFormat.SafeName(v.Name), v.Payload());
+                var mem = new MemoryVirtualFile(Support.PathNames.Flatten(v.Name), v.Payload());
                 VfsBuilder.AddWithNested(nodes, mem, keepAlive);
             }
             if (nodes.Count == 0)

@@ -248,26 +248,22 @@ namespace Yafex.FileSystems.Squashfs2
 
         public virtual DateTime CreationTimeUtc
         {
-            get { return UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastAccessTimeUtc
         {
-            get { return UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastWriteTimeUtc
         {
-            get { return UnixTime(Inode.Mtime); }
+            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
-        internal static DateTime UnixTime(uint secs)
-        {
-            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(secs);
-        }
 
         public virtual FileAttributes FileAttributes
         {

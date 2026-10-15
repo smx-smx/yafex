@@ -159,12 +159,6 @@ public static class SpvParser
         }
         return floor;
     }
-
-    public static string SafeName(string name)
-    {
-        string flat = name.Replace('/', '_').Replace('\\', '_').Trim();
-        return flat.Length == 0 ? "bin" : flat;
-    }
 }
 
 public record SpvDetectionResult(int Confidence, byte[]? Image, List<SpvParser.BinEntry> Bins) : DetectionResult(Confidence);
@@ -236,7 +230,7 @@ public class SpvExtractor : IFormatExtractor
             if (length <= 0) continue;
             var content = new byte[length];
             Array.Copy(_image, b.Offset, content, 0, length);
-            yield return ArtifactBuilder.Flat(source, SpvParser.SafeName(b.Name) + ".bin", content);
+            yield return ArtifactBuilder.Flat(source, Support.PathNames.Flatten(b.Name, "bin") + ".bin", content);
         }
     }
 }
