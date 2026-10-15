@@ -32,7 +32,7 @@ namespace Yafex.CygwinLauncher
 
     class Program
     {
-        static bool TryTake(IEnumerator<string> it, out string? arg)
+        static bool TryTake(IEnumerator<string> it, out string arg)
         {
             if (!it.MoveNext())
             {
@@ -107,7 +107,7 @@ namespace Yafex.CygwinLauncher
                 _b.Write(buffer, index, count);
             }
 
-            public override void Write(string? value)
+            public override void Write(string value)
             {
                 _a.Write(value);
                 _b.Write(value);
@@ -119,7 +119,7 @@ namespace Yafex.CygwinLauncher
                 _b.WriteLine();
             }
 
-            public override void WriteLine(string? value)
+            public override void WriteLine(string value)
             {
                 _a.WriteLine(value);
                 _b.WriteLine(value);

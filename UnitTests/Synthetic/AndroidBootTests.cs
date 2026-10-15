@@ -27,9 +27,9 @@ namespace UnitTests;
 public class AndroidBootTests
 {
     internal static byte[] BuildImage(
-        byte[]? kernel = null,
-        byte[]? ramdisk = null,
-        byte[]? second = null,
+        byte[] kernel = null,
+        byte[] ramdisk = null,
+        byte[] second = null,
         uint pageSize = 2048,
         uint headerVersion = 1,
         uint osVersion = 0x08000000)

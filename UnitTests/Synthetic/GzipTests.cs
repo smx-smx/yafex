@@ -29,7 +29,7 @@ namespace UnitTests;
 [TestFixture]
 public class GzipTests
 {
-    internal static byte[] BuildGzip(byte[] payload, string? fname = null)
+    internal static byte[] BuildGzip(byte[] payload, string fname = null)
     {
         byte[] deflated;
         using (var ms = new MemoryStream())
