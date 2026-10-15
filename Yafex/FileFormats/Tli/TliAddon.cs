@@ -52,12 +52,8 @@ public class TliAddon : FormatAddon<TliDetectionResult>
 
     // Lazy mount: one range view per tar-archived image (no copies),
     // mirroring the extractor.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input)
-        {
-            return null;
-        }
         if (result is not TliDetectionResult typed || typed.Image == null)
         {
             return null;

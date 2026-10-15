@@ -30,9 +30,8 @@ namespace Yafex.FileFormats.MStarPkg
             return new MStarPkgExtractor();
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not Support.MFile input) return null;
             try
             {
                 var script = System.Text.Encoding.ASCII.GetString(

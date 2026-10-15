@@ -30,9 +30,8 @@ namespace Yafex.FileFormats.FreescaleNand
             return new FreescaleNandExtractor();
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not Support.MFile input) return null;
             try
             {
                 var fcb = input.Data.ReadStruct<mx28_nand_fcb>(0xC);
@@ -50,7 +49,7 @@ namespace Yafex.FileFormats.FreescaleNand
             }
         }
 
-        private static void AddFirmware(YafexDirectory root, Support.MFile input, string name,
+        private static void AddFirmware(YafexDirectory root, IDataSource input, string name,
             uint startSector, uint sectors, mx28_nand_fcb fcb, System.Collections.Generic.List<object> keepAlive)
         {
             if (fcb.page_data_size == 0 || fcb.total_page_size < fcb.page_data_size) return;

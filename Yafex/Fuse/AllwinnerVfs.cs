@@ -47,7 +47,7 @@ public sealed class AwPartFile : IVirtualFile
 /// expansion for filesystem parts (ROOTFS/PRIVFS).</summary>
 public static class AllwinnerVfs
 {
-    public static YafexVfs? Create(MFile input, AllwinnerImgContext ctx)
+    public static YafexVfs? Create(IDataSource input, AllwinnerImgContext ctx)
     {
         try
         {

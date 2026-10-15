@@ -20,7 +20,7 @@ namespace Yafex.Fuse;
 /// Mount walks headers/tables only; payload bytes stay on disk until read.</summary>
 public static class VfsMount
 {
-    public static bool TryRoot(MFile input, string fallback, out YafexVfs vfs, out YafexDirectory root)
+    public static bool TryRoot(IDataSource input, string fallback, out YafexVfs vfs, out YafexDirectory root)
     {
         vfs = new YafexVfs();
         root = new YafexDirectory(input.Name ?? fallback, Helpers.OctalLiteral(0755));
@@ -30,7 +30,7 @@ public static class VfsMount
 
     /// <summary>Adds a plaintext window as browsable file (expanded registry
     /// applies, e.g. squashfs inside partitions). Clamps to the input.</summary>
-    public static void AddRange(YafexDirectory root, MFile input, string name,
+    public static void AddRange(YafexDirectory root, IDataSource input, string name,
         long offset, long size, string? meta, System.Collections.Generic.List<object> keepAlive)
     {
         if (offset < 0 || offset >= input.Data.Length) return;

@@ -84,7 +84,7 @@ public class LgLzoExtractor : IFormatExtractor
         var plain = LgLzo.DecompressAll(bytes);
         if (plain.Length != _ctx.TotalOut)
             throw new InvalidDataException("LG-LZO block table does not match decoded output");
-        var baseName = (source as Support.MFile)?.Name ?? source.Name ?? "lzo";
+        var baseName = source.Name ?? "lzo";
         var outName = baseName.EndsWith(".pak", StringComparison.OrdinalIgnoreCase)
             ? baseName[..^4] + ".unlzo"
             : baseName + ".unlzo";

@@ -40,9 +40,8 @@ public class UfsAddon : FormatAddon<UfsDetectionResult>
     // Lazy top-level mount: the expander subtree hangs off the VFS root.
     // Lifetime: the factory closure retains the image, the keep-alive
     // set and the reader for as long as the node is reachable.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input) return null;
         if (result is not UfsDetectionResult typed || typed.Image == null) return null;
         try
         {

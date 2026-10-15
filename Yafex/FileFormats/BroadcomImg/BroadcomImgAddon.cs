@@ -40,12 +40,8 @@ public class BroadcomImgAddon : FormatAddon<BroadcomImgDetectionResult>
     // Lazy mount: one range view per flash region (no copies). Content
     // expansion (JFFS2 tree, UBI volumes, nested UBIFS) is handled by the
     // expander registry on first access.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input)
-        {
-            return null;
-        }
         if (result is not BroadcomImgDetectionResult typed || typed.Image == null)
         {
             return null;

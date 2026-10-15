@@ -18,7 +18,6 @@ using System.Text;
 using Smx.SharpIO;
 using Smx.SharpIO.Memory.Buffers;
 
-using MFile = Yafex.Support.MFile;
 
 using Yafex.FileFormats.SddlSec;
 using Yafex.Support;
@@ -30,13 +29,13 @@ namespace Yafex.Fuse;
 /// decompress and assemble on first access, memoized per module.</summary>
 public sealed class SddlModuleFile : IVirtualFile
 {
-    private readonly MFile _input;
+    private readonly IDataSource _input;
     private readonly SddlSecExtractor _extractor;
     private readonly List<(long DataOffset, uint FileSize)> _segments;
     private readonly object _gate = new();
     private byte[]? _bytes;
 
-    public SddlModuleFile(string name, MFile input, SddlSecExtractor extractor,
+    public SddlModuleFile(string name, IDataSource input, SddlSecExtractor extractor,
         List<(long DataOffset, uint FileSize)> segments)
     {
         Name = name;
@@ -95,7 +94,7 @@ public sealed class SddlModuleFile : IVirtualFile
 /// modules assembled on first access. Header/entry walk only at mount.</summary>
 public static class SddlVfs
 {
-    public static YafexVfs? Create(MFile input, KeysRepository keys, SddlSecDetectionResult result)
+    public static YafexVfs? Create(IDataSource input, KeysRepository keys, SddlSecDetectionResult result)
     {
         var ctx = result.Context;
         if (ctx == null) return null;

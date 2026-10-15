@@ -37,7 +37,7 @@ public class AllwinnerImgExtractor : IFormatExtractor
         log.Info($"Format: LiveSuit IMAGEWTY v{_ctx.Version:X}");
         log.Info($"Parts: {parts.Count}");
 
-        var imageName = (source as MFile)?.Name ?? "allwinner";
+        var imageName = source.Name ?? "allwinner";
         var basedir = ArtifactBuilder.VersionedDir(source, imageName);
         source.AddMetadata(new BaseDirectoryPath(basedir));
 

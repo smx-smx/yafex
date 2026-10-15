@@ -37,9 +37,8 @@ namespace Yafex.FileFormats.EpkV1
             return new Epk1Lister(typed);
         }
 
-        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not MFile input) return null;
             return EpkVfs.TryCreate(input, new KeysRepository(KeyBundle.Empty), out var vfs) ? vfs : null;
         }
     }

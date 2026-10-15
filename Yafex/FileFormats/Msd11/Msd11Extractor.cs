@@ -41,7 +41,7 @@ public class Msd11Extractor : IFormatExtractor
         }
         log.Info($"Members: {_ctx.Members.Count}");
 
-        var imageName = (source as MFile)?.Name ?? "msd11";
+        var imageName = source.Name ?? "msd11";
         var basedir = ArtifactBuilder.VersionedDir(source, imageName);
         source.AddMetadata(new BaseDirectoryPath(basedir));
 

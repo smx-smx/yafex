@@ -37,9 +37,8 @@ public class AndroidBootAddon : FormatAddon<AndroidBootDetectionResult>
 
     // Lazy mount: header + each segment as a range view (no copies);
     // kernel-embedded DTB (e.g. edk-fajita) gets its own view too.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input) return null;
         if (result is not AndroidBootDetectionResult typed) return null;
         try
         {

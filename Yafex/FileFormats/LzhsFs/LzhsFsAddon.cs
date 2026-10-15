@@ -29,9 +29,8 @@ namespace Yafex.FileFormats.LzhsFs
             return new LzhsFsExtractor(result);
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not Support.MFile input) return null;
             try
             {
                 VfsMount.TryRoot(input, "lzhsfs", out var vfs, out var root);

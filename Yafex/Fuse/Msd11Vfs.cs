@@ -123,7 +123,7 @@ public sealed class Msd11MemberFile : IVirtualFile
 /// metadata and expanded (GPT/VDFS chain) views.</summary>
 public static class Msd11Vfs
 {
-    public static YafexVfs? Create(MFile input, Msd11Context ctx)
+    public static YafexVfs? Create(IDataSource input, Msd11Context ctx)
     {
         try
         {

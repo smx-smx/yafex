@@ -316,7 +316,7 @@ public sealed class MtkPartFile : IVirtualFile
 /// callers fall back gracefully.</summary>
 public static class MtkVfs
 {
-    public static YafexVfs? CreateNew(MFile input, KeysRepository keys, MediatekPkgDetectionResult result)
+    public static YafexVfs? CreateNew(IDataSource input, KeysRepository keys, MediatekPkgDetectionResult result)
     {
         var ctx = result.Context;
         if (ctx == null) return null;
@@ -355,7 +355,7 @@ public static class MtkVfs
         }
     }
 
-    public static YafexVfs? CreateOld(MFile input, KeysRepository keys, MediatekPkgOldDetectionResult result)
+    public static YafexVfs? CreateOld(IDataSource input, KeysRepository keys, MediatekPkgOldDetectionResult result)
     {
         var ctx = result.Context;
         if (ctx == null) return null;
@@ -391,7 +391,7 @@ public static class MtkVfs
         }
     }
 
-    private static void AddPart(YafexDirectory rootDir, MFile input, string name,
+    private static void AddPart(YafexDirectory rootDir, IDataSource input, string name,
         long regionStart, long regionLength, bool encrypted, bool oldVariant,
         MtkKeyState ks, List<object> keepAlive, string meta)
     {

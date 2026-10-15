@@ -33,9 +33,8 @@ namespace Yafex.FileFormats.EpkV2
             return new Epk2Lister<EPK_V2_BETA_HEADER>(typed);
         }
 
-        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not MFile input) return null;
             return EpkVfs.TryCreate(input, _keysRepo, out var vfs) ? vfs : null;
         }
     }

@@ -39,12 +39,8 @@ public class AdbImgAddon : FormatAddon<AdbImgDetectionResult>
 
     // Lazy mount: a range view of the payload plus the signature blob,
     // mirroring the extractor.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input)
-        {
-            return null;
-        }
         if (result is not AdbImgDetectionResult typed || typed.Image == null)
         {
             return null;

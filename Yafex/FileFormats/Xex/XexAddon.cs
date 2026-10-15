@@ -29,9 +29,8 @@ namespace Yafex.FileFormats.Xex
             return new XexExtractor();
         }
 
-        public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not Support.MFile input) return null;
             try
             {
                 VfsMount.TryRoot(input, "xex", out var vfs, out var root);

@@ -133,13 +133,13 @@ namespace Yafex.Fuse
     /// </summary>
     public class EpkVfs : YafexVfs
     {
-        private readonly MFile _input;
+        private readonly IDataSource _input;
         private readonly List<object> _openFilesystems = new List<object>();
         private int _pakCount;
 
         public int PakCount => _pakCount;
 
-        public EpkVfs(MFile input, KeysRepository keysRepo)
+        public EpkVfs(IDataSource input, KeysRepository keysRepo)
         {
             _input = input;
 
@@ -176,7 +176,7 @@ namespace Yafex.Fuse
             throw new NotSupportedException("Input is not a recognized EPK1/EPK2/EPK2Beta/EPK3 firmware image");
         }
 
-        public static bool TryCreate(MFile input, KeysRepository keysRepo, out EpkVfs vfs)
+        public static bool TryCreate(IDataSource input, KeysRepository keysRepo, out EpkVfs vfs)
         {
             try
             {

@@ -38,9 +38,8 @@ namespace Yafex.FileFormats.LxBoot
             return result.Context != null ? new LxSecureBootLister(result.Context) : null;
         }
 
-        public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+        public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
-            if (source is not Support.MFile input) return null;
             if (result is not LxSecureBootDetectionResult typed || typed.Context == null) return null;
             try
             {

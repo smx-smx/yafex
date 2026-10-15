@@ -34,7 +34,7 @@ namespace Yafex.FileFormats.MStarPkg
             var partitions = ParseMBootScript(mbootScript);
 
             var stem = Path.GetFileNameWithoutExtension(
-                (source as Support.MFile)?.Name ?? source.Name ?? "mstar");
+                source.Name ?? "mstar");
             var baseDir = ArtifactBuilder.VersionedDir(source, stem);
             source.AddMetadata(new Metadata.BaseDirectoryPath(baseDir));
 

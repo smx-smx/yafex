@@ -53,9 +53,8 @@ public class MediatekPkgAddon : FormatAddon<MediatekPkgDetectionResult>
         return new MediatekPkgLister(typed);
     }
 
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input) return null;
         if (result is not MediatekPkgDetectionResult typed) return null;
         return MtkVfs.CreateNew(input, _keys, typed);
     }

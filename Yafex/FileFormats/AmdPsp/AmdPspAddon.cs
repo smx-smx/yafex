@@ -39,9 +39,8 @@ public class AmdPspAddon : FormatAddon<AmdPspDetectionResult>
 
     // Lazy mount: carved entries plus UEFI volume slices as range views
     // (no copies), mirroring the extractor including the FV supersede rule.
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not MFile input) return null;
         if (result is not AmdPspDetectionResult typed) return null;
         try
         {

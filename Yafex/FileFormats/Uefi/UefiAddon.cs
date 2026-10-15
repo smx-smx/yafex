@@ -35,12 +35,8 @@ public class UefiAddon : FormatAddon<UefiDetectionResult>
         return new UefiLister(typed);
     }
 
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not Support.MFile input)
-        {
-            return null;
-        }
         try
         {
             VfsMount.TryRoot(input, "uefi", out var vfs, out var root);
@@ -57,7 +53,7 @@ public class UefiAddon : FormatAddon<UefiDetectionResult>
         }
     }
 
-    private static string Describe(Support.MFile input)
+    private static string Describe(IDataSource input)
     {
         var bytes = input.Data.ToArray();
         var sb = new System.Text.StringBuilder();

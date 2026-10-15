@@ -48,9 +48,8 @@ public class Msd11Addon : FormatAddon<Msd11DetectionResult>
         return new Msd11Lister(typed);
     }
 
-    public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
-        if (source is not Support.MFile input) return null;
         if (result is not Msd11DetectionResult r || r.Context == null) return null;
         try
         {
