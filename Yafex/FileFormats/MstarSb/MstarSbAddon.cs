@@ -39,9 +39,4 @@ public class MstarSbAddon : IFormatAddon
             ? new MstarSbLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

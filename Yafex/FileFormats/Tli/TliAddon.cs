@@ -54,11 +54,6 @@ public class TliAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy mount: one range view per tar-archived image (no copies),
     // mirroring the extractor.
     public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)

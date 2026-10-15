@@ -39,9 +39,4 @@ public class Squashfs3Addon : IFormatAddon
             ? new Squashfs3Lister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

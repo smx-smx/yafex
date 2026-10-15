@@ -39,9 +39,4 @@ public class SymAddon : IFormatAddon
             ? new SymLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

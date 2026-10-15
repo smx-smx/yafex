@@ -39,9 +39,4 @@ public class Jffs2Addon : IFormatAddon
             ? new Jffs2Lister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

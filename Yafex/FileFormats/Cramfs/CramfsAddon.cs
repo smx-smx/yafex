@@ -39,9 +39,4 @@ public class CramfsAddon : IFormatAddon
             ? new CramfsLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

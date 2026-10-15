@@ -43,11 +43,6 @@ public class AmdPspAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy mount: carved entries plus UEFI volume slices as range views
     // (no copies), mirroring the extractor including the FV supersede rule.
     public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)

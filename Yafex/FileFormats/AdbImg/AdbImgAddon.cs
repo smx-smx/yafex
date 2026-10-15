@@ -41,11 +41,6 @@ public class AdbImgAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy mount: a range view of the payload plus the signature blob,
     // mirroring the extractor.
     public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)

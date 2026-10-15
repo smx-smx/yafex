@@ -39,9 +39,4 @@ public class UbiAddon : IFormatAddon
             ? new UbiLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

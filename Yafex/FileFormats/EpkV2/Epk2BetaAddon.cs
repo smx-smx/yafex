@@ -33,11 +33,6 @@ namespace Yafex.FileFormats.EpkV2
                 : null;
         }
 
-        public IVfsNode CreateVfsNode(IDataSource ds)
-        {
-            return new YafexFile(ds, Helpers.OctalLiteral(0444));
-        }
-
         public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
         {
             if (source is not MFile input) return null;

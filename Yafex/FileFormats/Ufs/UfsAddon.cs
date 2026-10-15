@@ -41,11 +41,6 @@ public class UfsAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy top-level mount: the expander subtree hangs off the VFS root.
     // Lifetime: the factory closure retains the image, the keep-alive
     // set and the reader for as long as the node is reachable.

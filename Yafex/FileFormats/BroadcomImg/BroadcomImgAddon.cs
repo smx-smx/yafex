@@ -41,11 +41,6 @@ public class BroadcomImgAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy mount: one range view per flash region (no copies). Content
     // expansion (JFFS2 tree, UBI volumes, nested UBIFS) is handled by the
     // expander registry on first access.

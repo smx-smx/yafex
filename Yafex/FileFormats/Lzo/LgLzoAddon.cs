@@ -39,9 +39,4 @@ public class LgLzoAddon : IFormatAddon
             ? new LgLzoLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }

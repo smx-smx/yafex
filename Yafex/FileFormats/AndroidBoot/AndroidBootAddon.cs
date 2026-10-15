@@ -41,11 +41,6 @@ public class AndroidBootAddon : IFormatAddon
             : null;
     }
 
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
-
     // Lazy mount: header + each segment as a range view (no copies);
     // kernel-embedded DTB (e.g. edk-fajita) gets its own view too.
     public YafexVfs? CreateVfs(IDataSource source, DetectionResult result)

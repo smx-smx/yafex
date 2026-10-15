@@ -20,7 +20,11 @@ namespace Yafex
     {
         FileFormat FileFormat { get; }
         IFormatDetector CreateDetector(IDictionary<string, string> args);
-        IVfsNode CreateVfsNode(IDataSource ds);
+        /// <summary>
+        /// Mount node for an extracted artifact (materializing mount path).
+        /// Default: read-only file over the artifact's data.
+        /// </summary>
+        IVfsNode CreateVfsNode(IDataSource ds) => new YafexFile(ds, Helpers.OctalLiteral(0444));
 
         IFormatExtractor CreateExtractor(DetectionResult result);
 

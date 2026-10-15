@@ -39,9 +39,4 @@ public class TarAddon : IFormatAddon
             ? new TarLister(typed)
             : null;
     }
-
-    public IVfsNode CreateVfsNode(IDataSource ds)
-    {
-        return new YafexFile(ds, Helpers.OctalLiteral(0444));
-    }
 }
