@@ -109,15 +109,17 @@ namespace Yafex.FileFormats.MStarPkg
                 var tokens = lines[j].Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 if (tokens.Length == 0) continue;
                 if (tokens[0] == "filepartload") break;
-                // All write forms take ADDR NAME (name 4th), except the
-                // continuations (name 3rd); unlzo takes ADDR SIZE NAME.
+                // All write forms take ADDR NAME (name 4th); unlzo takes
+                // ADDR SIZE NAME (name 4th).
                 string? name = tokens[0] switch
                 {
-                    "mmc" when tokens.Length >= 4 && tokens[1] == "write.p" => tokens[3],
-                    "mmc" when tokens.Length >= 3 && tokens[1] == "write.p.continue" => tokens[2],
+                    "mmc" when tokens.Length >= 4 && (tokens[1] == "write.p" || tokens[1] == "write.p.continue") => tokens[3],
                     "mmc" when tokens[1] == "write.boot" => "boot",
                     "mmc" when tokens.Length >= 4 && tokens[1].StartsWith("unlzo") => tokens[3],
+                    "mmc" when tokens.Length >= 3 && tokens[1] == "erase.p" => tokens[2],
                     "nand" when tokens.Length >= 4 && tokens[1] == "write.e" => tokens[3],
+                    "nand" when tokens.Length >= 3 && tokens[1] == "erase" => tokens[2],
+                    "sparse_write" when tokens.Length >= 4 && tokens[1] == "mmc" => tokens[3],
                     "ubi" when tokens.Length >= 4 && (tokens[1] == "write" || tokens[1] == "write_cont") => tokens[3],
                     "store_secure_info" when tokens.Length >= 2 => StripSignSuffix(tokens[1]),
                     "store_nuttx_config" when tokens.Length >= 2 => tokens[1],

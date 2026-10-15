@@ -95,12 +95,14 @@ public class MStarPkgTests
             "store_secure_info kernelSign 81100000\n" +
             "filepartload 81100000 usb.bin 4100 100\n" +
             "mmc write.boot 1 80100000 0 100\n" +
+            "filepartload 81100000 usb.bin 4200 100\n" +
+            "mmc write.p.continue 80100000 cusdata 0x32000 100 1\n" +
             "filepartload 81100000 usb.bin 1000 100\n"; // same offset: deduped
         WriteAscii(buf, 0, script);
         var artifacts = new MStarPkgExtractor().Extract(Mem(buf, "test.bin")).ToList();
         var names = artifacts.Select(a => a.Name).ToList();
         CollectionAssert.AreEqual(
-            new[] { "recovery.pak", "RFS.pak", "KL.pak", "kernel.pak", "boot.pak" },
+            new[] { "recovery.pak", "RFS.pak", "KL.pak", "kernel.pak", "boot.pak", "cusdata.pak" },
             names);
     }
 
