@@ -21,9 +21,9 @@ namespace Yafex.Fuse;
 /// A directory whose children are built on first access (first readdir/lookup),
 /// not at mount time. Browsing a huge tree costs nothing until you open it.
 /// </summary>
-public sealed class LazyVfsDirectory : VfsNode, IVfsDir
+public class LazyVfsDirectory : VfsNode, IVfsDir
 {
-    private readonly Func<IEnumerable<IVfsNode>> _factory;
+    private readonly Func<IEnumerable<IVfsNode>>? _factory;
     private readonly object _gate = new();
     private bool _loaded;
 
@@ -34,6 +34,15 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
     {
         _factory = factory;
     }
+
+    /// <summary>For subclasses that override <see cref="LoadChildren"/>.</summary>
+    protected LazyVfsDirectory(string name, int mode)
+        : base(name, mode, 0)
+    {
+    }
+
+    /// <summary>Builds the children; runs once, on first access.</summary>
+    protected virtual IEnumerable<IVfsNode> LoadChildren() => _factory!();
 
     public override VfsNodeType Type => VfsNodeType.Directory;
 
@@ -48,7 +57,7 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
             _loaded = true;
             try
             {
-                foreach (var child in _factory())
+                foreach (var child in LoadChildren())
                 {
                     AddNode(child);
                 }
@@ -165,6 +174,8 @@ public static class ContentExpanders
     /// <summary>First expander whose sniff matches <paramref name="file"/>, or null.</summary>
     public static IContentExpander? FindMatch(IVirtualFile file)
     {
+        // every sniff reads (and possibly decrypts/inflates) the head: do it once
+        if (file is not HeadCachedFile) file = new HeadCachedFile(file);
         foreach (var expander in _expanders)
         {
             try
@@ -633,20 +644,14 @@ public static class VfsBuilder
     }
 
     /// <summary>
-    /// `&lt;name&gt;.d/` holding <paramref name="image"/>'s browsable content, or
-    /// null when no expander recognizes it. Only the magic sniff runs now; the
-    /// expansion itself waits until the directory is opened.
+    /// `&lt;name&gt;.d/` for <paramref name="image"/>'s nested content. Nothing is
+    /// read now: whether there is any content is sniffed only when a consumer
+    /// asks (<see cref="NestedVfsDirectory.HasContent"/>), and it is expanded
+    /// only when opened.
     /// </summary>
     public static IVfsNode? ExpandedView(IVirtualFile image, ICollection<object> keepAlive)
     {
-        var expander = ContentExpanders.FindMatch(image);
-        if (expander == null) return null;
-        return new LazyVfsDirectory(image.Name + ".d", Helpers.OctalLiteral(0755), () =>
-        {
-            var dir = expander.Expand(image, keepAlive);
-            dir.EnsureLoaded();
-            return dir.Tree.Values.Select(l => l.Node).ToList();
-        });
+        return new NestedVfsDirectory(image, keepAlive);
     }
 
     /// <summary>
@@ -731,5 +736,142 @@ public static class VfsBuilder
         public string Name { get; }
         public long Length => _inner.Length;
         public Stream OpenRead() => _inner.OpenRead();
+    }
+}
+
+/// <summary>
+/// A file's nested content (`&lt;name&gt;.d/`): a filesystem, archive or image
+/// inside it. Tree builders add one per candidate file without reading it;
+/// consumers decide whether to show it (<see cref="NestedViews"/>,
+/// <see cref="VfsWalk.Walk"/> depth), which sniffs on first ask.
+/// </summary>
+public sealed class NestedVfsDirectory : LazyVfsDirectory
+{
+    private readonly ICollection<object> _keepAlive;
+    private readonly Lazy<IContentExpander?> _expander;
+
+    public NestedVfsDirectory(IVirtualFile image, ICollection<object> keepAlive)
+        : base(image.Name + ".d", Helpers.OctalLiteral(0755))
+    {
+        Image = image;
+        _keepAlive = keepAlive;
+        _expander = new Lazy<IContentExpander?>(() => ContentExpanders.FindMatch(image),
+            System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    /// <summary>The file whose content this is.</summary>
+    public IVirtualFile Image { get; }
+
+    /// <summary>Expander that recognizes the content; sniffs on first call.</summary>
+    public IContentExpander? Expander => _expander.Value;
+
+    /// <summary>Whether the file holds browsable content (sniffs on first call).</summary>
+    public bool HasContent => Expander != null;
+
+    protected override IEnumerable<IVfsNode> LoadChildren()
+    {
+        var expander = Expander;
+        if (expander == null) return Array.Empty<IVfsNode>();
+        var dir = expander.Expand(Image, _keepAlive);
+        dir.EnsureLoaded();
+        return dir.Tree.Values.Select(l => l.Node).ToList();
+    }
+}
+
+/// <summary>Whether mounts show nested `.d` views (FUSE has no "open as" gesture).</summary>
+public static class NestedViews
+{
+    /// <summary>Mounts list `.d` views whose content sniffs positive. Off: never.</summary>
+    public static bool ShowInMount { get; set; } = true;
+
+    /// <summary>A nested view a mount must not list or resolve.</summary>
+    public static bool IsHiddenInMount(IVfsNode node)
+    {
+        return node is NestedVfsDirectory nested && (!ShowInMount || !nested.HasContent);
+    }
+}
+
+/// <summary>
+/// A virtual file whose first <see cref="HeadSize"/> bytes are read once and
+/// served from memory: content sniffing runs many probes over the same head,
+/// each of which would otherwise re-open (and re-decrypt) the source.
+/// </summary>
+public sealed class HeadCachedFile : IVirtualFile
+{
+    public const int HeadSize = 128 * 1024;
+
+    private readonly IVirtualFile _inner;
+    private byte[]? _head;
+
+    public HeadCachedFile(IVirtualFile inner)
+    {
+        _inner = inner;
+    }
+
+    public string Name => _inner.Name;
+
+    public long Length => _inner.Length;
+
+    private byte[] Head => _head ??= _inner.ReadHead(HeadSize);
+
+    public Stream OpenRead() => new HeadStream(this);
+
+    private sealed class HeadStream : Stream
+    {
+        private readonly HeadCachedFile _file;
+        private Stream? _tail;
+        private long _position;
+
+        public HeadStream(HeadCachedFile file)
+        {
+            _file = file;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => _file.Length;
+        public override long Position { get => _position; set => Seek(value, SeekOrigin.Begin); }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var head = _file.Head;
+            if (_position < head.Length)
+            {
+                int n = (int)Math.Min(count, head.Length - _position);
+                Array.Copy(head, _position, buffer, offset, n);
+                _position += n;
+                return n;
+            }
+            _tail ??= _file._inner.OpenRead();
+            _tail.Seek(_position, SeekOrigin.Begin);
+            int got = _tail.Read(buffer, offset, count);
+            _position += got;
+            return got;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            var target = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => Length + offset,
+                _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+            };
+            if (target < 0) throw new IOException("seek before start");
+            _position = target;
+            return target;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _tail?.Dispose();
+            base.Dispose(disposing);
+        }
+
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

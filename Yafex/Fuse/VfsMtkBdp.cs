@@ -74,23 +74,7 @@ public sealed class MtkBdpExpander : IContentExpander
             {
                 var mem = new MemoryVirtualFile(
                     MtkBdpExtractor.SafeName(p.Part.Name) + ".bin", p.Assemble(image));
-                keepAlive.Add(mem);
-                nodes.Add(new PakVfsFile(mem, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(mem, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the partition file
-                }
+                VfsBuilder.AddWithNested(nodes, mem, keepAlive);
             }
             if (nodes.Count == 0)
             {

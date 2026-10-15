@@ -129,9 +129,9 @@ public class VfsTests
 
         var keepAlive = new List<object>();
         var dir = expander.Expand(image, keepAlive);
-        dir.EnsureLoaded();
-        Assert.AreEqual(1, dir.Tree.Count);
-        var node = (PakVfsFile)dir.Tree.Values.First().Node;
+        var children = VfsWalk.Children(dir);
+        Assert.AreEqual(1, children.Count);
+        var node = (PakVfsFile)children[0];
         Assert.AreEqual("data", node.Name);
         Assert.AreEqual(payload.Length, node.Size);
         var chunk = ((IVfsFile)node).Read(0, payload.Length);

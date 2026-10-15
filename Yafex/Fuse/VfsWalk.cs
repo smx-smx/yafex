@@ -40,20 +40,33 @@ public sealed record VfsEntry(string Path, IVfsNode Node, int Depth, Exception? 
 /// </summary>
 public static class VfsWalk
 {
+    /// <summary>Walk every level of nested content.</summary>
+    public const int AllNested = int.MaxValue;
+
     /// <summary>
     /// Depth-first pre-order walk of <paramref name="root"/>'s descendants
     /// (root itself excluded). Lazy directories expand as they are reached;
     /// a failed expansion is reported on its entry and the walk continues.
+    /// Nested content (`&lt;name&gt;.d/` views of files holding a filesystem,
+    /// archive or image) is entered up to <paramref name="nestedDepth"/> levels
+    /// deep, and only when a sniff finds content; 0 walks the image's own
+    /// structure only.
     /// </summary>
-    public static IEnumerable<VfsEntry> Walk(IVfsNode root)
+    public static IEnumerable<VfsEntry> Walk(IVfsNode root, int nestedDepth = 0)
     {
-        return WalkChildren(root, "", 0);
+        return WalkChildren(root, "", 0, nestedDepth);
     }
 
-    private static IEnumerable<VfsEntry> WalkChildren(IVfsNode dir, string prefix, int depth)
+    private static IEnumerable<VfsEntry> WalkChildren(IVfsNode dir, string prefix, int depth, int nestedLeft)
     {
-        foreach (var child in Children(dir))
+        foreach (var child in AllChildren(dir))
         {
+            int childNested = nestedLeft;
+            if (child is NestedVfsDirectory nested)
+            {
+                if (nestedLeft <= 0 || !nested.HasContent) continue;
+                childNested = nestedLeft - 1;
+            }
             var path = prefix + child.Name;
             if (child.Type != VfsNodeType.Directory)
             {
@@ -62,15 +75,29 @@ public static class VfsWalk
             }
             var error = Load(child);
             yield return new VfsEntry(path, child, depth, error);
-            foreach (var sub in WalkChildren(child, path + "/", depth + 1))
+            foreach (var sub in WalkChildren(child, path + "/", depth + 1, childNested))
             {
                 yield return sub;
             }
         }
     }
 
-    /// <summary>Loaded children of <paramref name="dir"/>, ordinal by name.</summary>
+    /// <summary>
+    /// Loaded children of <paramref name="dir"/>, ordinal by name: its own
+    /// structure, without nested `.d` views (see <see cref="NestedViewsOf"/>).
+    /// </summary>
     public static IReadOnlyList<IVfsNode> Children(IVfsNode dir)
+    {
+        return AllChildren(dir).Where(n => n is not NestedVfsDirectory).ToList();
+    }
+
+    /// <summary>Nested `.d` views of <paramref name="dir"/>'s files (not sniffed).</summary>
+    public static IReadOnlyList<NestedVfsDirectory> NestedViewsOf(IVfsNode dir)
+    {
+        return AllChildren(dir).OfType<NestedVfsDirectory>().ToList();
+    }
+
+    private static IReadOnlyList<IVfsNode> AllChildren(IVfsNode dir)
     {
         Load(dir);
         return dir.Tree.Values
@@ -162,9 +189,9 @@ public static class VfsListing
     /// One line per entry: `d|f  size  path`, sizes right-aligned; failed
     /// expansions get a trailing `!` note.
     /// </summary>
-    public static void WriteFlat(IVfsNode root, TextWriter output)
+    public static void WriteFlat(IVfsNode root, TextWriter output, int nestedDepth = 0)
     {
-        foreach (var e in VfsWalk.Walk(root))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth))
         {
             var kind = e.IsDirectory ? 'd' : 'f';
             var line = $"{kind} {e.Size,12} {e.Path}{(e.IsDirectory ? "/" : "")}";
@@ -173,9 +200,9 @@ public static class VfsListing
     }
 
     /// <summary>Indented tree, same order and error notes as <see cref="WriteFlat"/>.</summary>
-    public static void WriteTree(IVfsNode root, TextWriter output)
+    public static void WriteTree(IVfsNode root, TextWriter output, int nestedDepth = 0)
     {
-        foreach (var e in VfsWalk.Walk(root))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth))
         {
             var indent = new string(' ', e.Depth * 2);
             var line = e.IsDirectory
@@ -198,12 +225,12 @@ public static class VfsExport
     /// <see cref="OperationCanceledException"/> when <paramref name="cancel"/> fires.
     /// </summary>
     public static int Export(IVfsNode root, string destDir, Action<VfsEntry>? progress = null,
-        System.Threading.CancellationToken cancel = default)
+        System.Threading.CancellationToken cancel = default, int nestedDepth = 0)
     {
         var baseDir = Path.GetFullPath(destDir);
         Directory.CreateDirectory(baseDir);
         int written = 0;
-        foreach (var e in VfsWalk.Walk(root))
+        foreach (var e in VfsWalk.Walk(root, nestedDepth))
         {
             cancel.ThrowIfCancellationRequested();
             var target = SafeTarget(baseDir, e.Path);

@@ -43,6 +43,12 @@ namespace Yafex
         public ProgramMode ProgramMode { get; set; }
         public Dictionary<string, Dictionary<string, string>> FormatOptions { get; set; } = new();
         public string? KeyBundlePath { get; set; }
+
+        /// <summary>Levels of nested content (images inside partitions, ...) --list/--tree/--export descend into.</summary>
+        public int NestedDepth { get; set; }
+
+        /// <summary>--mount lists nested `.d` views (sniffed per folder).</summary>
+        public bool MountNested { get; set; } = true;
     }
 
     public class Program
@@ -91,6 +97,8 @@ namespace Yafex
             var formatOptions = new Dictionary<string, Dictionary<string, string>>();
             string? inputFile = null;
             string? destDir = null;
+            int nestedDepth = 0;
+            bool mountNested = true;
             string? keysPath = Path.Combine(Directory.GetCurrentDirectory(), "secrets.json");
             var keysExplicit = false;
 
@@ -112,6 +120,16 @@ namespace Yafex
                         break;
                     case "--export":
                         programMode = ProgramMode.Export;
+                        break;
+                    case "-r":
+                    case "--recursive":
+                        nestedDepth = VfsWalk.AllNested;
+                        break;
+                    case "--depth":
+                        res = TryTake(it, out var depthArg) && int.TryParse(depthArg, out nestedDepth) && nestedDepth >= 0;
+                        break;
+                    case "--no-nested":
+                        mountNested = false;
                         break;
                     case "--probe":
                         programMode = ProgramMode.Probe;
@@ -187,7 +205,9 @@ namespace Yafex
                 FormatOptions = formatOptions,
                 ProgramMode = programMode,
                 DestDir = destDir,
-                KeyBundlePath = keysPath
+                KeyBundlePath = keysPath,
+                NestedDepth = nestedDepth,
+                MountNested = mountNested,
             };
             return opts;
         }
@@ -258,6 +278,7 @@ namespace Yafex
 
                     if (lazyVfs)
                     {
+                        NestedViews.ShowInMount = _opts.MountNested;
                         FuseInterop.Start(fuseVfs!, _opts.DestDir);
                         return;
                     }
@@ -293,7 +314,11 @@ namespace Yafex
             Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
             Console.WriteLine("  --list           list contents, one `d|f size path` line per entry (payloads untouched)");
             Console.WriteLine("  --tree           same entries as --list, indented");
-            Console.WriteLine("  --export         write the mount tree to -d <outdir> (same layout as --mount)");
+            Console.WriteLine("  --export         write the image's contents to -d <outdir> (same layout as --mount)");
+            Console.WriteLine("  --depth N        --list/--tree/--export also descend N levels into nested content");
+            Console.WriteLine("                   (filesystems/archives/images inside partitions, as <name>.d/); default 0");
+            Console.WriteLine("  -r, --recursive  descend into all nested content");
+            Console.WriteLine("  --no-nested      --mount: hide nested <name>.d/ views (default: shown when content is found)");
             Console.WriteLine("  --probe          test the file against all formats, show matches");
             Console.WriteLine("  -o fmt:opt=val   per-format option; -o global:spool_mb=<MB> streams big artifacts to disk (default 64)");
             Console.WriteLine("  keys: -k <path>, else $YAFEX_KEYS, else ./secrets.json (missing file = no keys, not fatal)");
@@ -344,15 +369,15 @@ namespace Yafex
             {
                 case ProgramMode.List:
                     Console.WriteLine($"{input.Name} ({label}):");
-                    VfsListing.WriteFlat(vfs.Root, Console.Out);
+                    VfsListing.WriteFlat(vfs.Root, Console.Out, _opts.NestedDepth);
                     break;
                 case ProgramMode.Tree:
                     Console.WriteLine($"{input.Name} ({label}):");
-                    VfsListing.WriteTree(vfs.Root, Console.Out);
+                    VfsListing.WriteTree(vfs.Root, Console.Out, _opts.NestedDepth);
                     break;
                 case ProgramMode.Export:
                     int n = VfsExport.Export(vfs.Root, _opts.DestDir!,
-                        e => { if (!e.IsDirectory) Console.WriteLine(e.Path); });
+                        e => { if (!e.IsDirectory) Console.WriteLine(e.Path); }, nestedDepth: _opts.NestedDepth);
                     Console.WriteLine($"exported {n} files to {_opts.DestDir}");
                     break;
             }

@@ -18,6 +18,7 @@ using System.Text;
 
 using NUnit.Framework;
 
+using Yafex;
 using Yafex.FileSystems.Squashfs3;
 using Yafex.Fuse;
 
@@ -65,7 +66,7 @@ public class NestedExpansionTests
     {
         var keepAlive = new List<object>();
         var dir = new TarExpander().Expand(new MemoryVirtualFile("a.tar", BuildTar()), keepAlive);
-        var paths = VfsWalk.Walk(dir).Select(e => e.Path).ToList();
+        var paths = VfsWalk.Walk(dir, VfsWalk.AllNested).Select(e => e.Path).ToList();
         CollectionAssert.Contains(paths, "fw/README.txt");
         CollectionAssert.Contains(paths, "fw/extra.tar.gz");
         // gzip member -> its inflated tar -> that tar's members, each under .d/
@@ -84,5 +85,83 @@ public class NestedExpansionTests
         BitConverter.GetBytes(major).CopyTo(head, 28);
         Assert.AreEqual(expected, Squashfs3FileSystem.IsVersion3(head));
         Assert.AreEqual(expected, new Squashfs3Expander().Matches(new MemoryVirtualFile("s.img", head)));
+    }
+
+    [Test]
+    public void NestedViews_AreNotSniffedWhileBuildingAndHiddenByDefault()
+    {
+        var keepAlive = new List<object>();
+        var dir = new TarExpander().Expand(new MemoryVirtualFile("a.tar", BuildTar()), keepAlive);
+        dir.EnsureLoaded();
+        var fw = dir.Tree["fw"].Node;
+        fw.EnsureLoaded();
+        // every member gets a view; none has been sniffed or expanded
+        var views = VfsWalk.NestedViewsOf(fw);
+        CollectionAssert.AreEquivalent(new[] { "README.txt.d", "big.bin.d", "extra.tar.gz.d" }, views.Select(v => v.Name));
+        Assert.IsTrue(views.All(v => v.Tree.Count == 0));
+
+        // depth 0: own structure only; views are not listed as children either
+        CollectionAssert.AreEquivalent(new[] { "fw", "fw/README.txt", "fw/big.bin", "fw/extra.tar.gz" },
+            VfsWalk.Walk(dir).Select(e => e.Path));
+        Assert.IsFalse(VfsWalk.Children(fw).Any(n => n is NestedVfsDirectory));
+
+        // depth 1: only views whose sniff finds content
+        var depth1 = VfsWalk.Walk(dir, 1).Select(e => e.Path).ToList();
+        CollectionAssert.Contains(depth1, "fw/extra.tar.gz.d/extra.tar");
+        Assert.IsFalse(depth1.Any(p => p.StartsWith("fw/big.bin.d")));
+        Assert.IsFalse(depth1.Any(p => p.Contains("extra.tar.d/")), "depth 1 stops before the inner tar");
+    }
+
+    [Test]
+    public void MountHidesViewsWithoutContentOrWhenDisabled()
+    {
+        var keepAlive = new List<object>();
+        var dir = new TarExpander().Expand(new MemoryVirtualFile("a.tar", BuildTar()), keepAlive);
+        dir.EnsureLoaded();
+        var fw = dir.Tree["fw"].Node;
+        fw.EnsureLoaded();
+        var gz = (NestedVfsDirectory)fw.Tree["extra.tar.gz.d"].Node;
+        var big = (NestedVfsDirectory)fw.Tree["big.bin.d"].Node;
+        try
+        {
+            Assert.IsFalse(NestedViews.IsHiddenInMount(gz));
+            Assert.IsTrue(NestedViews.IsHiddenInMount(big));
+            NestedViews.ShowInMount = false;
+            Assert.IsTrue(NestedViews.IsHiddenInMount(gz));
+        }
+        finally
+        {
+            NestedViews.ShowInMount = true;
+        }
+    }
+
+    [Test]
+    public void HeadCachedFile_ServesHeadOnceAndTailFromSource()
+    {
+        var data = Enumerable.Range(0, HeadCachedFile.HeadSize + 1000).Select(i => (byte)i).ToArray();
+        var counting = new CountingFile(new MemoryVirtualFile("x", data));
+        var cached = new HeadCachedFile(counting);
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.AreEqual(data.Take(64), cached.ReadHead(64));
+        }
+        Assert.AreEqual(1, counting.Opens, "head read once");
+        using var s = cached.OpenRead();
+        s.Seek(HeadCachedFile.HeadSize + 10, SeekOrigin.Begin);
+        var buf = new byte[4];
+        s.ReadExactly(buf);
+        CollectionAssert.AreEqual(data.Skip(HeadCachedFile.HeadSize + 10).Take(4), buf);
+    }
+
+    private sealed class CountingFile(IVirtualFile inner) : IVirtualFile
+    {
+        public int Opens;
+        public string Name => inner.Name;
+        public long Length => inner.Length;
+        public Stream OpenRead()
+        {
+            Opens++;
+            return inner.OpenRead();
+        }
     }
 }

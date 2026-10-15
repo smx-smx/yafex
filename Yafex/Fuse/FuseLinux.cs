@@ -284,6 +284,8 @@ namespace Yafex.Fuse
                 Trace("filler loop");
                 foreach (var itm in node.Tree)
                 {
+                    // nested .d views: sniffed now, listed only with content
+                    if (NestedViews.IsHiddenInMount(itm.Value.Node)) continue;
                     Trace($"child: {itm.Key}");
                     filler(buf, itm.Key, 0, 0, 0);
                     Trace($"child done: {itm.Key}");

@@ -77,7 +77,7 @@ public sealed class TarExpander : IContentExpander
             {
                 throw new InvalidOperationException("no tar members found");
             }
-            return VfsWalk.Children(root);
+            return root.Tree.Values.Select(l => l.Node).ToList();
         });
     }
 }
