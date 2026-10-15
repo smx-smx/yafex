@@ -5,15 +5,13 @@ using System.IO;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base.Vfs;
 
-using Yafex.Support;
 namespace Yafex.FileSystems.Ufs
 {
 
-    public class UfsFile : IVfsFile
+    public class UfsFile : UnixVfsFile
     {
         protected readonly UfsContext Context;
         protected readonly UfsInode Inode;
-        private IBuffer _content;
 
         public UfsFile(UfsContext context, UfsInode inode)
         {
@@ -21,48 +19,14 @@ namespace Yafex.FileSystems.Ufs
             Inode = inode;
         }
 
-        public virtual DateTime CreationTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
+        protected override long Mtime => Inode.Mtime;
 
-        public virtual DateTime LastAccessTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual DateTime LastWriteTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual FileAttributes FileAttributes
-        {
-            get { return FileAttributes.ReadOnly | FileAttributes.Normal; }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual long FileLength
+        public override long FileLength
         {
             get { return (long)Inode.Size; }
         }
 
-        public virtual IBuffer FileContent
-        {
-            get
-            {
-                if (_content == null)
-                {
-                    _content = OpenContent();
-                }
-                return _content;
-            }
-        }
-
-        protected virtual IBuffer OpenContent()
+        protected override IBuffer OpenContent()
         {
             return new ReadOnlyByteBuffer(Context.ReadFile(Inode.Ino));
         }

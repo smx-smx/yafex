@@ -5,7 +5,6 @@ using System.IO;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base.Vfs;
 
-using Yafex.Support;
 namespace Yafex.FileSystems.Squashfs3
 {
     /// <summary>
@@ -167,11 +166,10 @@ namespace Yafex.FileSystems.Squashfs3
         }
     }
 
-    public class Squashfs3File : IVfsFile
+    public class Squashfs3File : UnixVfsFile
     {
         protected readonly Squashfs3Context Context;
         protected readonly Squashfs3Inode Inode;
-        private IBuffer _content;
 
         public Squashfs3File(Squashfs3Context context, Squashfs3Inode inode)
         {
@@ -179,48 +177,14 @@ namespace Yafex.FileSystems.Squashfs3
             Inode = inode;
         }
 
-        public virtual DateTime CreationTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
+        protected override long Mtime => Inode.Mtime;
 
-        public virtual DateTime LastAccessTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual DateTime LastWriteTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual FileAttributes FileAttributes
-        {
-            get { return FileAttributes.ReadOnly | FileAttributes.Normal; }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual long FileLength
+        public override long FileLength
         {
             get { return Inode.FileSize < 0 ? 0 : Inode.FileSize; }
         }
 
-        public virtual IBuffer FileContent
-        {
-            get
-            {
-                if (_content == null)
-                {
-                    _content = OpenContent();
-                }
-                return _content;
-            }
-        }
-
-        protected virtual IBuffer OpenContent()
+        protected override IBuffer OpenContent()
         {
             return new Squashfs3FileBuffer(Context, Inode);
         }

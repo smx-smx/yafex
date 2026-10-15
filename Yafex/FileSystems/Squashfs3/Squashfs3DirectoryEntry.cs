@@ -3,10 +3,9 @@ using System.IO;
 
 using Yafex.FileSystems.Base.Vfs;
 
-using Yafex.Support;
 namespace Yafex.FileSystems.Squashfs3
 {
-    public sealed class Squashfs3DirectoryEntry : VfsDirEntry
+    public sealed class Squashfs3DirectoryEntry : UnixVfsDirEntry
     {
         private readonly string _name;
         private readonly int _type;
@@ -48,6 +47,8 @@ namespace Yafex.FileSystems.Squashfs3
             }
         }
 
+        protected override long Mtime => Inode.Mtime;
+
         public override string FileName
         {
             get { return _name; }
@@ -69,44 +70,6 @@ namespace Yafex.FileSystems.Squashfs3
                 return _type == Squashfs3Constants.TypeSymlink
                     || _type == 10;
             }
-        }
-
-        public override FileAttributes FileAttributes
-        {
-            get
-            {
-                FileAttributes attr = IsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
-                if (IsSymlink)
-                {
-                    attr |= FileAttributes.ReparsePoint;
-                }
-                return attr;
-            }
-        }
-
-        public override bool HasVfsFileAttributes
-        {
-            get { return false; }
-        }
-
-        public override bool HasVfsTimeInfo
-        {
-            get { return false; }
-        }
-
-        public override DateTime CreationTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-        }
-
-        public override DateTime LastAccessTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-        }
-
-        public override DateTime LastWriteTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

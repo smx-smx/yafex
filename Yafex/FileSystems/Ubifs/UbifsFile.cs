@@ -16,15 +16,13 @@ using System.Text;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base.Vfs;
 
-using Yafex.Support;
 namespace Yafex.FileSystems.Ubifs
 {
 
-    public class UbifsFile : IVfsFile
+    public class UbifsFile : UnixVfsFile
     {
         protected readonly UbifsContext Context;
         protected readonly UbifsInode Inode;
-        private IBuffer _content;
 
         public UbifsFile(UbifsContext context, UbifsInode inode)
         {
@@ -32,48 +30,14 @@ namespace Yafex.FileSystems.Ubifs
             Inode = inode;
         }
 
-        public virtual DateTime CreationTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
+        protected override long Mtime => Inode.Mtime;
 
-        public virtual DateTime LastAccessTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual DateTime LastWriteTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual FileAttributes FileAttributes
-        {
-            get { return FileAttributes.ReadOnly | FileAttributes.Normal; }
-            set { throw new NotSupportedException(); }
-        }
-
-        public virtual long FileLength
+        public override long FileLength
         {
             get { return (long)Math.Min(Inode.Size, long.MaxValue); }
         }
 
-        public virtual IBuffer FileContent
-        {
-            get
-            {
-                if (_content == null)
-                {
-                    _content = OpenContent();
-                }
-                return _content;
-            }
-        }
-
-        protected virtual IBuffer OpenContent()
+        protected override IBuffer OpenContent()
         {
             return new ReadOnlyByteBuffer(Context.ReadFile(Inode.Ino));
         }

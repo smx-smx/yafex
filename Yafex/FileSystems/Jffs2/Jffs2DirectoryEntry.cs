@@ -3,10 +3,9 @@ using System.IO;
 
 using Yafex.FileSystems.Base.Vfs;
 
-using Yafex.Support;
 namespace Yafex.FileSystems.Jffs2
 {
-    public sealed class Jffs2DirectoryEntry : VfsDirEntry
+    public sealed class Jffs2DirectoryEntry : UnixVfsDirEntry
     {
         private readonly Jffs2Context _context;
         private readonly Jffs2Dirent _dirent;
@@ -54,6 +53,8 @@ namespace Yafex.FileSystems.Jffs2
             }
         }
 
+        protected override long Mtime => Inode.Mtime;
+
         public override string FileName
         {
             get { return _dirent.Name; }
@@ -67,44 +68,6 @@ namespace Yafex.FileSystems.Jffs2
         public override bool IsSymlink
         {
             get { return TypeIsSymlink; }
-        }
-
-        public override FileAttributes FileAttributes
-        {
-            get
-            {
-                FileAttributes attr = IsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
-                if (IsSymlink)
-                {
-                    attr |= FileAttributes.ReparsePoint;
-                }
-                return attr;
-            }
-        }
-
-        public override bool HasVfsFileAttributes
-        {
-            get { return false; }
-        }
-
-        public override bool HasVfsTimeInfo
-        {
-            get { return false; }
-        }
-
-        public override DateTime CreationTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-        }
-
-        public override DateTime LastAccessTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
-        }
-
-        public override DateTime LastWriteTimeUtc
-        {
-            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override long UniqueCacheId
