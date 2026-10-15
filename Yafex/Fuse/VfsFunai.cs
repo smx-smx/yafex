@@ -103,3 +103,66 @@ public sealed class FunaiPayloadStream : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
+
+/// <summary>Lazy BDP partition: the blob is decrypted file-aligned on first
+/// access, then cmpr/zlib/plain-processed and memoized. Length triggers the
+/// same one-time processing.</summary>
+public sealed class FunaiBdpPartitionFile : IVirtualFile
+{
+    private readonly IDataSource _source;
+    private readonly long _blobOffset;
+    private readonly long _blobSize;
+    private readonly uint _key;
+    private readonly object _gate = new();
+    private byte[]? _memo;
+    private bool _failed;
+    private Exception? _error;
+
+    public FunaiBdpPartitionFile(string name, IDataSource source, long blobOffset, long blobSize, uint key)
+    {
+        Name = name;
+        _source = source;
+        _blobOffset = blobOffset;
+        _blobSize = blobSize;
+        _key = key;
+    }
+
+    public string Name { get; }
+
+    public long Length
+    {
+        get
+        {
+            EnsureProcessed();
+            return _memo!.Length;
+        }
+    }
+
+    public Stream OpenRead()
+    {
+        EnsureProcessed();
+        return new MemoryStream(_memo!, writable: false);
+    }
+
+    private void EnsureProcessed()
+    {
+        if (_memo != null) return;
+        lock (_gate)
+        {
+            if (_memo != null) return;
+            if (_failed) throw new InvalidDataException($"BDP partition '{Name}' failed to process", _error);
+            try
+            {
+                var file = _source.Data.ToArray();
+                var blob = FunaiBdpParser.DecryptBlobRange(file, _blobOffset, (int)_blobSize, file.Length, _key);
+                _memo = FunaiBdpParser.ProcessBlob(blob);
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is ArgumentException || ex is IOException)
+            {
+                _failed = true;
+                _error = ex;
+                throw new InvalidDataException($"BDP partition '{Name}' failed to process: {ex.Message}", ex);
+            }
+        }
+    }
+}

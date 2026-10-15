@@ -60,6 +60,7 @@ namespace Yafex
         AdbImg,
         MtkBdp,
         FunaiUpg,
-        FunaiPhl
+        FunaiPhl,
+        FunaiBdp
     }
 }

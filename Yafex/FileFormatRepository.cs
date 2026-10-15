@@ -157,6 +157,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, MtkBdpAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, FunaiUpgAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, FunaiPhlAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, FunaiBdpAddon>(key);
         }
     }
 }
