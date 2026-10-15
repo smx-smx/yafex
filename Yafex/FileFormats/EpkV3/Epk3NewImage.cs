@@ -54,21 +54,26 @@ namespace Yafex.FileFormats.EpkV3
             // New: head | 256B sig+list(size incl sig?) | chunks (existing behavior, verified)
             int packageInfoOffset;
             int signatureSize;
-            long chunksStart;
+            // encrypted region holding the package list
+            long packageInfoLength;
             if (isOld)
             {
                 packageInfoOffset = Marshal.SizeOf<EPK_V3_HEAD_STRUCTURE>()
                     + EPK_V3_HEAD_STRUCTURE.SIGNATURE_SIZE;
                 signatureSize = EPK_V3_HEAD_STRUCTURE.SIGNATURE_SIZE;
-                chunksStart = (long)packageInfoOffset + hdr.packageInfoSize;
+                packageInfoLength = hdr.packageInfoSize;
             }
             else
             {
+                // New: the 256-byte list signature precedes the list
+                // (PAK_V3_NEW_LISTHEADER starts with it) and is not counted
+                // in packageInfoSize, which covers header + entries only
                 packageInfoOffset = Marshal.OffsetOf<EPK_V3_NEW_STRUCTURE>(nameof(epk.packageInfo)).ToInt32();
                 signatureSize = EPK_V3_NEW_STRUCTURE.SIGNATURE_SIZE;
-                chunksStart = (long)packageInfoOffset + signatureSize + hdr.packageInfoSize;
+                packageInfoLength = (long)signatureSize + hdr.packageInfoSize;
             }
-            var packageInfoBytes = data.Slice(packageInfoOffset, hdr.packageInfoSize);
+            long chunksStart = packageInfoOffset + packageInfoLength;
+            var packageInfoBytes = data.Slice(packageInfoOffset, packageInfoLength);
             var decrypted = decryptor.Decrypt(packageInfoBytes);
 
             uint packageInfoCount;
