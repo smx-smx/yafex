@@ -23,18 +23,11 @@
 using System;
 using System.IO;
 
-#if !NETSTANDARD1_5
-using System.Runtime.Serialization;
-#endif
-
 namespace Yafex.FileSystems.Base
 {
     /// <summary>
     /// Exception thrown when some invalid file system data is found, indicating probably corruption.
     /// </summary>
-#if !NETSTANDARD1_5
-    [Serializable]
-#endif
     public class InvalidFileSystemException : IOException
     {
         /// <summary>
@@ -56,17 +49,5 @@ namespace Yafex.FileSystems.Base
         /// <param name="innerException">The inner exception.</param>
         public InvalidFileSystemException(string message, Exception innerException)
             : base(message, innerException) {}
-
-#if !NETSTANDARD1_5
-        /// <summary>
-        /// Initializes a new instance of the InvalidFileSystemException class.
-        /// </summary>
-        /// <param name="info">The serialization info.</param>
-        /// <param name="context">The streaming context.</param>
-        protected InvalidFileSystemException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
-        }
-#endif
     }
 }
