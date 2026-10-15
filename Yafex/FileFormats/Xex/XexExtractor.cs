@@ -421,8 +421,12 @@ namespace Yafex.FileFormats.Xex
                 var source = (int)s.VirtualAddress;
                 var target = peFile.Slice(s.PointerToRawData);
                 if (source >= peMem.Length) continue;
-                var sectionData = peMem.Slice(source, s.VirtualSize);
-                sectionData.CopyTo(target);
+                // Stored bytes are SizeOfRawData; VirtualSize may run past
+                // them (zero padding, e.g. .bss-style sections).
+                var want = Math.Min((long)s.VirtualSize, (long)s.SizeOfRawData);
+                want = Math.Min(want, peMem.Length - source);
+                want = Math.Min(want, target.Length);
+                peMem.Slice(source, want).CopyTo(target);
             }
 
             // copy IAT
@@ -613,12 +617,12 @@ namespace Yafex.FileFormats.Xex
 
             var peFile = RebuildPEFile();
 
-            var outputName = Path.GetFileNameWithoutExtension(source.Directory) + ".exe";
-            var exeArtifact = new MemoryDataSource(peFile)
-            {
-                Name = outputName,
-                Flags = DataSourceFlags.Output
-            };
+            // Flat wires OutputFileName + parent link like every other
+            // extractor, so the artifact resolves under -d (a bare
+            // MemoryDataSource is silently skipped by Extractor).
+            var outputName = Path.GetFileNameWithoutExtension(source.Name) + ".exe";
+            var exeArtifact = ArtifactBuilder.Flat(source, outputName, peFile.ToArray());
+            exeArtifact.Flags |= DataSourceFlags.Output;
             yield return exeArtifact;
         }
     }
