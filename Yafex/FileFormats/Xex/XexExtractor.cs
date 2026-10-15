@@ -199,7 +199,7 @@ namespace Yafex.FileFormats.Xex
             switch (opt_file_format_info.encryption_type)
             {
                 case xex2_encryption_type.NONE:
-                    mem.CopyTo(out_ptr);
+                    mem.Slice((int)header.header_size).CopyTo(out_ptr);
                     break;
                 case xex2_encryption_type.NORMAL:
                     var data = mem.Slice(p).ToArray();
