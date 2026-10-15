@@ -16,6 +16,10 @@ using Smx.SharpIO.Memory.Buffers;
 
 using Yafex.Support;
 
+// Binary-layout structs populated via ReadStruct/Marshal: padding and
+// reserved fields are never assigned/read in C# by design (CS0649/CS0169).
+#pragma warning disable CS0649, CS0169
+
 namespace Yafex.FileFormats.EpkV3
 {
     public struct EPK_V3_HEADER

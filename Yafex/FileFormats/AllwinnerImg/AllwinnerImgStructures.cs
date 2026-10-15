@@ -13,6 +13,10 @@ using System.Text;
 
 using Yafex.Support;
 
+// Binary-layout structs populated via ReadStruct/Marshal: padding and
+// reserved fields are never assigned/read in C# by design (CS0649/CS0169).
+#pragma warning disable CS0649, CS0169
+
 namespace Yafex.FileFormats.AllwinnerImg;
 
 [InlineArray(8)]

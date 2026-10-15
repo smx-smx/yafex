@@ -6,6 +6,10 @@ using Yafex.Support;
 
 using System.Runtime.InteropServices;
 
+// Binary-layout structs populated via ReadStruct/Marshal: padding and
+// reserved fields are never assigned/read in C# by design (CS0649/CS0169).
+#pragma warning disable CS0649, CS0169
+
 namespace Yafex.FileFormats.SddlSec
 {
     [InlineArray(4)]
