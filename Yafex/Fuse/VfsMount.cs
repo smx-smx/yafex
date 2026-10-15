@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using System.Collections.Generic;
 
 using Yafex.Support;
 
@@ -40,5 +41,30 @@ public static class VfsMount
             VfsImageViews.Decrypted | VfsImageViews.Metadata | VfsImageViews.Expanded,
             keepAlive,
             describe: meta != null ? () => meta : null);
+    }
+
+    /// <summary>
+    /// Lazy VFS for an input: the detected format's own
+    /// <see cref="IFormatAddon.CreateVfs"/> when it has one, else the content
+    /// expander registry over the whole input (the expansion nested members
+    /// get; also covers expander-only filesystems such as FAT/ext/GPT that no
+    /// addon detects). Null when neither applies.
+    /// </summary>
+    public static YafexVfs? CreateLazy(IFormatAddon? addon, DetectionResult? result, IDataSource input)
+    {
+        if (addon != null && result != null)
+        {
+            var vfs = addon.CreateVfs(input, result);
+            if (vfs != null) return vfs;
+        }
+        var image = new RangeVirtualFile(input.Name, input, 0, input.Data.Length);
+        var keepAlive = new List<object> { image };
+        if (!ContentExpanders.TryExpand(image, keepAlive, out var dir) || dir == null)
+        {
+            return null;
+        }
+        var expanded = new YafexVfs();
+        expanded.Root.AddNode(dir);
+        return expanded;
     }
 }

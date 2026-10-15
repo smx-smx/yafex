@@ -125,4 +125,29 @@ public class GzipTests
             .Detect(Mem(new byte[] { 0x1F, 0x8B, 0x08 }));
         Assert.AreEqual(0, res.Confidence);
     }
+
+    [Test]
+    public void CreateLazy_FallsBackToExpander()
+    {
+        // Gzip has no CreateVfs of its own: the expander registry supplies the tree
+        var payload = Encoding.ASCII.GetBytes("inflated payload");
+        var mem = Mem(BuildGzip(payload), "blob.gz");
+        var addon = new GzipAddon();
+        var det = addon.CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        Assert.IsNull(addon.CreateVfs(mem, det));
+        var vfs = Yafex.Fuse.VfsMount.CreateLazy(addon, det, mem);
+        Assert.NotNull(vfs);
+        var top = vfs!.Root.Tree["blob.gz"].Node;
+        top.EnsureLoaded();
+        var file = (Yafex.Fuse.IVfsFile)top.Tree["blob"].Node;
+        CollectionAssert.AreEqual(payload, file.Read(0, payload.Length));
+    }
+
+    [Test]
+    public void CreateLazy_GarbageIsNull()
+    {
+        var rnd = new byte[4096];
+        new Random(5).NextBytes(rnd);
+        Assert.IsNull(Yafex.Fuse.VfsMount.CreateLazy(null, null, Mem(rnd)));
+    }
 }

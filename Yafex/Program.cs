@@ -241,10 +241,7 @@ namespace Yafex
                     {
                         var finder = host.Services.GetRequiredService<FormatFinder>();
                         var (addon, result) = finder.DetectFormatAddon(input);
-                        if (addon != null && result != null)
-                        {
-                            fuseVfs = addon.CreateVfs(input, result);
-                        }
+                        fuseVfs = VfsMount.CreateLazy(addon, result, input);
                         if (fuseVfs != null)
                         {
                             lazyVfs = true;
@@ -352,11 +349,13 @@ namespace Yafex
 
         private static void RunTree(FormatFinder finder, IDataSource input)
         {
-            if (!TryDetect(finder, input, out var addon, out var result)) return;
-            var vfs = addon.CreateVfs(input, result);
+            var (addon, result) = finder.DetectFormatAddon(input);
+            var vfs = VfsMount.CreateLazy(addon, result, input);
             if (vfs == null)
             {
-                Console.WriteLine($"lazy VFS not supported for {FormatName(addon)}");
+                Console.WriteLine(addon == null
+                    ? "no format identified"
+                    : $"lazy VFS not supported for {FormatName(addon)}");
                 return;
             }
             PrintTree(vfs.Root, "", Console.Out);

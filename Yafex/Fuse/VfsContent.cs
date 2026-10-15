@@ -218,8 +218,10 @@ public sealed class GzipExpander : IContentExpander
             : file.Name + ".out";
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            var inflated = new GzipVirtualFile(stem, file);
-            return new IVfsNode[] { new PakVfsFile(inflated, Helpers.OctalLiteral(0444)) };
+            // nested content (e.g. .tar.gz): surface it next to the inflated blob
+            var nodes = new List<IVfsNode>();
+            VfsBuilder.AddWithNested(nodes, new GzipVirtualFile(stem, file), keepAlive);
+            return nodes;
         });
     }
 }
