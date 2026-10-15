@@ -45,7 +45,6 @@ namespace Yafex.FileSystems.Fat
         private readonly Ownership _ownsData;
 
         private readonly TimeConverter _timeConverter;
-        private byte[] _bootSector;
         private ushort _bpbBkBootSec;
 
         private ushort _bpbBytesPerSec;
@@ -66,9 +65,12 @@ namespace Yafex.FileSystems.Fat
 
         private byte _bsBootSig;
         private uint _bsVolId;
-        private string _bsVolLab;
-        private Stream _data;
-        private Directory _rootDir;
+        // Set by Initialize() (via ReadBPB/LoadFAT/LoadRootDirectory) in every
+        // constructor; null-forgiving initializers keep nullable enabled.
+        private byte[] _bootSector = null!;
+        private string _bsVolLab = null!;
+        private Stream _data = null!;
+        private Directory _rootDir = null!;
 
         /// <summary>
         /// Initializes a new instance of the FatFileSystem class.
@@ -195,7 +197,7 @@ namespace Yafex.FileSystems.Fat
             get { return _data.CanWrite; }
         }
 
-        internal ClusterReader ClusterReader { get; private set; }
+        internal ClusterReader ClusterReader { get; private set; } = null!;
 
         /// <summary>
         /// Gets a value indicating whether the VolumeId, VolumeLabel and FileSystemType fields are valid.
@@ -205,7 +207,7 @@ namespace Yafex.FileSystems.Fat
             get { return _bsBootSig == 0x29; }
         }
 
-        internal FileAllocationTable Fat { get; private set; }
+        internal FileAllocationTable Fat { get; private set; } = null!;
 
         /// <summary>
         /// Gets the number of FATs present.
@@ -236,7 +238,7 @@ namespace Yafex.FileSystems.Fat
         /// <summary>
         /// Gets the (informational only) file system type recorded in the meta-data.
         /// </summary>
-        public string FileSystemType { get; private set; }
+        public string FileSystemType { get; private set; } = null!;
 
         /// <summary>
         /// Gets the friendly name for the file system, including FAT variant.
@@ -307,7 +309,7 @@ namespace Yafex.FileSystems.Fat
         /// <summary>
         /// Gets the OEM name from the file system.
         /// </summary>
-        public string OemName { get; private set; }
+        public string OemName { get; private set; } = null!;
 
         /// <summary>
         /// Gets the number of reserved sectors at the start of the disk.

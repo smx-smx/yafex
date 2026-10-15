@@ -126,12 +126,12 @@ namespace Yafex.FileSystems.Fat
             set { DateTimeToFileTime(value, out _lastWriteDate, out _lastWriteTime); }
         }
 
-        public FileName Name { get; set; }
+        public FileName Name { get; set; } = null!;
 
         /// <summary>
         /// VFAT long name (null when the entry has no valid LFN run).
         /// </summary>
-        public string LongName { get; set; }
+        public string? LongName { get; set; }
 
         internal string GetDisplayName(System.Text.Encoding encoding)
         {

@@ -30,16 +30,19 @@ namespace Yafex.FileSystems.Fat
     internal class Directory : IDisposable
     {
         private readonly Stream _dirStream;
-        private readonly Directory _parent;
+        // Null for the root directory; every dereference null-checks first.
+        private readonly Directory? _parent;
         private readonly long _parentId;
         private long _endOfEntries;
 
-        private Dictionary<long, DirectoryEntry> _entries;
-        private List<long> _freeEntries;
-        private DirectoryEntry _parentEntry;
+        // Set by LoadEntries() in every constructor; location sentinels
+        // (-1) guard absent self/parent entries.
+        private Dictionary<long, DirectoryEntry> _entries = null!;
+        private List<long> _freeEntries = null!;
+        private DirectoryEntry _parentEntry = null!;
         private long _parentEntryLocation;
 
-        private DirectoryEntry _selfEntry;
+        private DirectoryEntry _selfEntry = null!;
         private long _selfEntryLocation;
 
         /// <summary>
