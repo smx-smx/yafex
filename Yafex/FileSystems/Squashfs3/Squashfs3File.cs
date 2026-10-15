@@ -5,6 +5,7 @@ using System.IO;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Squashfs3
 {
     /// <summary>
@@ -253,19 +254,19 @@ namespace Yafex.FileSystems.Squashfs3
 
         public virtual DateTime CreationTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastAccessTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastWriteTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 

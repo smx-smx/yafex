@@ -26,6 +26,7 @@ using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Ext
 {
     internal class File : IVfsFile
@@ -47,21 +48,21 @@ namespace Yafex.FileSystems.Ext
 
         public DateTime LastAccessTimeUtc
         {
-            get { return ((long)Inode.AccessTime).FromUnixTimeSeconds().DateTime; }
+            get { return UnixTime.ToDateTime(Inode.AccessTime); }
 
             set { throw new NotImplementedException(); }
         }
 
         public DateTime LastWriteTimeUtc
         {
-            get { return ((long) Inode.ModificationTime).FromUnixTimeSeconds().DateTime; }
+            get { return UnixTime.ToDateTime(Inode.ModificationTime); }
 
             set { throw new NotImplementedException(); }
         }
 
         public DateTime CreationTimeUtc
         {
-            get { return ((long) Inode.CreationTime).FromUnixTimeSeconds().DateTime; }
+            get { return UnixTime.ToDateTime(Inode.CreationTime); }
 
             set { throw new NotImplementedException(); }
         }

@@ -3,6 +3,7 @@ using System.IO;
 
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Squashfs3
 {
     public sealed class Squashfs3DirectoryEntry : VfsDirEntry
@@ -95,17 +96,17 @@ namespace Yafex.FileSystems.Squashfs3
 
         public override DateTime CreationTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

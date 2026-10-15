@@ -24,6 +24,7 @@ using System;
 using System.IO;
 using Yafex.FileSystems.Base.Streams;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.SquashFs
 {
     internal abstract class Inode : IByteArraySerializable
@@ -50,7 +51,7 @@ namespace Yafex.FileSystems.SquashFs
             Mode = EndianUtilities.ToUInt16LittleEndian(buffer, offset + 2);
             UidKey = EndianUtilities.ToUInt16LittleEndian(buffer, offset + 4);
             GidKey = EndianUtilities.ToUInt16LittleEndian(buffer, offset + 6);
-            ModificationTime = ((long) EndianUtilities.ToUInt32LittleEndian(buffer, offset + 8)).FromUnixTimeSeconds().DateTime;
+            ModificationTime = UnixTime.ToDateTime(EndianUtilities.ToUInt32LittleEndian(buffer, offset + 8));
             InodeNumber = EndianUtilities.ToUInt32LittleEndian(buffer, offset + 12);
             return 16;
         }

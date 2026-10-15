@@ -23,6 +23,7 @@
 using System;
 using Yafex.FileSystems.Base.Streams;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.SquashFs
 {
     internal class SuperBlock : IByteArraySerializable
@@ -60,7 +61,7 @@ namespace Yafex.FileSystems.SquashFs
             if (Magic != SquashFsMagic) return Size;
 
             InodesCount = EndianUtilities.ToUInt32LittleEndian(buffer, offset + 4);
-            CreationTime = ((long) EndianUtilities.ToUInt32LittleEndian(buffer, offset + 8)).FromUnixTimeSeconds().DateTime;
+            CreationTime = UnixTime.ToDateTime(EndianUtilities.ToUInt32LittleEndian(buffer, offset + 8));
             BlockSize = EndianUtilities.ToUInt32LittleEndian(buffer, offset + 12);
             FragmentsCount = EndianUtilities.ToUInt32LittleEndian(buffer, offset + 16);
             Compression = EndianUtilities.ToUInt16LittleEndian(buffer, offset + 20);

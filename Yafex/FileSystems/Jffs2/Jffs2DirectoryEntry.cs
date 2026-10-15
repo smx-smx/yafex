@@ -3,6 +3,7 @@ using System.IO;
 
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Jffs2
 {
     public sealed class Jffs2DirectoryEntry : VfsDirEntry
@@ -93,17 +94,17 @@ namespace Yafex.FileSystems.Jffs2
 
         public override DateTime CreationTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override DateTime LastAccessTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override DateTime LastWriteTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
         }
 
         public override long UniqueCacheId

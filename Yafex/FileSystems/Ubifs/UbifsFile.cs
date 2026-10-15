@@ -16,6 +16,7 @@ using System.Text;
 using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Ubifs
 {
     internal sealed class UbifsMemoryBuffer : IBuffer
@@ -100,19 +101,19 @@ namespace Yafex.FileSystems.Ubifs
 
         public virtual DateTime CreationTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastAccessTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 
         public virtual DateTime LastWriteTimeUtc
         {
-            get { return DateTimeOffsetExtensions.FromUnixSeconds(Inode.Mtime); }
+            get { return UnixTime.ToDateTime(Inode.Mtime); }
             set { throw new NotSupportedException(); }
         }
 

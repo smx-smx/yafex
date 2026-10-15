@@ -6,6 +6,7 @@ using Yafex.FileSystems.Base.Streams;
 using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Base.Vfs;
 
+using Yafex.Support;
 namespace Yafex.FileSystems.Vdfs
 {
     public sealed class VdfsDirectoryEntry : VfsDirEntry
@@ -90,13 +91,11 @@ namespace Yafex.FileSystems.Vdfs
         {
             if (value.Length < off + 12)
             {
-                return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                return DateTime.UnixEpoch;
             }
             ulong secs = VdfsConstants.ReadU32(value, off)
                 | ((ulong)VdfsConstants.ReadU32(value, off + 4) << 32);
-            // Precision past 2^53 seconds is irrelevant for firmware images.
-            double s = secs > (ulong)long.MaxValue ? 0 : (double)secs;
-            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(s);
+            return UnixTime.ToDateTime(secs);
         }
 
         public override DateTime CreationTimeUtc
