@@ -186,6 +186,53 @@ namespace Yafex
             }
         }
 
+        /// <summary>Reads a <see cref="KeyCollectionDTO"/> of
+        /// <see cref="RawKeyDTO"/> entries as raw byte strings (e.g. 4-byte
+        /// Funai keys). Returns false when the id is missing, not a
+        /// collection, or holds no raw entries.</summary>
+        public IEnumerable<byte[]> GetRawCollection(string id)
+        {
+            if (!_keySecrets.TryGetValue(id, out var item))
+            {
+                throw new InvalidOperationException();
+            }
+            if (item is not KeyCollectionDTO keyList)
+            {
+                throw new InvalidDataException();
+            }
+            var outList = new List<byte[]>();
+            foreach (var sub in keyList.Keys)
+            {
+                if (sub is RawKeyDTO raw)
+                {
+                    outList.Add(Convert.FromHexString(raw.KeyMaterial));
+                }
+                else if (sub is BasicKeyDTO basic)
+                {
+                    outList.Add(Convert.FromHexString(basic.KeyMaterial));
+                }
+                else
+                {
+                    throw new InvalidDataException();
+                }
+            }
+            return outList;
+        }
+
+        public bool TryGetRawCollection(string id, out IEnumerable<byte[]> keys)
+        {
+            keys = Enumerable.Empty<byte[]>();
+            try
+            {
+                keys = GetRawCollection(id);
+                return true;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is InvalidDataException || ex is FormatException)
+            {
+                return false;
+            }
+        }
+
 
         /// <summary>
         /// Builds a bundle from already-loaded entries without touching disk.

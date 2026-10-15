@@ -62,6 +62,18 @@ public class KeysRepository
         return _keyBundle.TryGetKeyCollection(id, out keys);
     }
 
+    public IEnumerable<byte[]> GetRawCollection(string id)
+    {
+        return _keyBundle.GetRawCollection(id);
+    }
+
+    public bool TryGetRawCollection(string id, out IEnumerable<byte[]> keys)
+    {
+        keys = Enumerable.Empty<byte[]>();
+        if (_keyBundle == null) return false;
+        return _keyBundle.TryGetRawCollection(id, out keys);
+    }
+
     public AesDecryptor? CreateAesDecryptor<T>(
         string keysId,
         IAesDecryptorFactory<T> factory,
