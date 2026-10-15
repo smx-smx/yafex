@@ -1,0 +1,67 @@
+#region License
+/*
+ * Copyright (c) 2026 Stefano Moioli
+ * This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
+ * Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+ *  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+ *  2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+ *  3. This notice may not be removed or altered from any source distribution.
+ */
+#endregion
+using System.Collections.Generic;
+
+using Yafex.Fuse;
+
+namespace Yafex.FileFormats.Funai;
+
+public class FunaiMstarAddon : FormatAddon<FunaiMstarDetectionResult>
+{
+    public override FileFormat FileFormat => FileFormat.FunaiMstar;
+
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
+    {
+        return new FunaiMstarDetector();
+    }
+
+    protected override bool IsUsable(FunaiMstarDetectionResult result) => result.Info != null;
+
+    protected override IFormatExtractor CreateExtractor(FunaiMstarDetectionResult result)
+    {
+        return new FunaiMstarExtractor(result);
+    }
+
+    public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
+    {
+        if (result is not FunaiMstarDetectionResult typed) return null;
+        try
+        {
+            var info = typed.Info;
+            long dataOff = FunaiMstarParser.DataOffset(info);
+            VfsMount.TryRoot(input, Support.PathNames.Flatten(info.FileCode), out var vfs, out var root);
+            var keepAlive = new List<object>();
+            long pos = dataOff;
+            if (info.SocSize > 0)
+            {
+                VfsMount.AddRange(root, input, "SoC.bin", pos, info.SocSize,
+                    $"SoC {info.SocVersion}", keepAlive);
+                pos += info.SocSize;
+            }
+            if (info.Frc60Size > 0)
+            {
+                VfsMount.AddRange(root, input, "FRC60.bin", pos, info.Frc60Size,
+                    $"FRC {info.FrcVersion} 60", keepAlive);
+                pos += info.Frc60Size;
+            }
+            if (info.Frc120Size > 0)
+            {
+                VfsMount.AddRange(root, input, "FRC120.bin", pos, info.Frc120Size,
+                    $"FRC {info.FrcVersion} 120", keepAlive);
+            }
+            return vfs;
+        }
+        catch (System.Exception)
+        {
+            return null;
+        }
+    }
+}

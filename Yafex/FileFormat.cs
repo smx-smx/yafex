@@ -61,6 +61,7 @@ namespace Yafex
         MtkBdp,
         FunaiUpg,
         FunaiPhl,
-        FunaiBdp
+        FunaiBdp,
+        FunaiMstar
     }
 }
