@@ -36,8 +36,9 @@ internal static class UbifsConstants
     public const int KeyData = 1;
     public const int KeyDent = 2;
 
-    // data compression types
+    // data compression types (kernel ubifs-media.h: NONE=0, LZO=1, ZLIB=2)
     public const uint ComprNone = 0;
+    public const uint ComprLzo = 1;
     public const uint ComprZlib = 2;
 
     // fixed offsets inside an inode node

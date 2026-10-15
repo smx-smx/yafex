@@ -14,6 +14,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 
+using Yafex.FileFormats.Lzo;
 using Yafex.FileSystems.Base.Vfs;
 
 namespace Yafex.FileSystems.Ubifs;
@@ -291,6 +292,21 @@ public sealed class UbifsContext : VfsContext
     private static byte[] Inflate(byte[] data, uint compr, uint size)
     {
         if (compr == UbifsConstants.ComprNone) return data;
+        if (compr == UbifsConstants.ComprLzo)
+        {
+            // Shared LZO1X decoder (same as LG-LZO payloads): UBIFS stores
+            // one raw LZO1X stream per data node, expanding to exactly `size`.
+            if (size > 1 << 20) throw new IOException("UBIFS LZO block too large");
+            try
+            {
+                return Lzo1X.Decompress(data, (int)size);
+            }
+            catch (Exception ex) when (ex is InvalidDataException
+                || ex is ArgumentException || ex is ArgumentOutOfRangeException)
+            {
+                throw new IOException("UBIFS LZO inflate failed", ex);
+            }
+        }
         if (compr == UbifsConstants.ComprZlib)
         {
             using var raw = new MemoryStream(data, writable: false);

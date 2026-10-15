@@ -146,13 +146,16 @@ public class UbifsTests
         return Node(2, sqnum, b.ToArray());
     }
 
-    private static byte[] Data(uint inum, uint block, byte[] payload, uint compr, ulong sqnum)
+    private static byte[] Data(uint inum, uint block, byte[] payload, uint compr, ulong sqnum, uint? sizeOverride = null)
     {
         var b = new List<byte>();
         PutU32(b, inum);
         PutU32(b, (1u << 29) | block);
         b.AddRange(new byte[8]); // reserved
-        PutU32(b, (uint)payload.Length);
+        // UBIFS stores the uncompressed length: for stored nodes it equals
+        // the payload length, for compressed nodes the caller passes it
+        // (zlib path only guards overruns, LZO needs the exact length).
+        PutU32(b, sizeOverride ?? (uint)payload.Length);
         PutU32(b, compr);
         b.AddRange(payload);
         return Node(1, sqnum, b.ToArray());
@@ -248,6 +251,66 @@ public class UbifsTests
         var names = node.Tree.Keys.ToList();
         CollectionAssert.Contains(names, "hello.txt");
         CollectionAssert.Contains(names, "sub");
+    }
+
+    // LZO1X ("ABCD" x64, 256 bytes) -> 38 bytes, same vector pinned in
+    // LgLzoTests (produced once via lzo1x_1_compress). Reused here so the
+    // UBIFS LZO path needs no encoder.
+    private const string LzoAbcdHex =
+        "05414243444142434420c31c0000024142434441424344414243444142434441424344110000";
+
+    private static byte[] LzoAbcdPlain()
+    {
+        var expect = new byte[256];
+        var pat = Encoding.ASCII.GetBytes("ABCD");
+        for (int i = 0; i < expect.Length; i++) expect[i] = pat[i & 3];
+        return expect;
+    }
+
+    internal static byte[] BuildLzoImage(byte[] compressed, uint uncompressedSize, string name = "lzo.bin")
+    {
+        var leb = new List<byte>();
+        ulong sq = 1;
+        var sb = new List<byte>();
+        sb.AddRange(new byte[8]);
+        sb.AddRange(new byte[4]);
+        PutU32(sb, (uint)LebSize);
+        while (sb.Count < 72) sb.Add(0);
+        leb.AddRange(Node(6, sq++, sb.ToArray()));
+        leb.AddRange(Ino(1, sq++, 0x41ED, 0, Array.Empty<byte>()));
+        leb.AddRange(Dent(1, name, 2, sq++));
+        leb.AddRange(Ino(2, sq++, 0x81A4, uncompressedSize, Array.Empty<byte>()));
+        leb.AddRange(Data(2, 0, compressed, 1, sq++, uncompressedSize));
+        var img = new byte[LebSize];
+        Array.Copy(leb.ToArray(), img, Math.Min(leb.Count, LebSize));
+        return img;
+    }
+
+    [Test]
+    public void LzoBlock_RoundTrips()
+    {
+        var compressed = Convert.FromHexString(LzoAbcdHex);
+        var expect = LzoAbcdPlain();
+        var img = BuildLzoImage(compressed, (uint)expect.Length);
+        var mem = Mem(img, "v.ubifs");
+        var det = (UbifsDetectionResult)new UbifsAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        Assert.AreEqual(90, det.Confidence);
+        var artifacts = new UbifsAddon().CreateExtractor(det).Extract(mem).ToList();
+        var file = artifacts.First(a => a.Name == "lzo.bin");
+        CollectionAssert.AreEqual(expect, file.Data.ToArray());
+    }
+
+    [Test]
+    public void LzoCorrupt_ThrowsLzoNotUnsupported()
+    {
+        var compressed = Convert.FromHexString(LzoAbcdHex);
+        var truncated = compressed[..^2];
+        var img = BuildLzoImage(truncated, 256);
+        using var ms = new MemoryStream(img, writable: false);
+        var ctx = Yafex.FileSystems.Ubifs.UbifsContext.Open(ms);
+        var ex = Assert.Throws<IOException>(() => ctx.ReadFile(2));
+        StringAssert.Contains("LZO", ex!.Message);
+        Assert.IsFalse(ex.Message.Contains("unsupported"));
     }
 
     [Test]
