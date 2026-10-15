@@ -26,7 +26,7 @@ public class UefiDetector : IFormatDetector
         try
         {
             var data = source.Data;
-            if (data.Length < 64)
+            if (data.Length < 64 || !Uefi.MayContainFirmware(data))
             {
                 return DetectionResult.Fail;
             }

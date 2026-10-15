@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -66,6 +67,14 @@ public class BroadcomImgDetector : IFormatDetector
             if (data.Length < BroadcomImgParser.MinUbiStart + 4096)
             {
                 return DetectionResult.Fail;
+            }
+            // sliced pre-checks: JFFS2 magic at zero, a CRC-valid UBI header
+            using (var head = new MemoryStream(DataScan.Window(data, 0, 65536), writable: false))
+            {
+                if (!Jffs2FileSystem.Detect(head) || !UbiFormat.HasValidEc(data))
+                {
+                    return DetectionResult.Fail;
+                }
             }
             var bytes = data.ToArray();
             if (!BroadcomImgParser.TrySplit(bytes, out long ubiStart))

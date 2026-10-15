@@ -9,6 +9,8 @@
  */
 #endregion
 using System;
+using Yafex.Support;
+using Smx.SharpIO.Memory.Buffers;
 using System.Collections.Generic;
 
 namespace Yafex.FileFormats.AmdPsp;
@@ -329,6 +331,23 @@ public static class AmdPsp
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Sliced pre-check for detection: some directory cookie whose table
+    /// checksum validates, copying only a window per candidate.
+    /// </summary>
+    public static bool HasDirectory(Memory64<byte> data)
+    {
+        const int window = DirHeaderSize + MaxEntries * BiosEntrySize;
+        foreach (var cookie in new[] { "$PSP"u8.ToArray(), "$BHD"u8.ToArray(), "$PL2"u8.ToArray(), "$BL2"u8.ToArray() })
+        {
+            foreach (long hit in DataScan.FindAll(data, cookie))
+            {
+                if (TryReadDirectory(DataScan.Window(data, hit, window), 0, out _)) return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>All checksum-validated directories in the image, in file order.</summary>

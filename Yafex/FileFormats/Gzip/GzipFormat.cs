@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.Gzip;
@@ -26,7 +27,7 @@ public class GzipDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
-            if (!Gzip.TryReadMember(data.ToArray(), out var member))
+            if (!Gzip.HasHeader(DataScan.Window(data, 0, 4096)) || !Gzip.TryReadMember(data.ToArray(), out var member))
             {
                 return DetectionResult.Fail;
             }

@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -48,6 +49,16 @@ public static class IntelHex
         if (c >= '0' && c <= '9') return c - '0';
         if (c >= 'A' && c <= 'F') return c - 'A' + 10;
         return c - 'a' + 10;
+    }
+
+    /// <summary>The printable-text rule <see cref="TryParse"/> applies, on a prefix.</summary>
+    public static bool LooksLikeText(byte[] prefix)
+    {
+        foreach (byte b in prefix)
+        {
+            if (b != '\r' && b != '\n' && b != 0x1A && (b < 0x20 || b > 0x7E)) return false;
+        }
+        return prefix.Length > 0;
     }
 
     public static bool TryParse(byte[] blob, out Image image)

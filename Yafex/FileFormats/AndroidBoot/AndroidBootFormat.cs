@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.AndroidBoot;
@@ -26,7 +27,7 @@ public class AndroidBootDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
-            if (!AndroidBoot.TryReadHeader(data.ToArray(), out var header))
+            if (!AndroidBoot.HasMagic(DataScan.Window(data, 0, 4096)) || !AndroidBoot.TryReadHeader(data.ToArray(), out var header))
             {
                 return DetectionResult.Fail;
             }

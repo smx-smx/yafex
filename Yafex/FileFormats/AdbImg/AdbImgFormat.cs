@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -87,6 +88,7 @@ public class AdbImgDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
+            if (AdbImgParser.ReadAsciiZ(DataScan.Window(data, 0, 4096), 0, 6) != "yIMG1") return DetectionResult.Fail;
             var bytes = data.ToArray();
             if (!AdbImgParser.TrySplit(bytes, out long start, out long end))
             {

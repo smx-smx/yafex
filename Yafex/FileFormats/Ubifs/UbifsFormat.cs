@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -29,14 +30,14 @@ public class UbifsDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 32) return DetectionResult.Fail;
-            var bytes = data.ToArray();
-            using (var head = new MemoryStream(bytes, writable: false))
+            using (var head = new MemoryStream(DataScan.Window(data, 0, 65536), writable: false))
             {
                 if (!UbifsFileSystem.Detect(head))
                 {
                     return DetectionResult.Fail;
                 }
             }
+            var bytes = data.ToArray();
             using var stream = new MemoryStream(bytes, writable: false);
             using var fs = new UbifsFileSystem(stream);
             if (fs.Root == null) return DetectionResult.Fail;

@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.MtkBoot;
@@ -26,6 +27,7 @@ public class MtkBootDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
+            if (!MtkBoot.HasMagic(DataScan.Window(data, 0, MtkBoot.PblSize))) return DetectionResult.Fail;
             var bytes = data.ToArray();
             if (!MtkBoot.HasMagic(bytes))
             {

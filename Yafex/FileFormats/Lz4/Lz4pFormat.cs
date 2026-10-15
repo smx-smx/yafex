@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.Lz4;
@@ -26,6 +27,7 @@ public class Lz4pDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
+            if (!Lz4p.HasMagic(DataScan.Window(data, 0, 4096))) return DetectionResult.Fail;
             var bytes = data.ToArray();
             if (!Lz4p.TryReadArchive(bytes, out var archive))
             {

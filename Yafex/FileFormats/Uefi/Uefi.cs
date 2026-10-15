@@ -9,6 +9,8 @@
  */
 #endregion
 using System;
+using Yafex.Support;
+using Smx.SharpIO.Memory.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -166,6 +168,16 @@ public static class Uefi
 
     public static bool TryGetVolumeAt(byte[] img, long offset, out FirmwareVolume volume)
     {
+        return TryGetVolumeAt(img, offset, img.Length, out volume);
+    }
+
+    /// <summary>
+    /// Volume header check on a window: <paramref name="img"/> may be a slice
+    /// of a larger image whose total length (from the window start) is
+    /// <paramref name="imageLength"/>.
+    /// </summary>
+    public static bool TryGetVolumeAt(byte[] img, long offset, long imageLength, out FirmwareVolume volume)
+    {
         volume = null!;
         if (!HasBytes(img, offset, 56))
         {
@@ -178,7 +190,7 @@ public static class Uefi
         }
         long length = ReadU64(img, offset + 32);
         int headerLength = ReadU16(img, offset + 48);
-        if (length <= 0 || offset + length > img.Length || length > 1L << 32)
+        if (length <= 0 || offset + length > imageLength || length > 1L << 32)
         {
             return false;
         }
@@ -224,6 +236,29 @@ public static class Uefi
         }
         volume = new FirmwareVolume(offset, length, ReadGuid(img, offset + 16), files);
         return true;
+    }
+
+    /// <summary>
+    /// Cheap sliced pre-check for detection: a flash descriptor, a
+    /// checksum-valid volume header, or a FIT pointer. Copies only small
+    /// windows of <paramref name="data"/>.
+    /// </summary>
+    public static bool MayContainFirmware(Memory64<byte> data)
+    {
+        if (data.Length < 64) return false;
+        if (HasFlashDescriptorPrefix(DataScan.Window(data, 0, 0x20))) return true;
+        foreach (long hit in DataScan.FindAll(data, "_FVH"u8.ToArray(), 40))
+        {
+            long start = hit - 40;
+            var window = DataScan.Window(data, start, 0x2000);
+            if (TryGetVolumeAt(window, 0, data.Length - start, out _)) return true;
+        }
+        // FIT pointer at 4 GiB - 0x40 maps to the image tail
+        var tail = DataScan.Window(data, data.Length - 0x40, 4);
+        long ptr = (uint)ReadU32(tail, 0);
+        long off = data.Length - (0x1_0000_0000L - ptr);
+        return ptr >= 0xFF000000L && off >= 0
+            && DataScan.Window(data, off, 5).AsSpan().SequenceEqual("_FIT_"u8);
     }
 
     /// <summary>All checksum-valid volumes fully inside the image.</summary>

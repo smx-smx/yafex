@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.Idb;
@@ -26,6 +27,7 @@ public class IdbDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
+            if (!Idb.HasMagic(DataScan.Window(data, 0, 4096))) return DetectionResult.Fail;
             var bytes = data.ToArray();
             if (!Idb.TryParse(bytes, out var table))
             {

@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -137,6 +138,7 @@ public class SpvDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < SpvParser.HeaderSize) return DetectionResult.Fail;
+            if (BitConverter.ToUInt32(DataScan.Window(data, 0, 4096), 4) != SpvParser.TagMagic) return DetectionResult.Fail;
             var bytes = data.ToArray();
             if (!SpvParser.TryParseHeader(bytes, out var bins)) return DetectionResult.Fail;
             return new SpvDetectionResult(90, bytes, bins);

@@ -167,30 +167,27 @@ namespace Yafex.FileFormats.LxBoot
         /// </summary>
         internal static List<(uint Offset, uint Size)> FindEmbeddedImages(Memory64<byte> data)
         {
+            // magic-first sliced scan: header windows are copied per hit only
             var hits = new List<(uint Offset, uint Size)>();
             try
             {
-                var bytes = data.ToArray();
-                for (long off = 4; off + 16 <= bytes.Length && hits.Count < 16; off += 4)
+                foreach (uint magic in new[] { LLB_MAGIC, BLL_MAGIC })
                 {
-                    int o = (int)off;
-                    uint branch = BitConverter.ToUInt32(bytes, o);
-                    if (!IsBranchInstruction(branch))
+                    int found = 0;
+                    foreach (long at in DataScan.FindAll(data, BitConverter.GetBytes(magic), 8))
                     {
-                        continue;
+                        long off = at - 4;
+                        if (off % 4 != 0) continue;
+                        var head = DataScan.Window(data, off, 16);
+                        if (head.Length < 16 || !IsBranchInstruction(BitConverter.ToUInt32(head, 0))) continue;
+                        uint size = BitConverter.ToUInt32(head, 12);
+                        if (size < 16 || off + size > data.Length || off > uint.MaxValue) continue;
+                        hits.Add(((uint)off, size));
+                        if (++found >= 16) break;
                     }
-                    uint magic = BitConverter.ToUInt32(bytes, o + 4);
-                    if (magic != LLB_MAGIC && magic != BLL_MAGIC)
-                    {
-                        continue;
-                    }
-                    uint size = BitConverter.ToUInt32(bytes, o + 12);
-                    if (size < 16 || off + size > bytes.Length)
-                    {
-                        continue;
-                    }
-                    hits.Add(((uint)off, size));
                 }
+                hits.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+                if (hits.Count > 16) hits.RemoveRange(16, hits.Count - 16);
             }
             catch
             {

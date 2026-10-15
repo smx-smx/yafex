@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.UImage;
@@ -26,7 +27,7 @@ public class UImageDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
-            if (!UImage.TryReadHeader(data.ToArray(), out var header))
+            if (!UImage.HasHeader(DataScan.Window(data, 0, 4096)) || !UImage.TryReadHeader(data.ToArray(), out var header))
             {
                 return DetectionResult.Fail;
             }

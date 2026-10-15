@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.IO;
 
 namespace Yafex.FileFormats.MstarSb;
@@ -23,6 +24,10 @@ public class MstarSbDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 64)
+            {
+                return DetectionResult.Fail;
+            }
+            if (!System.Linq.Enumerable.Any(DataScan.FindAll(data, "SECURITY"u8.ToArray(), alignment: 16)))
             {
                 return DetectionResult.Fail;
             }

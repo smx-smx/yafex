@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,6 +28,7 @@ public class MtkBdpDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 128) return DetectionResult.Fail;
+            if (DataScan.IndexOf(data, MtkBdpConstants.PititMagic) < 0) return DetectionResult.Fail;
             var bytes = data.ToArray();
             var parts = MtkBdpParser.Open(bytes);
             if (parts == null) return DetectionResult.Fail;

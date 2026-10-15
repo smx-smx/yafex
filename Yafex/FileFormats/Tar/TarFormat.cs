@@ -9,6 +9,7 @@
  */
 #endregion
 using System;
+using Yafex.Support;
 using System.Collections.Generic;
 using System.IO;
 
@@ -77,6 +78,10 @@ public class TarDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 1024)
+            {
+                return DetectionResult.Fail;
+            }
+            if (TarFormat.FindHeader(DataScan.Window(data, 0, 65536 + 512)) < 0)
             {
                 return DetectionResult.Fail;
             }

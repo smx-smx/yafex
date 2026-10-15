@@ -9,6 +9,8 @@
  */
 #endregion
 using System;
+using Yafex.Support;
+using Smx.SharpIO.Memory.Buffers;
 using System.Collections.Generic;
 using System.IO;
 
@@ -37,6 +39,19 @@ public static class UbiFormat
         }
     }
 
+    /// <summary>
+    /// Sliced pre-check for detection: a "UBI#" erase-counter header whose
+    /// CRC validates, copying only the 64-byte header per candidate.
+    /// </summary>
+    public static bool HasValidEc(Memory64<byte> data)
+    {
+        foreach (long hit in DataScan.FindAll(data, "UBI#"u8.ToArray()))
+        {
+            if (UbiConstants.ValidEc(DataScan.Window(data, hit, UbiConstants.HeaderSize), 0)) return true;
+        }
+        return false;
+    }
+
     public static long FindStart(byte[] image)
     {
         for (long pos = 0; pos + 64 <= image.Length; pos++)
@@ -62,6 +77,10 @@ public class UbiDetector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 2 * 512)
+            {
+                return DetectionResult.Fail;
+            }
+            if (!UbiFormat.HasValidEc(data))
             {
                 return DetectionResult.Fail;
             }

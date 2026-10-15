@@ -34,6 +34,10 @@ public class AmdPspDetector : IFormatDetector
             {
                 return DetectionResult.Fail;
             }
+            if (!AmdPsp.HasDirectory(data))
+            {
+                return DetectionResult.Fail;
+            }
             var bytes = data.ToArray();
             var dirs = AmdPsp.FindDirectories(bytes);
             if (dirs.Count == 0)

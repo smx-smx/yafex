@@ -9,6 +9,8 @@
  */
 #endregion
 using System;
+using Yafex.Support;
+using Smx.SharpIO.Memory.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,16 +30,18 @@ public class Squashfs2Detector : IFormatDetector
         {
             var data = source.Data;
             if (data.Length < 119) return DetectionResult.Fail;
-            var bytes = data.ToArray();
-            // embedded images (e.g. SerComm firmware): scan for the magic
-            foreach (long off in FindCandidates(bytes))
+            // embedded images (e.g. SerComm firmware): scan for the magic,
+            // validating each candidate through a slice of the source
+            foreach (long off in FindCandidates(data))
             {
                 try
                 {
-                    using var stream = new MemoryStream(bytes, (int)off, bytes.Length - (int)off, writable: false);
-                    using var fs = new Squashfs2FileSystem(stream);
-                    var root = fs.Root;
-                    if (root == null) continue;
+                    using (var stream = new Yafex.Fuse.DataSourceRangeStream(source, off, data.Length - off))
+                    using (var fs = new Squashfs2FileSystem(stream))
+                    {
+                        if (fs.Root == null) continue;
+                    }
+                    var bytes = data.ToArray();
                     bool bigEndian = bytes[off] == (byte)'s' && bytes[off + 1] == (byte)'q';
                     return new Squashfs2DetectionResult(90, bytes, off, bigEndian);
                 }
@@ -54,17 +58,15 @@ public class Squashfs2Detector : IFormatDetector
         }
     }
 
-    internal static IEnumerable<long> FindCandidates(byte[] image)
+    /// <summary>First 16 offsets holding either endianness of the magic, ascending.</summary>
+    internal static IEnumerable<long> FindCandidates(Memory64<byte> data)
     {
-        int found = 0;
-        for (long i = 0; i + 4 <= image.Length && found < 16; i++)
-        {
-            uint magic = (uint)(image[i] | (image[i + 1] << 8) | (image[i + 2] << 16) | (image[i + 3] << 24));
-            if (magic == Squashfs2FileSystem.Magic || magic == 0x68737173)
-            {
-                yield return i;
-                found++;
-            }
-        }
+        var le = BitConverter.GetBytes(Squashfs2FileSystem.Magic);
+        var be = BitConverter.GetBytes(0x68737173u);
+        var hits = new List<long>();
+        hits.AddRange(System.Linq.Enumerable.Take(DataScan.FindAll(data, le), 16));
+        hits.AddRange(System.Linq.Enumerable.Take(DataScan.FindAll(data, be), 16));
+        hits.Sort();
+        return System.Linq.Enumerable.Take(hits, 16);
     }
 }
