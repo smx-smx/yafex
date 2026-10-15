@@ -144,7 +144,7 @@ public static class VfsWalk
                 SeekOrigin.End => _length + offset,
                 _ => throw new ArgumentOutOfRangeException(nameof(origin)),
             };
-            if (target < 0) throw new IOException("seek before start");
+            if (target < 0 || target > _length) throw new IOException("seek out of range");
             _position = target;
             return target;
         }
