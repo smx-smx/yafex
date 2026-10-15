@@ -110,4 +110,30 @@ public class VfsWalkTests
     {
         Assert.That(VfsExport.SafeTarget(Path.GetTempPath(), rel), Is.Null);
     }
+
+    [TestCase("a/b/c.txt", new[] { "a", "b", "c.txt" })]
+    [TestCase("./a//b/", new[] { "a", "b" })]
+    [TestCase("a\\b", new[] { "a", "b" })]
+    public void SplitMemberPath_Normalizes(string path, string[] expected)
+    {
+        CollectionAssert.AreEqual(expected, VfsBuilder.SplitMemberPath(path));
+    }
+
+    [TestCase("../etc/passwd")]
+    [TestCase("a/../../b")]
+    [TestCase("./")]
+    public void SplitMemberPath_RejectsHostileOrEmpty(string path)
+    {
+        Assert.IsNull(VfsBuilder.SplitMemberPath(path));
+    }
+
+    [Test]
+    public void EnsureDirectory_ReusesAndCreatesLevels()
+    {
+        var root = new YafexDirectory("", Helpers.OctalLiteral(0755));
+        var b = VfsBuilder.EnsureDirectory(root, new[] { "a", "b" });
+        Assert.AreSame(b, VfsBuilder.EnsureDirectory(root, new[] { "a", "b" }));
+        b.AddNode(Text("f", "x"));
+        CollectionAssert.AreEqual(new[] { "a", "a/b", "a/b/f" }, VfsWalk.Walk(root).Select(e => e.Path));
+    }
 }

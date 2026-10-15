@@ -28,11 +28,12 @@ namespace Yafex.FileFormats.Tar;
 /// </summary>
 public sealed class YafexTarEntry
 {
-    internal YafexTarEntry(string name, long offset, long length)
+    internal YafexTarEntry(string name, long offset, long length, bool isDirectory = false)
     {
         Name = name;
         Offset = offset;
         Length = length;
+        IsDirectory = isDirectory;
     }
 
     /// <summary>Member name.</summary>
@@ -43,6 +44,9 @@ public sealed class YafexTarEntry
 
     /// <summary>Data length in bytes.</summary>
     public long Length { get; }
+
+    /// <summary>Directory member (typeflag '5' or a trailing '/').</summary>
+    public bool IsDirectory { get; }
 }
 
 /// <summary>
@@ -71,7 +75,8 @@ public sealed class YafexTarReader
                 throw new InvalidDataException("Invalid tar header");
             }
 
-            var record = new YafexTarEntry(name, stream.Position, length);
+            bool isDir = hdrBuf[156] == (byte)'5' || name.EndsWith('/');
+            var record = new YafexTarEntry(name, stream.Position, length, isDir);
             _ordered.Add(record);
             _files[record.Name] = record;
             stream.Position += (length + 511) / 512 * 512;

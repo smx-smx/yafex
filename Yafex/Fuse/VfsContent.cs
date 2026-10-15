@@ -677,6 +677,41 @@ public static class VfsBuilder
         nodes.AddRange(ExpandNested(file, keepAlive));
     }
 
+    /// <summary>
+    /// Components of an archive member path (`/` or `\` separated, empty and
+    /// `.` parts dropped), or null for a hostile path (`..`) or an empty one.
+    /// </summary>
+    public static string[]? SplitMemberPath(string path)
+    {
+        var parts = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => p != ".")
+            .ToArray();
+        if (parts.Length == 0 || parts.Contains("..")) return null;
+        return parts;
+    }
+
+    /// <summary>
+    /// The directory at <paramref name="parts"/> below <paramref name="parent"/>,
+    /// creating missing levels (archive members that list files before, or
+    /// without, their directories).
+    /// </summary>
+    public static IVfsNode EnsureDirectory(IVfsNode parent, IEnumerable<string> parts)
+    {
+        var dir = parent;
+        foreach (var part in parts)
+        {
+            if (dir.Tree.TryGetValue(part, out var link) && link.Node.Type == VfsNodeType.Directory)
+            {
+                dir = link.Node;
+                continue;
+            }
+            var sub = new YafexDirectory(part, Helpers.OctalLiteral(0755));
+            dir.AddNode(sub);
+            dir = sub;
+        }
+        return dir;
+    }
+
     private sealed class RenamedVirtualFile : IVirtualFile
     {
         private readonly IVirtualFile _inner;

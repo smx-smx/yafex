@@ -53,19 +53,29 @@ public sealed class TarExpander : IContentExpander
             {
                 throw new InvalidOperationException("no tar archive found");
             }
-            var nodes = new List<IVfsNode>();
+            var root = new YafexDirectory("", Helpers.OctalLiteral(0755));
             using var stream = new MemoryStream(image, (int)start, image.Length - (int)start, false);
             var tar = new YafexTarReader(stream);
             foreach (var e in tar.Entries)
             {
-                var slice = new SliceVirtualFile(Support.PathNames.Flatten(e.Name), file, start + e.Offset, e.Length);
+                var parts = VfsBuilder.SplitMemberPath(e.Name);
+                if (parts == null) continue;
+                if (e.IsDirectory)
+                {
+                    VfsBuilder.EnsureDirectory(root, parts);
+                    continue;
+                }
+                var dir = VfsBuilder.EnsureDirectory(root, parts[..^1]);
+                var nodes = new List<IVfsNode>();
+                var slice = new SliceVirtualFile(parts[^1], file, start + e.Offset, e.Length);
                 VfsBuilder.AddWithNested(nodes, slice, keepAlive);
+                nodes.ForEach(dir.AddNode);
             }
-            if (nodes.Count == 0)
+            if (root.Tree.Count == 0)
             {
                 throw new InvalidOperationException("no tar members found");
             }
-            return nodes;
+            return VfsWalk.Children(root);
         });
     }
 }
