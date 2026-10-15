@@ -8,35 +8,25 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using System;
 using System.Collections.Generic;
+using System.IO;
 
-using Yafex.Fuse;
+using Yafex.FileSystems.Base;
+using Yafex.FileSystems.Squashfs2;
 
 namespace Yafex.FileFormats.Squashfs2;
 
-public class Squashfs2Addon : IFormatAddon
+public class Squashfs2Addon : DiscImageAddon<Squashfs2DetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Squashfs2;
+    public override FileFormat FileFormat => FileFormat.Squashfs2;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new Squashfs2Detector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    public override DiscFileSystem OpenFileSystem(Stream image)
     {
-        if (result is not Squashfs2DetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
-        return new Squashfs2Extractor(typed);
-    }
-
-    public IFormatLister? CreateLister(DetectionResult result)
-    {
-        return result is Squashfs2DetectionResult typed && typed.Image != null
-            ? new Squashfs2Lister(typed)
-            : null;
+        return new Squashfs2FileSystem(image);
     }
 }

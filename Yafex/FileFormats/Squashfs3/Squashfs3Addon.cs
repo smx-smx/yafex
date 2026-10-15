@@ -8,35 +8,25 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-using System;
 using System.Collections.Generic;
+using System.IO;
 
-using Yafex.Fuse;
+using Yafex.FileSystems.Base;
+using Yafex.FileSystems.Squashfs3;
 
 namespace Yafex.FileFormats.Squashfs3;
 
-public class Squashfs3Addon : IFormatAddon
+public class Squashfs3Addon : DiscImageAddon<Squashfs3DetectionResult>
 {
-    public FileFormat FileFormat => FileFormat.Squashfs3;
+    public override FileFormat FileFormat => FileFormat.Squashfs3;
 
-    public IFormatDetector CreateDetector(IDictionary<string, string> args)
+    public override IFormatDetector CreateDetector(IDictionary<string, string> args)
     {
         return new Squashfs3Detector();
     }
 
-    public IFormatExtractor CreateExtractor(DetectionResult result)
+    public override DiscFileSystem OpenFileSystem(Stream image)
     {
-        if (result is not Squashfs3DetectionResult typed || typed.Image == null)
-        {
-            throw new ArgumentException(nameof(result));
-        }
-        return new Squashfs3Extractor(typed);
-    }
-
-    public IFormatLister? CreateLister(DetectionResult result)
-    {
-        return result is Squashfs3DetectionResult typed && typed.Image != null
-            ? new Squashfs3Lister(typed)
-            : null;
+        return new Squashfs3FileSystem(image);
     }
 }

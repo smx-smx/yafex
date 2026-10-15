@@ -18,7 +18,7 @@ using Yafex.FileSystems.Squashfs2;
 
 namespace Yafex.FileFormats.Squashfs2;
 
-public record Squashfs2DetectionResult(int Confidence, byte[]? Image, long Offset, bool BigEndian = false) : DetectionResult(Confidence);
+public record Squashfs2DetectionResult(int Confidence, byte[]? Image, long Offset, bool BigEndian = false) : DiscImageDetectionResult(Confidence, Image, Offset);
 
 public class Squashfs2Detector : IFormatDetector
 {
@@ -65,63 +65,6 @@ public class Squashfs2Detector : IFormatDetector
                 yield return i;
                 found++;
             }
-        }
-    }
-}
-
-public class Squashfs2Lister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _offset;
-
-    public Squashfs2Lister(Squashfs2DetectionResult result)
-    {
-        _image = result.Image!;
-        _offset = result.Offset;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, (int)_offset, _image.Length - (int)_offset, writable: false);
-        using var fs = new Squashfs2FileSystem(stream);
-        output.WriteLine($"Squashfs2 ({source.Name}, {fs.Root.GetFiles().Length + fs.Root.GetDirectories().Length} top entries):");
-        Walk(fs, fs.Root, "", output);
-    }
-
-    private static void Walk(Squashfs2FileSystem fs, DiscDirectoryInfo dir, string prefix, TextWriter output)
-    {
-        foreach (var d in dir.GetDirectories())
-        {
-            output.WriteLine($"  d {prefix}{d.Name}");
-            Walk(fs, d, prefix + d.Name + "/", output);
-        }
-        foreach (var f in dir.GetFiles())
-        {
-            output.WriteLine($"  f {prefix}{f.Name} size={f.Length}");
-        }
-    }
-}
-
-public class Squashfs2Extractor : IFormatExtractor
-{
-    private readonly byte[] _image;
-    private readonly long _offset;
-
-    public Squashfs2Extractor(Squashfs2DetectionResult result)
-    {
-        _image = result.Image!;
-        _offset = result.Offset;
-    }
-
-    public IEnumerable<IDataSource> Extract(IDataSource source)
-    {
-        using var stream = new MemoryStream(_image, (int)_offset, _image.Length - (int)_offset, writable: false);
-        using var fs = new Squashfs2FileSystem(stream);
-        foreach (var (path, content) in Fuse.DiscTree.Flatten(fs))
-        {
-            // flat output: hierarchy stays visible via --list/--tree and mount
-            var flat = path.Replace('/', '_');
-            yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }
 }

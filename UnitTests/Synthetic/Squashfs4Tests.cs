@@ -172,6 +172,23 @@ public class Squashfs4Tests
     }
 
     [Test]
+    public void CreateVfs_MountsTreeLazily()
+    {
+        var mem = Mem(BuildImage(), "sq4.img");
+        var addon = new Squashfs4Addon();
+        var det = addon.CreateDetector(new Dictionary<string, string>()).Detect(mem);
+        var vfs = addon.CreateVfs(mem, det);
+        Assert.NotNull(vfs);
+        var top = vfs!.Root.Tree["sq4.img"].Node;
+        top.EnsureLoaded();
+        var file = top.Tree["hello.txt"].Node;
+        Assert.AreEqual(6, file.Size);
+        CollectionAssert.AreEqual(
+            ((Yafex.Fuse.IVfsFile)file).Read(0, 6),
+            new Squashfs4Addon().CreateExtractor(det).Extract(mem).Single().Data.ToArray());
+    }
+
+    [Test]
     public void Extract_ReadsFile()
     {
         var mem = Mem(BuildImage(), "sq4.img");

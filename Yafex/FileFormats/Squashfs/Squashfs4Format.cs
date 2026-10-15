@@ -22,7 +22,7 @@ namespace Yafex.FileFormats.Squashfs;
 // Mount expansion already handles 4.x via SquashfsExpander; this covers
 // --probe/--list/--extract.
 
-public record Squashfs4DetectionResult(int Confidence, byte[]? Image) : DetectionResult(Confidence);
+public record Squashfs4DetectionResult(int Confidence, byte[]? Image) : DiscImageDetectionResult(Confidence, Image);
 
 public class Squashfs4Detector : IFormatDetector
 {
@@ -44,59 +44,6 @@ public class Squashfs4Detector : IFormatDetector
         catch (Exception)
         {
             return DetectionResult.Fail;
-        }
-    }
-}
-
-public class Squashfs4Lister : IFormatLister
-{
-    private readonly byte[] _image;
-
-    public Squashfs4Lister(Squashfs4DetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        using var fs = new SquashFileSystemReader(stream);
-        output.WriteLine($"Squashfs4 ({source.Name}):");
-        Walk(fs.Root, "", output);
-    }
-
-    private static void Walk(DiscDirectoryInfo dir, string prefix, TextWriter output)
-    {
-        foreach (var d in dir.GetDirectories())
-        {
-            output.WriteLine($"  d {prefix}{d.Name}");
-            Walk(d, prefix + d.Name + "/", output);
-        }
-        foreach (var f in dir.GetFiles())
-        {
-            output.WriteLine($"  f {prefix}{f.Name} size={f.Length}");
-        }
-    }
-}
-
-public class Squashfs4Extractor : IFormatExtractor
-{
-    private readonly byte[] _image;
-
-    public Squashfs4Extractor(Squashfs4DetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public IEnumerable<IDataSource> Extract(IDataSource source)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        using var fs = new SquashFileSystemReader(stream);
-        foreach (var (path, content) in Fuse.DiscTree.Flatten(fs))
-        {
-            // flat output: hierarchy stays visible via --list/--tree and mount
-            var flat = path.Replace('/', '_');
-            yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }
 }

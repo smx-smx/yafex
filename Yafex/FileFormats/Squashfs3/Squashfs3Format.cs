@@ -16,11 +16,10 @@ using System.Linq;
 using Yafex.FileSystems.Base;
 using Yafex.FileSystems.Squashfs3;
 
-using log4net;
 
 namespace Yafex.FileFormats.Squashfs3;
 
-public record Squashfs3DetectionResult(int Confidence, byte[]? Image, bool BigEndian = false) : DetectionResult(Confidence);
+public record Squashfs3DetectionResult(int Confidence, byte[]? Image, bool BigEndian = false) : DiscImageDetectionResult(Confidence, Image);
 
 public class Squashfs3Detector : IFormatDetector
 {
@@ -47,61 +46,6 @@ public class Squashfs3Detector : IFormatDetector
         catch (Exception)
         {
             return DetectionResult.Fail;
-        }
-    }
-}
-
-public class Squashfs3Lister : IFormatLister
-{
-    private readonly byte[] _image;
-
-    public Squashfs3Lister(Squashfs3DetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        using var fs = new Squashfs3FileSystem(stream);
-        output.WriteLine($"Squashfs3 ({source.Name}, {fs.Root.GetFiles().Length + fs.Root.GetDirectories().Length} top entries):");
-        Walk(fs, fs.Root, "", output);
-    }
-
-    private static void Walk(Squashfs3FileSystem fs, DiscDirectoryInfo dir, string prefix, TextWriter output)
-    {
-        foreach (var d in dir.GetDirectories())
-        {
-            output.WriteLine($"  d {prefix}{d.Name}");
-            Walk(fs, d, prefix + d.Name + "/", output);
-        }
-        foreach (var f in dir.GetFiles())
-        {
-            output.WriteLine($"  f {prefix}{f.Name} size={f.Length}");
-        }
-    }
-}
-
-public class Squashfs3Extractor : IFormatExtractor
-{
-    private static readonly ILog log = LogManager.GetLogger(nameof(Squashfs3Extractor));
-
-    private readonly byte[] _image;
-
-    public Squashfs3Extractor(Squashfs3DetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public IEnumerable<IDataSource> Extract(IDataSource source)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        using var fs = new Squashfs3FileSystem(stream);
-        foreach (var (path, content) in Fuse.DiscTree.Flatten(fs))
-        {
-            // flat output: hierarchy stays visible via --list/--tree and mount
-            var flat = path.Replace('/', '_');
-            yield return ArtifactBuilder.Flat(source, flat, content);
         }
     }
 }
