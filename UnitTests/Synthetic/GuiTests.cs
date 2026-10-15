@@ -8,15 +8,19 @@
  *  3. This notice may not be removed or altered from any source distribution.
  */
 #endregion
-// GUI smoke tests: drive the main view-model headlessly (no windows)
-// against a synthetic Askey image on a temp file.
+// GUI view-model tests: drive the explorer headlessly (no windows) against
+// synthetic images written to temp files.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
+using Yafex.Fuse;
+using Yafex.Gui.Services;
 using Yafex.Gui.ViewModels;
 
 namespace UnitTests;
@@ -24,119 +28,305 @@ namespace UnitTests;
 [TestFixture]
 public class GuiTests
 {
-    private static string WriteTemp(byte[] bytes)
+    private readonly List<string> _cleanup = new();
+
+    [TearDown]
+    public void TearDown()
     {
-        string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".imgbin");
+        foreach (var path in _cleanup)
+        {
+            try
+            {
+                if (Directory.Exists(path)) Directory.Delete(path, true);
+                else File.Delete(path);
+            }
+            catch (Exception) { }
+        }
+        _cleanup.Clear();
+    }
+
+    private string WriteTemp(byte[] bytes, string name)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"yafex-gui-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        _cleanup.Add(dir);
+        var path = Path.Combine(dir, name);
         File.WriteAllBytes(path, bytes);
         return path;
     }
 
-    [Test]
-    public void Open_BuildsTreeAndProbe()
+    private string TempDir()
     {
-        string path = WriteTemp(BroadcomImgTests.BuildImage());
-        try
+        var dir = Path.Combine(Path.GetTempPath(), $"yafex-gui-out-{Guid.NewGuid():N}");
+        _cleanup.Add(dir);
+        return dir;
+    }
+
+    /// <summary>fw.tar.gz: gzip → tar with fw/{README.txt, big.bin, extra.tar.gz → tar → README.txt}.</summary>
+    private string NestedImage()
+    {
+        var gz = new MemoryStream();
+        using (var z = new GZipStream(gz, CompressionLevel.Fastest, leaveOpen: true))
         {
-            using var vm = new MainViewModel();
-            vm.OpenFile(path);
-            StringAssert.Contains("broadcomimg", vm.ProbeLine);
-            Assert.AreEqual(1, vm.Roots.Count);
-            vm.Roots[0].EnsureLoaded();
-            var names = vm.Roots[0].Children.Select(n => n.Name).ToList();
-            CollectionAssert.Contains(names, "boot.jffs2");
-            CollectionAssert.Contains(names, "root.ubi");
+            z.Write(NestedExpansionTests.BuildTar());
         }
-        finally
-        {
-            File.Delete(path);
-        }
+        return WriteTemp(gz.ToArray(), "fw.tar.gz");
+    }
+
+    private static EntryViewModel Entry(MainWindowViewModel vm, string name) => vm.Entries.Single(e => e.Name == name);
+
+    /// <summary>Opens the nested image and walks down to fw/.</summary>
+    private async Task<MainWindowViewModel> OpenAtFw()
+    {
+        var vm = new MainWindowViewModel();
+        Assert.IsTrue(await vm.OpenFileAsync(NestedImage()), vm.Status);
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw.tar.d"));
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw"));
+        Assert.AreEqual("fw.tar.gz/fw.tar.d/fw", vm.CurrentFolder!.DisplayPath);
+        return vm;
     }
 
     [Test]
-    public void Select_PreviewsAndSaves()
+    public async Task Open_BuildsTreeAndListsRoot()
     {
-        string path = WriteTemp(BroadcomImgTests.BuildImage());
-        string outPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".bin");
-        try
-        {
-            using var vm = new MainViewModel();
-            vm.OpenFile(path);
-            vm.Roots[0].EnsureLoaded();
-            var file = vm.Roots[0].Children.First(n => !n.IsDirectory);
-            vm.Selected = file;
-            Assert.IsNotEmpty(vm.HexPreview);
-            Assert.IsNotEmpty(vm.InfoPreview);
-            Assert.NotNull(vm.SaveSelected(outPath));
-            Assert.IsTrue(new FileInfo(outPath).Length > 0);
-        }
-        finally
-        {
-            File.Delete(path);
-            if (File.Exists(outPath)) File.Delete(outPath);
-        }
+        using var vm = new MainWindowViewModel();
+        Assert.IsTrue(await vm.OpenFileAsync(WriteTemp(BroadcomImgTests.BuildImage(), "f.imgbin")), vm.Status);
+        Assert.AreEqual(1, vm.Roots.Count);
+        Assert.IsTrue(vm.HasSources);
+        Assert.AreSame(vm.Roots[0], vm.CurrentFolder);
+        StringAssert.Contains("broadcomimg", vm.Status);
+        var names = vm.Entries.Select(e => e.Name).ToList();
+        CollectionAssert.Contains(names, "boot.jffs2");
+        CollectionAssert.Contains(names, "root.ubi");
+        // folders first
+        var firstFile = vm.Entries.ToList().FindIndex(e => !e.IsDirectory);
+        Assert.IsTrue(vm.Entries.Skip(firstFile).All(e => !e.IsDirectory));
     }
 
     [Test]
-    public void Open_GarbageReportsNoFormat()
+    public async Task Open_SameFileTwice_ReusesTheSource()
+    {
+        using var vm = new MainWindowViewModel();
+        var path = NestedImage();
+        await vm.OpenFileAsync(path);
+        await vm.OpenFileAsync(path);
+        Assert.AreEqual(1, vm.Sources.Count);
+    }
+
+    [Test]
+    public async Task Open_GarbageReportsNoFormat()
     {
         var rnd = new byte[4096];
         new Random(77).NextBytes(rnd);
-        string path = WriteTemp(rnd);
-        try
-        {
-            using var vm = new MainViewModel();
-            vm.OpenFile(path);
-            Assert.AreEqual(0, vm.Roots.Count);
-            StringAssert.Contains("No format", vm.Status);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        using var vm = new MainWindowViewModel();
+        Assert.IsFalse(await vm.OpenFileAsync(WriteTemp(rnd, "noise.bin")));
+        Assert.AreEqual(0, vm.Roots.Count);
+        Assert.IsFalse(vm.HasSources);
+        StringAssert.Contains("no supported format", vm.Status);
     }
 
     [Test]
-    public void SaveSelected_DirectoryExportsSubtree()
+    public async Task Navigation_BreadcrumbsAndHistory()
     {
-        string path = WriteTemp(BroadcomImgTests.BuildImage());
-        string outDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        try
-        {
-            using var vm = new MainViewModel();
-            vm.OpenFile(path);
-            vm.Selected = vm.Roots[0];
-            Assert.NotNull(vm.SaveSelected(outDir));
-            Assert.IsTrue(File.Exists(Path.Combine(outDir, "boot.jffs2")), vm.Status);
-            StringAssert.StartsWith("Exported", vm.Status);
-        }
-        finally
-        {
-            File.Delete(path);
-            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
-        }
+        using var vm = await OpenAtFw();
+        CollectionAssert.AreEqual(new[] { "fw.tar.gz", "fw.tar.d", "fw" }, vm.Breadcrumbs.Select(b => b.Name));
+        Assert.IsTrue(vm.BackCommand.CanExecute(null));
+        Assert.IsFalse(vm.ForwardCommand.CanExecute(null));
+
+        await vm.BackCommand.ExecuteAsync(null);
+        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name);
+        Assert.IsTrue(vm.ForwardCommand.CanExecute(null));
+        await vm.ForwardCommand.ExecuteAsync(null);
+        Assert.AreEqual("fw", vm.CurrentFolder!.Name);
+
+        await vm.UpCommand.ExecuteAsync(null);
+        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("fw", vm.SelectedEntry?.Name, "Up selects the folder it came from");
+
+        await vm.NavigateCommand.ExecuteAsync(vm.Breadcrumbs[0]);
+        Assert.AreSame(vm.Roots[0], vm.CurrentFolder);
+        Assert.IsFalse(vm.UpCommand.CanExecute(null));
     }
 
     [Test]
-    public void Open_ExpanderOnlyContentBrowses()
+    public async Task TreeSelection_Navigates()
     {
-        // gzip has no addon VFS: the tree comes from the expander registry
-        var ms = new MemoryStream();
-        using (var gz = new GZipStream(ms, CompressionLevel.Fastest, leaveOpen: true))
+        using var vm = await OpenAtFw();
+        var tarFolder = vm.Roots[0].Children.Single(c => c.Name == "fw.tar.d");
+        vm.SelectedTreeFolder = tarFolder;
+        await Task.Delay(50);
+        await tarFolder.LoadAsync();
+        Assert.AreSame(tarFolder, vm.CurrentFolder);
+    }
+
+    [Test]
+    public async Task Filter_MatchesSubstringAndGlob()
+    {
+        using var vm = await OpenAtFw();
+        vm.FilterText = "readme";
+        CollectionAssert.AreEqual(new[] { "README.txt" }, vm.Entries.Select(e => e.Name));
+        StringAssert.Contains("match", vm.ItemSummary);
+        vm.FilterText = "*.gz";
+        CollectionAssert.AreEqual(new[] { "extra.tar.gz" }, vm.Entries.Select(e => e.Name));
+        vm.ClearFilterCommand.Execute(null);
+        Assert.Greater(vm.Entries.Count, 2);
+    }
+
+    [Test]
+    public async Task Search_FindsMatchesInNestedImages()
+    {
+        using var vm = new MainWindowViewModel();
+        await vm.OpenFileAsync(NestedImage());
+        vm.SearchSubfolders = true;
+        vm.FilterText = "README*";
+        await vm.ApplyFilterAsync();
+        Assert.IsTrue(vm.IsSearchResults);
+        var hits = vm.Entries.Select(e => e.FullPath).OrderBy(p => p, StringComparer.Ordinal).ToList();
+        CollectionAssert.AreEqual(new[]
         {
-            gz.Write(System.Text.Encoding.ASCII.GetBytes("hello gui"));
-        }
-        string path = WriteTemp(ms.ToArray());
-        try
-        {
-            using var vm = new MainViewModel();
-            vm.OpenFile(path);
-            Assert.AreEqual(1, vm.Roots.Count, vm.Status);
-            vm.Roots[0].EnsureLoaded();
-            Assert.IsNotEmpty(vm.Roots[0].Children);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+            "fw.tar.gz/fw.tar.d/fw/README.txt",
+            "fw.tar.gz/fw.tar.d/fw/extra.tar.gz.d/extra.tar.d/README.txt",
+        }, hits);
+
+        // a hit opens in its own folder
+        var nested = vm.Entries.Single(e => e.RelativeDir.Contains("extra"));
+        await vm.ShowInFolderCommand.ExecuteAsync(nested);
+        Assert.IsFalse(vm.IsSearchResults);
+        Assert.AreEqual("extra.tar.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("README.txt", vm.SelectedEntry?.Name);
+    }
+
+    [Test]
+    public async Task Activate_ContainerFile_OpensItsContents()
+    {
+        using var vm = await OpenAtFw();
+        var gz = Entry(vm, "extra.tar.gz");
+        Assert.IsTrue(gz.IsContainer, "a .d sibling marks the file as browsable");
+        await vm.ActivateCommand.ExecuteAsync(gz);
+        Assert.AreEqual("extra.tar.gz.d", vm.CurrentFolder!.Name);
+    }
+
+    [Test]
+    public async Task Explore_MountsAFileOnDemand()
+    {
+        // a member with no .d view of its own: explore it via a buffered copy
+        using var vm = new MainWindowViewModel();
+        await vm.OpenFileAsync(NestedImage());
+        var tarFile = Entry(vm, "fw.tar");
+        Assert.IsTrue(await vm.ExploreEntryAsync(tarFile));
+        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name, "uses the existing .d view");
+
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw"));
+        var big = Entry(vm, "big.bin");
+        Assert.IsFalse(await vm.ExploreEntryAsync(big));
+        StringAssert.Contains("no browsable format", vm.Status);
+    }
+
+    [Test]
+    public async Task NestedMount_TryMount_ExpandsAFileNode()
+    {
+        var tar = new MemoryVirtualFile("a.tar", NestedExpansionTests.BuildTar());
+        var node = new PakVfsFile(tar, Helpers.OctalLiteral(0444));
+        var finder = new Yafex.Gui.Services.GuiServices().Finder;
+        var tree = await Task.Run(() => NestedMount.TryMount(node, finder));
+        Assert.NotNull(tree);
+        Assert.AreEqual("tar", tree!.Label);
+        CollectionAssert.Contains(VfsWalk.Walk(tree.Root).Select(e => e.Path).ToList(), "fw/README.txt");
+        tree.Owner.Dispose();
+    }
+
+    [Test]
+    public async Task Preview_ShowsTextHexInfoAndDetection()
+    {
+        using var vm = await OpenAtFw();
+        await vm.Preview.ShowAsync(Entry(vm, "README.txt"), null);
+        Assert.IsTrue(vm.Preview.IsFile);
+        Assert.AreEqual("outer readme", vm.Preview.Text);
+        Assert.AreEqual((int)PreviewTab.Text, vm.Preview.SelectedTab);
+        Assert.AreEqual(1, vm.Preview.Hex!.Count);
+        StringAssert.StartsWith("6F 75 74", vm.Preview.Hex[0].Hex);
+        Assert.AreEqual("outer readme", vm.Preview.Hex[0].Ascii);
+        CollectionAssert.Contains(vm.Preview.Info.Select(i => i.Key), "Size");
+
+        var gz = Entry(vm, "extra.tar.gz");
+        await vm.Preview.ShowAsync(gz, null);
+        Assert.AreEqual("gzip", vm.Preview.Detected);
+        Assert.AreEqual((int)PreviewTab.Hex, vm.Preview.SelectedTab);
+
+        await vm.Preview.ShowAsync(vm.Entries.First(e => e.IsDirectory), null);
+        Assert.IsFalse(vm.Preview.IsFile);
+        Assert.IsNull(vm.Preview.Hex);
+        Assert.AreEqual((int)PreviewTab.Info, vm.Preview.SelectedTab);
+    }
+
+    [Test]
+    public async Task Preview_InfoTabStaysWhenChosen()
+    {
+        using var vm = await OpenAtFw();
+        // the user clicks away and back to Info
+        vm.Preview.SelectedTab = (int)PreviewTab.Hex;
+        vm.Preview.SelectedTab = (int)PreviewTab.Info;
+        await vm.Preview.ShowAsync(Entry(vm, "README.txt"), null);
+        Assert.AreEqual((int)PreviewTab.Info, vm.Preview.SelectedTab);
+    }
+
+    [Test]
+    public async Task Export_WritesFilesAndFolders()
+    {
+        using var vm = await OpenAtFw();
+        var dest = TempDir();
+        var items = new[] { Entry(vm, "README.txt"), Entry(vm, "extra.tar.gz.d") }
+            .Select(e => (e.Node, e.Name)).ToList();
+        int n = await vm.ExportToAsync(items, dest, vm.CurrentFolder!.Source);
+        Assert.AreEqual(3, n, vm.Status); // README + extra.tar + its README
+        Assert.AreEqual("outer readme", File.ReadAllText(Path.Combine(dest, "README.txt")));
+        Assert.AreEqual("inner readme", File.ReadAllText(Path.Combine(dest, "extra.tar.gz.d", "extra.tar.d", "README.txt")));
+        StringAssert.StartsWith("Exported 3 files", vm.Status);
+    }
+
+    [Test]
+    public async Task CloseSource_ClearsViewAndHistory()
+    {
+        using var vm = await OpenAtFw();
+        await vm.CloseSourceCommand.ExecuteAsync(vm.Roots[0]);
+        Assert.AreEqual(0, vm.Roots.Count);
+        Assert.IsNull(vm.CurrentFolder);
+        Assert.IsEmpty(vm.Entries);
+        Assert.IsFalse(vm.BackCommand.CanExecute(null));
+    }
+
+    [Test]
+    public void HexDocument_FormatsRowsAndShortTail()
+    {
+        var data = Enumerable.Range(0, 20).Select(i => (byte)(0x41 + i)).ToArray();
+        using var hex = new HexDocument(() => new MemoryStream(data), data.Length);
+        Assert.AreEqual(2, hex.Count);
+        Assert.AreEqual("00000000", hex[0].Offset);
+        Assert.AreEqual("41 42 43 44 45 46 47 48  49 4A 4B 4C 4D 4E 4F 50 ", hex[0].Hex);
+        Assert.AreEqual("ABCDEFGHIJKLMNOP", hex[0].Ascii);
+        Assert.AreEqual("00000010", hex[1].Offset);
+        Assert.AreEqual("QRST", hex[1].Ascii);
+
+        using var narrow = new HexDocument(() => new MemoryStream(data), data.Length, 8);
+        Assert.AreEqual(3, narrow.Count);
+        Assert.AreEqual("00000008", narrow[1].Offset);
+        Assert.AreEqual("IJKLMNOP", narrow[1].Ascii);
+    }
+
+    [TestCase(0L, "0 B")]
+    [TestCase(1023L, "1023 B")]
+    [TestCase(1536L, "1.5 KiB")]
+    [TestCase(300000L, "293 KiB")]
+    [TestCase(5L << 30, "5.0 GiB")]
+    public void Format_Size(long bytes, string expected) => Assert.AreEqual(expected, Format.Size(bytes));
+
+    [TestCase("read", "README.txt", true)]
+    [TestCase("*.txt", "README.txt", true)]
+    [TestCase("*.txt", "README.txt.bak", false)]
+    [TestCase("r?adme*", "README.txt", true)]
+    [TestCase("", "anything", true)]
+    public void Format_NameMatcher(string pattern, string name, bool expected)
+    {
+        Assert.AreEqual(expected, Format.NameMatcher(pattern)(name));
     }
 }

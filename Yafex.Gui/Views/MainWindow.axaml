@@ -3,68 +3,345 @@
         xmlns:vm="using:Yafex.Gui.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="Yafex.Gui.Views.MainWindow"
-        x:DataType="vm:MainViewModel"
+        x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Yafex">
+        Title="{Binding Title}"
+        Width="1320" Height="820" MinWidth="860" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True">
 
-    <Design.DataContext>
-        <vm:MainViewModel />
-    </Design.DataContext>
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
+        <KeyBinding Gesture="Alt+Left" Command="{Binding BackCommand}" />
+        <KeyBinding Gesture="Alt+Right" Command="{Binding ForwardCommand}" />
+        <KeyBinding Gesture="Alt+Up" Command="{Binding UpCommand}" />
+    </Window.KeyBindings>
 
     <DockPanel>
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_Open firmware…" Click="OnOpenClicked" />
-                <MenuItem Header="Load _keys file…" Click="OnKeysClicked" />
-                <Separator />
-                <MenuItem Header="_Save / export selected…" Click="OnSaveClicked" />
-                <Separator />
-                <MenuItem Header="_Close" Click="OnCloseClicked" />
-            </MenuItem>
-        </Menu>
+        <!-- toolbar: open/keys, history, breadcrumbs, filter -->
+        <Border DockPanel.Dock="Top" Classes="toolbar">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Button Classes="tool" Command="{Binding OpenCommand}" ToolTip.Tip="Open a firmware image (Ctrl+O)">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconFolderOpen}" />
+                            <TextBlock Text="Open" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tool" Command="{Binding LoadKeysCommand}"
+                            ToolTip.Tip="Load a keys bundle (JSON) for encrypted images">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconKey}" />
+                            <TextBlock Text="Keys" />
+                        </StackPanel>
+                    </Button>
+                    <Border Classes="vsep" />
+                    <Button Classes="tool" Command="{Binding BackCommand}" ToolTip.Tip="Back (Alt+Left)">
+                        <PathIcon Data="{StaticResource IconBack}" />
+                    </Button>
+                    <Button Classes="tool" Command="{Binding ForwardCommand}" ToolTip.Tip="Forward (Alt+Right)">
+                        <PathIcon Data="{StaticResource IconForward}" />
+                    </Button>
+                    <Button Classes="tool" Command="{Binding UpCommand}" ToolTip.Tip="Up one level (Alt+Up, Backspace)">
+                        <PathIcon Data="{StaticResource IconUp}" />
+                    </Button>
+                </StackPanel>
 
-        <TextBlock DockPanel.Dock="Top" Text="{Binding ProbeLine}"
-                   FontFamily="monospace" Margin="8,4,8,0" IsVisible="{Binding ProbeLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <Border Grid.Column="1" Classes="pathbar">
+                    <ScrollViewer x:Name="CrumbScroller" HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Breadcrumbs}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FolderViewModel">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Classes="crumbsep" Text="›"
+                                                   IsVisible="{Binding Parent, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        <Button Classes="crumb" Click="OnCrumbClick">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <PathIcon Classes="entry archive" Data="{StaticResource IconChip}"
+                                                          Width="14" Height="14" IsVisible="{Binding IsContainer}" />
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
 
-        <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="Gray" Padding="8,4">
-            <TextBlock Text="{Binding Status}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                    <TextBox x:Name="FilterBox" Width="260" VerticalAlignment="Center"
+                             Text="{Binding FilterText}"
+                             PlaceholderText="Filter (Ctrl+F): name or *.bin">
+                        <TextBox.InnerLeftContent>
+                            <PathIcon Data="{StaticResource IconSearch}" Width="14" Height="14"
+                                      Margin="8,0,0,0" Foreground="{DynamicResource MutedBrush}" />
+                        </TextBox.InnerLeftContent>
+                        <TextBox.InnerRightContent>
+                            <Button Classes="tool" Padding="6,4" Command="{Binding ClearFilterCommand}"
+                                    IsVisible="{Binding FilterText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    ToolTip.Tip="Clear filter (Esc)">
+                                <PathIcon Data="{StaticResource IconClose}" Width="10" Height="10" />
+                            </Button>
+                        </TextBox.InnerRightContent>
+                    </TextBox>
+                    <ToggleButton Classes="tool" IsChecked="{Binding SearchSubfolders}"
+                                  ToolTip.Tip="Search all subfolders of the current folder. Expands nested images, so it can take a while; Esc cancels.">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource IconSubfolders}" />
+                            <TextBlock Text="Subfolders" />
+                        </StackPanel>
+                    </ToggleButton>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Grid ColumnDefinitions="380,*">
-            <TreeView Grid.Column="0" ItemsSource="{Binding Roots}"
-                      SelectedItem="{Binding Selected, Mode=TwoWay}" Margin="4">
-                <TreeView.ItemTemplate>
-                    <TreeDataTemplate ItemsSource="{Binding Children}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock Text="{Binding Size}" Opacity="0.6" FontSize="11" />
-                        </StackPanel>
-                    </TreeDataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
+        <!-- status bar -->
+        <Border DockPanel.Dock="Bottom" Classes="statusbar">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Text="{Binding Status}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0"
+                            IsVisible="{Binding IsBusy}">
+                    <ProgressBar IsIndeterminate="True" Width="90" MinWidth="90" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding BusyText}" MaxWidth="380" TextTrimming="CharacterEllipsis" />
+                    <Button Classes="tool" Padding="6,1" Content="Cancel" Command="{Binding CancelCommand}"
+                            ToolTip.Tip="Cancel search or export (Esc)" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Classes="muted" Margin="16,0,0,0" Text="{Binding ItemSummary}" />
+            </Grid>
+        </Border>
 
-            <TabControl Grid.Column="1" Margin="4">
-                <TabItem Header="Hex">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding HexPreview}" FontFamily="monospace"
-                                 IsReadOnly="True" AcceptsReturn="True" />
-                    </ScrollViewer>
-                </TabItem>
-                <TabItem Header="Text">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding TextPreview}"
-                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
-                    </ScrollViewer>
-                </TabItem>
-                <TabItem Header="Info">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding InfoPreview}" FontFamily="monospace"
-                                 IsReadOnly="True" AcceptsReturn="True" />
-                    </ScrollViewer>
-                </TabItem>
-            </TabControl>
+        <Grid ColumnDefinitions="270,1,*,1,460">
+            <!-- navigation tree -->
+            <Border Grid.Column="0" Classes="pane">
+                <TreeView x:Name="FolderTree" ItemsSource="{Binding Roots}"
+                          SelectedItem="{Binding SelectedTreeFolder}" Padding="0,4">
+                    <TreeView.Styles>
+                        <Style Selector="TreeViewItem" x:DataType="vm:FolderViewModel">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                        </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate x:DataType="vm:FolderViewModel" ItemsSource="{Binding Children}">
+                            <StackPanel Orientation="Horizontal" Spacing="7" Background="Transparent"
+                                        ToolTip.Tip="{Binding Detail}">
+                                <StackPanel.ContextMenu>
+                                    <ContextMenu IsVisible="{Binding !IsPlaceholder}">
+                                        <MenuItem Header="Export folder…" Click="OnExportTreeFolder">
+                                            <MenuItem.Icon>
+                                                <PathIcon Data="{StaticResource IconExport}" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Close image" Click="OnCloseTreeSource">
+                                            <MenuItem.Icon>
+                                                <PathIcon Data="{StaticResource IconClose}" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </StackPanel.ContextMenu>
+                                <Panel Width="16" Height="16" IsVisible="{Binding !IsPlaceholder}">
+                                    <PathIcon Classes="entry folder" Data="{StaticResource IconFolder}"
+                                              IsVisible="{Binding !IsContainer}" />
+                                    <PathIcon Classes="entry archive" Data="{StaticResource IconChip}"
+                                              IsVisible="{Binding IsContainer}" />
+                                </Panel>
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                           Classes.muted="{Binding IsPlaceholder}"
+                                           FontStyle="{Binding IsPlaceholder, Converter={x:Static vm:Converters.ItalicIf}}" />
+                                <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Center"
+                                           Text="{Binding Detail}"
+                                           IsVisible="{Binding Detail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Border>
+
+            <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+            <!-- listing -->
+            <Panel Grid.Column="2">
+                <DataGrid x:Name="EntryGrid" ItemsSource="{Binding Entries}"
+                          SelectedItem="{Binding SelectedEntry}"
+                          IsReadOnly="True" SelectionMode="Extended"
+                          CanUserSortColumns="True" CanUserResizeColumns="True" CanUserReorderColumns="False"
+                          GridLinesVisibility="None" HeadersVisibility="Column"
+                          IsVisible="{Binding HasSources}">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Open" Click="OnOpenEntry" InputGesture="Enter" />
+                            <MenuItem Header="Browse as container" Command="{Binding ExploreCommand}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconChip}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Show in folder" Command="{Binding ShowInFolderCommand}"
+                                      IsVisible="{Binding IsSearchResults}" />
+                            <Separator />
+                            <MenuItem Header="Export…" Click="OnExportSelection">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconExport}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Copy path" Command="{Binding CopyPathCommand}">
+                                <MenuItem.Icon>
+                                    <PathIcon Data="{StaticResource IconCopy}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Name" Width="*" MinWidth="200" SortMemberPath="Name">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:EntryViewModel">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="10,0"
+                                                VerticalAlignment="Center">
+                                        <Panel Width="16" Height="16">
+                                            <PathIcon Classes="entry folder" Data="{StaticResource IconFolder}"
+                                                      IsVisible="{Binding IsDirectory}" />
+                                            <PathIcon Classes="entry archive" Data="{StaticResource IconChip}"
+                                                      IsVisible="{Binding IsContainer}" />
+                                            <PathIcon Classes="entry file" Data="{StaticResource IconFile}"
+                                                      IsVisible="{Binding IsPlainFile}" />
+                                        </Panel>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Location" Width="220"
+                                                SortMemberPath="Location" IsVisible="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:EntryViewModel">
+                                    <TextBlock Classes="muted" Text="{Binding Location}" Margin="10,0"
+                                               VerticalAlignment="Center" TextTrimming="LeadingCharacterEllipsis" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Size" Width="96" SortMemberPath="Size">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:EntryViewModel">
+                                    <TextBlock Text="{Binding SizeText}" Margin="10,0" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Type" Width="130" SortMemberPath="Kind">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:EntryViewModel">
+                                    <TextBlock Classes="muted" Text="{Binding Kind}" Margin="10,0"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- empty folder / no matches -->
+                <TextBlock Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Text="Nothing here" IsVisible="{Binding IsEmptyListing}" />
+
+                <!-- nothing opened yet -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"
+                            IsVisible="{Binding !HasSources}">
+                    <PathIcon Data="{StaticResource IconChip}" Width="56" Height="56"
+                              Foreground="{DynamicResource FileBrush}" />
+                    <TextBlock Classes="heading" HorizontalAlignment="Center" Text="Open a firmware image" />
+                    <TextBlock Classes="muted" HorizontalAlignment="Center" TextAlignment="Center"
+                               Text="Drop a file here, or pick one to browse its partitions,&#x0a;filesystems and nested images." />
+                    <Button HorizontalAlignment="Center" Classes="accent" Command="{Binding OpenCommand}"
+                            Padding="16,6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolderOpen}" Width="16" Height="16" />
+                            <TextBlock Text="Open image…" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Panel>
+
+            <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
+
+            <!-- preview -->
+            <Border Grid.Column="4" Classes="pane">
+                <Panel>
+                    <TextBlock Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Text="Select an item to preview it" IsVisible="{Binding !Preview.HasSelection}" />
+                    <DockPanel IsVisible="{Binding Preview.HasSelection}">
+                        <StackPanel DockPanel.Dock="Top" Margin="14,12,14,4" Spacing="8">
+                            <TextBlock Classes="heading" Text="{Binding Preview.Title}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding Preview.Title}" />
+                            <Border Classes="badge" HorizontalAlignment="Left"
+                                    IsVisible="{Binding Preview.Detected, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconChip}" Width="14" Height="14"
+                                              Foreground="{DynamicResource BadgeTextBrush}" />
+                                    <TextBlock>
+                                        <Run Text="Contains" />
+                                        <Run Text="{Binding Preview.Detected}" FontWeight="SemiBold" />
+                                    </TextBlock>
+                                    <Button Classes="tool" Padding="8,2" Content="Browse"
+                                            Command="{Binding ExploreCommand}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <TabControl Classes="preview" SelectedIndex="{Binding Preview.SelectedTab}" Padding="0">
+                            <TabItem Header="Info">
+                                <ScrollViewer>
+                                    <ItemsControl ItemsSource="{Binding Preview.Info}" Margin="14,8">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:InfoRow">
+                                                <Grid ColumnDefinitions="84,*" Margin="0,3">
+                                                    <TextBlock Classes="muted" Text="{Binding Key}" />
+                                                    <SelectableTextBlock Grid.Column="1" Text="{Binding Value}"
+                                                                         TextWrapping="Wrap" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="Hex" IsEnabled="{Binding Preview.IsFile}">
+                                <ListBox x:Name="HexList" Classes="hex" ItemsSource="{Binding Preview.Hex}"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:HexLine">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <TextBlock Classes="mono" Foreground="{DynamicResource OffsetBrush}"
+                                                           Text="{Binding Offset}" />
+                                                <TextBlock Classes="mono" Text="{Binding Hex}" />
+                                                <TextBlock Classes="mono muted" Text="{Binding Ascii}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </TabItem>
+                            <TabItem Header="Text" IsEnabled="{Binding Preview.IsFile}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Classes="muted" FontSize="12" Margin="14,6"
+                                               TextWrapping="Wrap" Text="{Binding Preview.TextNote}"
+                                               IsVisible="{Binding Preview.TextNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                    <TextBox Classes="mono" IsReadOnly="True" AcceptsReturn="True"
+                                             BorderThickness="0" Text="{Binding Preview.Text}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                                </DockPanel>
+                            </TabItem>
+                            <TabItem Header="Image" IsVisible="{Binding Preview.HasImage}">
+                                <Image Source="{Binding Preview.Image}" Stretch="Uniform"
+                                       StretchDirection="DownOnly" Margin="12" />
+                            </TabItem>
+                        </TabControl>
+                    </DockPanel>
+                </Panel>
+            </Border>
         </Grid>
     </DockPanel>
 </Window>
