@@ -113,12 +113,13 @@ namespace Yafex.FileFormats.Xex
       33161216, 33292288, 33423360
   };
 
-        private Stream input;
+        // Assigned by init()/decompress() before any decode step runs.
+        private Stream input = null!;
 
         private long offset; /* number of bytes actually output */
         private long length; /* overall decompressed length of stream */
 
-        private byte[] window; /* decoding window */
+        private byte[] window = null!; /* decoding window */
         private int window_size; /* window size */
         private int ref_data_size; /* LZX DELTA reference data size */
         private int num_offsets; /* number of match_offset entries in table */
@@ -138,20 +139,20 @@ namespace Yafex.FileFormats.Xex
         private bool is_delta; /* does stream follow LZX DELTA spec? */
 
         /* I/O buffering */
-        private byte[] inbuf;
+        private byte[] inbuf = null!;
 
         /* huffman decoding tables */
-        private HuffTable preTree;
-        private HuffTable mainTree;
-        private HuffTable lengthTree;
-        private HuffTable alignedTree;
+        private HuffTable preTree = null!;
+        private HuffTable mainTree = null!;
+        private HuffTable lengthTree = null!;
+        private HuffTable alignedTree = null!;
 
         private int intel_filesize; /* magic header value used for transform */
         private int intel_curpos; /* current offset in transform space */
         private bool intel_started; /* has intel E8 decoding started? */
         private readonly byte[] e8_buf = new byte[LZX_FRAME_SIZE];
 
-        private byte[] o;
+        private byte[] o = null!;
         private int o_off, o_end;
         private int i_off, i_end;
 

@@ -150,15 +150,29 @@ namespace Yafex.FileFormats.Xex
 
         private static byte[] AesDecryptECB(byte[] data, byte[] key)
         {
-            Rijndael aes = new RijndaelManaged()
-            {
-                BlockSize = 128,
-                KeySize = 128,
-                Mode = CipherMode.ECB,
-                Key = key,
-                Padding = PaddingMode.None
-            };
+            // RijndaelManaged is obsolete; Aes with a 128-bit block/key is
+            // the identical cipher.
+            Aes aes = Aes.Create();
+            aes.BlockSize = 128;
+            aes.KeySize = 128;
+            aes.Mode = CipherMode.ECB;
+            aes.Key = key;
+            aes.Padding = PaddingMode.None;
             return aes.CreateDecryptor().TransformFinalBlock(data, 0, data.Length);
+        }
+
+        private static ICryptoTransform CreateSessionDecryptor(byte[] sessionKey, byte[] ivec)
+        {
+            // RijndaelManaged is obsolete; Aes with a 128-bit block/key is
+            // the identical cipher.
+            Aes aes = Aes.Create();
+            aes.BlockSize = 128;
+            aes.KeySize = 128;
+            aes.Mode = CipherMode.CBC;
+            aes.IV = ivec;
+            aes.Key = sessionKey;
+            aes.Padding = PaddingMode.None;
+            return aes.CreateDecryptor();
         }
 
         private void ReadImageUncompressed()
@@ -177,15 +191,7 @@ namespace Yafex.FileFormats.Xex
             var out_ptr = peMem;
 
             var ivec = new byte[16];
-            var aes = new RijndaelManaged()
-            {
-                BlockSize = 128,
-                KeySize = 128,
-                Mode = CipherMode.CBC,
-                IV = ivec,
-                Key = session_key,
-                Padding = PaddingMode.None
-            }.CreateDecryptor();
+            var aes = CreateSessionDecryptor(session_key, ivec);
 
             var p = (int)header.header_size;
 
@@ -238,15 +244,7 @@ namespace Yafex.FileFormats.Xex
             var p = (int)header.header_size;
 
             var ivec = new byte[16];
-            var aes = new RijndaelManaged()
-            {
-                BlockSize = 128,
-                KeySize = 128,
-                Mode = CipherMode.CBC,
-                IV = ivec,
-                Key = session_key,
-                Padding = PaddingMode.None
-            }.CreateDecryptor();
+            var aes = CreateSessionDecryptor(session_key, ivec);
 
             this.peMem = new Memory<byte>(new byte[(int)total_size]);
             var out_ptr = peMem;
@@ -459,15 +457,7 @@ namespace Yafex.FileFormats.Xex
             var compress_buffer = new Memory64<byte>(new byte[exe_length]);
 
             var ivec = new byte[16];
-            var aes = new RijndaelManaged()
-            {
-                BlockSize = 128,
-                KeySize = 128,
-                Mode = CipherMode.CBC,
-                IV = ivec,
-                Key = session_key,
-                Padding = PaddingMode.None
-            }.CreateDecryptor();
+            var aes = CreateSessionDecryptor(session_key, ivec);
 
             var input_buffer = mem.Slice(header.header_size);
 
