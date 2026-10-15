@@ -12,6 +12,7 @@
 // against a synthetic Askey image on a temp file.
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 
 using NUnit.Framework;
@@ -87,6 +88,51 @@ public class GuiTests
             vm.OpenFile(path);
             Assert.AreEqual(0, vm.Roots.Count);
             StringAssert.Contains("No format", vm.Status);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public void SaveSelected_DirectoryExportsSubtree()
+    {
+        string path = WriteTemp(BroadcomImgTests.BuildImage());
+        string outDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            using var vm = new MainViewModel();
+            vm.OpenFile(path);
+            vm.Selected = vm.Roots[0];
+            Assert.NotNull(vm.SaveSelected(outDir));
+            Assert.IsTrue(File.Exists(Path.Combine(outDir, "boot.jffs2")), vm.Status);
+            StringAssert.StartsWith("Exported", vm.Status);
+        }
+        finally
+        {
+            File.Delete(path);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Test]
+    public void Open_ExpanderOnlyContentBrowses()
+    {
+        // gzip has no addon VFS: the tree comes from the expander registry
+        var ms = new MemoryStream();
+        using (var gz = new GZipStream(ms, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            gz.Write(System.Text.Encoding.ASCII.GetBytes("hello gui"));
+        }
+        string path = WriteTemp(ms.ToArray());
+        try
+        {
+            using var vm = new MainViewModel();
+            vm.OpenFile(path);
+            Assert.AreEqual(1, vm.Roots.Count, vm.Status);
+            vm.Roots[0].EnsureLoaded();
+            Assert.IsNotEmpty(vm.Roots[0].Children);
         }
         finally
         {

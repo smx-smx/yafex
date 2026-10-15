@@ -63,10 +63,9 @@ public class FsNodeViewModel : ViewModelBase
         Children.Clear();
         try
         {
-            _node.EnsureLoaded();
-            foreach (var link in _node.Tree.Values.OrderBy(l => l.Node.Name))
+            foreach (var child in VfsWalk.Children(_node))
             {
-                Children.Add(new FsNodeViewModel(link.Node));
+                Children.Add(new FsNodeViewModel(child));
             }
         }
         catch (Exception)

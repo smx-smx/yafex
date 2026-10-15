@@ -96,35 +96,28 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             var input = new MFile(path);
             var hits = _services.Finder.ProbeAll(input);
-            if (hits.Count == 0)
-            {
-                input.Dispose();
-                Status = $"No format identified for {System.IO.Path.GetFileName(path)}.";
-                return;
-            }
             ProbeLine = string.Join("  ", hits.Select(h =>
                 $"{Enum.GetName(h.Format)?.ToLowerInvariant()}:{h.Result.Confidence}"));
             var (addon, result) = _services.Finder.DetectFormatAddon(input);
-            if (addon == null || result == null)
-            {
-                input.Dispose();
-                Status = "Detection failed.";
-                return;
-            }
-            var vfs = addon.CreateVfs(input, result);
+            // same tree as --mount/--list: the format's VFS, else the expander
+            // registry (FAT, ext, GPT, ... that no addon detects)
+            var vfs = VfsMount.CreateLazy(addon, result, input);
             if (vfs == null)
             {
                 input.Dispose();
-                Status = $"Lazy VFS not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}.";
+                Status = addon == null
+                    ? $"No format identified for {System.IO.Path.GetFileName(path)}."
+                    : $"Browsing not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}.";
                 return;
             }
             _input = input;
             Roots.Clear();
-            foreach (var link in vfs.Root.Tree.Values.OrderBy(l => l.Node.Name))
+            foreach (var node in VfsWalk.Children(vfs.Root))
             {
-                Roots.Add(new FsNodeViewModel(link.Node));
+                Roots.Add(new FsNodeViewModel(node));
             }
-            Status = $"{System.IO.Path.GetFileName(path)} — {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}";
+            var label = addon != null ? Enum.GetName(addon.FileFormat)?.ToLowerInvariant() : "expanded";
+            Status = $"{System.IO.Path.GetFileName(path)} — {label}";
         }
         catch (Exception ex)
         {
@@ -201,21 +194,26 @@ public class MainViewModel : ViewModelBase, IDisposable
         return sb.ToString();
     }
 
-    /// <summary>Writes the selected file node to disk. Returns null when nothing to save.</summary>
+    /// <summary>
+    /// Writes the selected node to disk: a file to <paramref name="path"/>, a
+    /// directory's whole subtree under <paramref name="path"/> (same layout as
+    /// --export). Returns null when nothing was saved.
+    /// </summary>
     public string? SaveSelected(string path)
     {
-        if (Selected?.Node is not IVfsFile file || Selected.Node.Size <= 0) return null;
+        var node = Selected?.Node;
+        if (node == null) return null;
         try
         {
-            using var out_ = System.IO.File.Open(path, System.IO.FileMode.Create, System.IO.FileAccess.Write);
-            long done = 0;
-            while (done < Selected.Node.Size)
+            if (node.Type == VfsNodeType.Directory)
             {
-                var chunk = file.Read(done, Math.Min(1 << 20, Selected.Node.Size - done));
-                if (chunk == null || chunk.Length == 0) break;
-                out_.Write(chunk, 0, chunk.Length);
-                done += chunk.Length;
+                int n = VfsExport.Export(node, path);
+                Status = $"Exported {n} files to {path}.";
+                return path;
             }
+            if (node is not IVfsFile) return null;
+            VfsExport.ExportFile(node, path);
+            Status = $"Saved {path}.";
             return path;
         }
         catch (Exception ex)

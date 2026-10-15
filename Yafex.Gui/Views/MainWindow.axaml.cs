@@ -48,8 +48,22 @@ public partial class MainWindow : Window
     private async void OnSaveClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var current = Model.Selected;
-        if (current?.Node is not Yafex.Fuse.IVfsFile)
+        if (current == null)
         {
+            return;
+        }
+        if (current.IsDirectory)
+        {
+            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = $"Export '{current.Name}' into folder",
+                AllowMultiple = false,
+            });
+            var folder = folders.FirstOrDefault();
+            if (folder != null)
+            {
+                Model.SaveSelected(System.IO.Path.Combine(folder.Path.LocalPath, current.Name));
+            }
             return;
         }
         var target = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions

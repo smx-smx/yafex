@@ -19,7 +19,7 @@
                 <MenuItem Header="_Open firmware…" Click="OnOpenClicked" />
                 <MenuItem Header="Load _keys file…" Click="OnKeysClicked" />
                 <Separator />
-                <MenuItem Header="_Save selected file…" Click="OnSaveClicked" />
+                <MenuItem Header="_Save / export selected…" Click="OnSaveClicked" />
                 <Separator />
                 <MenuItem Header="_Close" Click="OnCloseClicked" />
             </MenuItem>
