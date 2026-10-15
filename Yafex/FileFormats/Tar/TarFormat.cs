@@ -41,10 +41,24 @@ public static class TarFormat
 
     public static long FindStart(byte[] image)
     {
+        return Scan(image, pos => OpenAt(image, pos) != null);
+    }
+
+    /// <summary>
+    /// First offset holding a valid ustar header (magic + checksum), without
+    /// walking the archive: for sniffing a head window that ends mid-archive.
+    /// </summary>
+    public static long FindHeader(byte[] head)
+    {
+        return Scan(head, _ => true);
+    }
+
+    private static long Scan(byte[] image, Func<long, bool> accept)
+    {
         long limit = Math.Min(image.Length - 512, 65536);
         for (long pos = 0; pos < limit; pos++)
         {
-            if (YafexTarReader.IsHeader(image, (int)pos) && OpenAt(image, pos) != null)
+            if (YafexTarReader.IsHeader(image, (int)pos) && accept(pos))
             {
                 return pos;
             }

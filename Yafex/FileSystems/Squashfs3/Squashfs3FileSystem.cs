@@ -21,6 +21,19 @@ namespace Yafex.FileSystems.Squashfs3
         {
             return Squashfs3Constants.HasMagic(prefix, out bigEndian);
         }
+        /// <summary>Squashfs magic (either endianness) with major version 3.</summary>
+        public static bool IsVersion3(byte[] prefix)
+        {
+            if (prefix.Length < Squashfs3Constants.MajorOff + 2 || !HasMagic(prefix, out bool bigEndian))
+            {
+                return false;
+            }
+            ushort major = bigEndian
+                ? Squashfs3Constants.ReadU16BE(prefix, Squashfs3Constants.MajorOff)
+                : Squashfs3Constants.ReadU16(prefix, Squashfs3Constants.MajorOff);
+            return major == Squashfs3Constants.MajorVersion;
+        }
+
         public Squashfs3FileSystem(Stream stream)
             : base(new DiscFileSystemOptions())
         {
@@ -42,14 +55,7 @@ namespace Yafex.FileSystems.Squashfs3
                 try
                 {
                     byte[] sb = Squashfs3Constants.ReadBytes(stream, 0, Squashfs3Constants.SuperblockSize);
-                    if (!Squashfs3Constants.HasMagic(sb, out bool bigEndian))
-                    {
-                        return false;
-                    }
-                    ushort major = bigEndian
-                        ? Squashfs3Constants.ReadU16BE(sb, Squashfs3Constants.MajorOff)
-                        : Squashfs3Constants.ReadU16(sb, Squashfs3Constants.MajorOff);
-                    return major == Squashfs3Constants.MajorVersion;
+                    return IsVersion3(sb);
                 }
                 finally
                 {

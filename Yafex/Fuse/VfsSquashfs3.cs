@@ -33,8 +33,9 @@ public sealed class Squashfs3Expander : IContentExpander
 
     public bool Matches(IVirtualFile file)
     {
-        // fork core covers both endiannesses (mount previously missed BE)
-        return ExpanderSniff.Head(file, 32, head => Squashfs3FileSystem.HasMagic(head, out _));
+        // fork core covers both endiannesses (mount previously missed BE);
+        // 4.x shares the magic, so the major version must match too
+        return ExpanderSniff.Head(file, 32, Squashfs3FileSystem.IsVersion3);
     }
 
     public IVfsNode Expand(IVirtualFile file, ICollection<object> keepAlive)

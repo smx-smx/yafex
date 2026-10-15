@@ -34,8 +34,10 @@ public sealed class TarExpander : IContentExpander
             {
                 return false;
             }
+            // the head window may end mid-archive: check the header only,
+            // Expand walks (and validates) the whole archive
             var buf = file.ReadHead(128L * 1024);
-            return TarFormat.FindStart(buf) >= 0;
+            return TarFormat.FindHeader(buf) >= 0;
         }
         catch (Exception)
         {
