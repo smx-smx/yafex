@@ -54,9 +54,10 @@ namespace Yafex.Support
 
         public override void Unpin() { }
 
-        public void Dispose()
+        public override void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         protected override void Dispose(bool disposing)
