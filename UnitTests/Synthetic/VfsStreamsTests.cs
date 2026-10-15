@@ -10,6 +10,7 @@
 #endregion
 // Synthetic VFS stream tests. Fully in-memory: no disk, no samples.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -131,5 +132,20 @@ public class VfsStreamsTests
         var buf = new byte[4];
         Assert.AreEqual(4, s.Read(buf, 0, 4));
         CollectionAssert.AreEqual(region[16..20], buf);
+    }
+
+    [Test]
+    public void VfsNodeVirtualFile_SniffsAndExpandsNode()
+    {
+        var payload = System.Text.Encoding.ASCII.GetBytes("nested payload");
+        var gz = GzipTests.BuildGzip(payload);
+        var node = new YafexFile(Synthetic.Mem(gz, "inner.gz"), Helpers.OctalLiteral(0444));
+        var file = new VfsNodeVirtualFile(node);
+        Assert.AreEqual(gz.Length, file.Length);
+        Assert.AreEqual("gzip", ContentExpanders.FindMatch(file)?.Name);
+        Assert.IsTrue(ContentExpanders.TryExpand(file, new List<object>(), out var dir));
+        dir!.EnsureLoaded();
+        var inflated = (IVfsFile)dir.Tree["inner"].Node;
+        CollectionAssert.AreEqual(payload, inflated.Read(0, payload.Length));
     }
 }

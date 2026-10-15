@@ -31,6 +31,73 @@ public sealed class MemoryVirtualFile : IVirtualFile
     public Stream OpenRead() => new MemoryStream(_content, writable: false);
 }
 
+/// <summary>
+/// A mounted file node seen as an <see cref="IVirtualFile"/>, so any node
+/// (e.g. a file inside a squashfs) can be sniffed and expanded in turn.
+/// </summary>
+public sealed class VfsNodeVirtualFile : IVirtualFile
+{
+    private readonly IVfsFile _file;
+
+    public VfsNodeVirtualFile(IVfsNode node)
+    {
+        _file = node as IVfsFile ?? throw new ArgumentException("not a file node", nameof(node));
+        Name = node.Name;
+        Length = node.Size;
+    }
+
+    public string Name { get; }
+    public long Length { get; }
+    public Stream OpenRead() => new NodeStream(_file, Length);
+
+    private sealed class NodeStream : Stream
+    {
+        private readonly IVfsFile _file;
+        private readonly long _length;
+        private long _position;
+
+        public NodeStream(IVfsFile file, long length)
+        {
+            _file = file;
+            _length = length;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => _length;
+        public override long Position { get => _position; set => Seek(value, SeekOrigin.Begin); }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_position >= _length) return 0;
+            var chunk = _file.Read(_position, Math.Min(count, _length - _position));
+            if (chunk == null || chunk.Length == 0) return 0;
+            chunk.CopyTo(buffer, offset);
+            _position += chunk.Length;
+            return chunk.Length;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            var target = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => _length + offset,
+                _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+            };
+            if (target < 0 || target > _length) throw new IOException("seek out of range");
+            _position = target;
+            return target;
+        }
+
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+}
+
 /// <summary>Concatenation of source windows as one virtual file (firmware
 /// volumes striped over pages, multi-segment modules). Reads only the
 /// requested windows; seeks are free.</summary>

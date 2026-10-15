@@ -37,6 +37,9 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
 
     public override VfsNodeType Type => VfsNodeType.Directory;
 
+    /// <summary>Why expansion failed (the directory then stays empty), or null.</summary>
+    public Exception? LoadError { get; private set; }
+
     public override void EnsureLoaded()
     {
         lock (_gate)
@@ -52,6 +55,7 @@ public sealed class LazyVfsDirectory : VfsNode, IVfsDir
             }
             catch (Exception ex)
             {
+                LoadError = ex;
                 // a single hostile subtree (e.g. squashfs symlinks DiscUtils
                 // cannot parse) must not break the mount: empty dir, logged
                 log.Error($"lazy expansion of '{Name}' failed", ex);
@@ -156,6 +160,23 @@ public static class ContentExpanders
     };
 
     public static IReadOnlyList<IContentExpander> All => _expanders;
+
+    /// <summary>First expander whose sniff matches <paramref name="file"/>, or null.</summary>
+    public static IContentExpander? FindMatch(IVirtualFile file)
+    {
+        foreach (var expander in _expanders)
+        {
+            try
+            {
+                if (expander.Matches(file)) return expander;
+            }
+            catch (Exception)
+            {
+                // faulty sniff: try the next expander
+            }
+        }
+        return null;
+    }
 
     public static void Register(IContentExpander expander) => _expanders.Add(expander);
 
