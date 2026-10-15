@@ -32,6 +32,7 @@ namespace Yafex
         List,
         Probe,
         Tree,
+        Export,
         Help
     }
 
@@ -109,6 +110,9 @@ namespace Yafex
                     case "--tree":
                         programMode = ProgramMode.Tree;
                         break;
+                    case "--export":
+                        programMode = ProgramMode.Export;
+                        break;
                     case "--probe":
                         programMode = ProgramMode.Probe;
                         break;
@@ -165,6 +169,10 @@ namespace Yafex
             if(programMode == ProgramMode.Fuse && destDir == null)
             {
                 throw new ArgumentException("Fuse mountpoint not specified");
+            }
+            if (programMode == ProgramMode.Export && destDir == null)
+            {
+                throw new ArgumentException("Export directory not specified");
             }
 
             if (!keysExplicit)
@@ -223,14 +231,9 @@ namespace Yafex
                         RunProbe(host.Services.GetRequiredService<FormatFinder>(), input);
                         return;
                     }
-                    if (_opts.ProgramMode == ProgramMode.List)
+                    if (_opts.ProgramMode is ProgramMode.List or ProgramMode.Tree or ProgramMode.Export)
                     {
-                        RunList(host.Services.GetRequiredService<FormatFinder>(), input);
-                        return;
-                    }
-                    if (_opts.ProgramMode == ProgramMode.Tree)
-                    {
-                        RunTree(host.Services.GetRequiredService<FormatFinder>(), input);
+                        RunTreeMode(host.Services.GetRequiredService<FormatFinder>(), input);
                         return;
                     }
 
@@ -286,11 +289,12 @@ namespace Yafex
 
         private static void PrintHelp(FileFormatRepository repo)
         {
-            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--probe|--tree|--help]");
+            Console.WriteLine("Usage: yafex -i <firmware> [-d <outdir>] [-k <keys.json>] [-o fmt:opt=val] [--mount|--list|--tree|--export|--probe|--help]");
             Console.WriteLine("  --mount          FUSE-mount the firmware (needs -d <mountpoint>)");
-            Console.WriteLine("  --list           list contents without extracting (payloads untouched)");
+            Console.WriteLine("  --list           list contents, one `d|f size path` line per entry (payloads untouched)");
+            Console.WriteLine("  --tree           same entries as --list, indented");
+            Console.WriteLine("  --export         write the mount tree to -d <outdir> (same layout as --mount)");
             Console.WriteLine("  --probe          test the file against all formats, show matches");
-            Console.WriteLine("  --tree           show the VFS mount tree (lazy dirs populate on access)");
             Console.WriteLine("  -o fmt:opt=val   per-format option; -o global:spool_mb=<MB> streams big artifacts to disk (default 64)");
             Console.WriteLine("  keys: -k <path>, else $YAFEX_KEYS, else ./secrets.json (missing file = no keys, not fatal)");
             Console.WriteLine("Formats:");
@@ -321,33 +325,10 @@ namespace Yafex
             }
         }
 
-        private static bool TryDetect(FormatFinder finder, IDataSource input,
-            [NotNullWhen(true)] out IFormatAddon? addon, [NotNullWhen(true)] out DetectionResult? result)
-        {
-            (addon, result) = finder.DetectFormatAddon(input);
-            if (addon == null || result == null || !result.Succeded())
-            {
-                Console.WriteLine("no format identified");
-                return false;
-            }
-            return true;
-        }
-
         private static string FormatName(IFormatAddon addon) => Enum.GetName(addon.FileFormat)?.ToLowerInvariant() ?? "";
 
-        private static void RunList(FormatFinder finder, IDataSource input)
-        {
-            if (!TryDetect(finder, input, out var addon, out var result)) return;
-            var lister = addon.CreateLister(result);
-            if (lister == null)
-            {
-                Console.WriteLine($"listing not supported for {FormatName(addon)}");
-                return;
-            }
-            lister.List(input, result, Console.Out);
-        }
-
-        private static void RunTree(FormatFinder finder, IDataSource input)
+        /// <summary>--list, --tree and --export: one lazy tree, one walk.</summary>
+        private void RunTreeMode(FormatFinder finder, IDataSource input)
         {
             var (addon, result) = finder.DetectFormatAddon(input);
             var vfs = VfsMount.CreateLazy(addon, result, input);
@@ -355,21 +336,25 @@ namespace Yafex
             {
                 Console.WriteLine(addon == null
                     ? "no format identified"
-                    : $"lazy VFS not supported for {FormatName(addon)}");
+                    : $"browsing not supported for {FormatName(addon)}");
                 return;
             }
-            PrintTree(vfs.Root, "", Console.Out);
-        }
-
-        private static void PrintTree(IVfsNode node, string indent, TextWriter output)
-        {
-            node.EnsureLoaded();
-            var kind = node.Type == VfsNodeType.Directory ? "/" : $" ({node.Size} bytes)";
-            output.WriteLine($"{indent}{node.Name}{kind}");
-            if (node.Type != VfsNodeType.Directory) return;
-            foreach (var key in node.Tree.Keys.OrderBy(k => k))
+            var label = addon != null ? FormatName(addon) : "expanded";
+            switch (_opts.ProgramMode)
             {
-                PrintTree(node.Tree[key].Node, indent + "  ", output);
+                case ProgramMode.List:
+                    Console.WriteLine($"{input.Name} ({label}):");
+                    VfsListing.WriteFlat(vfs.Root, Console.Out);
+                    break;
+                case ProgramMode.Tree:
+                    Console.WriteLine($"{input.Name} ({label}):");
+                    VfsListing.WriteTree(vfs.Root, Console.Out);
+                    break;
+                case ProgramMode.Export:
+                    int n = VfsExport.Export(vfs.Root, _opts.DestDir!,
+                        e => { if (!e.IsDirectory) Console.WriteLine(e.Path); });
+                    Console.WriteLine($"exported {n} files to {_opts.DestDir}");
+                    break;
             }
         }
 
