@@ -85,6 +85,7 @@ namespace Yafex.Cygwin
 
         public static string? GetInstalledCygwinBin()
         {
+            if (!OperatingSystem.IsWindows()) return null;
             var rootdir = (string?)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Cygwin\setup", "rootdir", null);
             if (rootdir == null) return null;
             return rootdir + "/bin";
