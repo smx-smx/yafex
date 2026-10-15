@@ -60,7 +60,7 @@ public class AllwinnerImgDetector : IFormatDetector
         long idOff = hdr.HeaderVersion == AwHeader.Version3 ? 36 : 32;
         uint numFiles = span.ReadStruct<AwIdBlockV1>(idOff).NumFiles;
         if (numFiles == 0 || numFiles > 100000) return false;
-        if (hdr.ImageSize > (16L << 30)) return false;
+        if ((long)hdr.ImageSize > (16L << 30)) return false;
         ctx = new AllwinnerImgContext
         {
             Version = hdr.HeaderVersion,
