@@ -55,9 +55,7 @@ public sealed class Jffs2Expander : IContentExpander
             {
                 throw new InvalidDataException("jffs2 open failed");
             }
-            var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
-            DiscTree.BuildNodes(tmp, reader);
-            return tmp.Tree.Values.Select(l => l.Node);
+            return DiscTree.Children(reader);
         });
     }
 

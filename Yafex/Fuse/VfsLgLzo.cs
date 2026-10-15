@@ -85,24 +85,9 @@ public sealed class LgLzoExpander : IContentExpander
                 ? file.Name[..^4]
                 : file.Name;
             var unlzo = new LgLzoVirtualFile(stem + ".unlzo", file);
-            keepAlive.Add(unlzo);
-            var nodes = new List<IVfsNode> { new PakVfsFile(unlzo, Helpers.OctalLiteral(0444)) };
+            var nodes = new List<IVfsNode>();
             // nested filesystem (cramfs): surface its tree next to the blob
-            try
-            {
-                if (ContentExpanders.TryExpand(unlzo, keepAlive, out var inner) && inner != null)
-                {
-                    inner.EnsureLoaded();
-                    foreach (var entry in inner.Tree.Values.Select(l => l.Node))
-                    {
-                        nodes.Add(entry);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // keep just the decompressed blob
-            }
+            VfsBuilder.AddWithNested(nodes, unlzo, keepAlive);
             return nodes;
         });
     }

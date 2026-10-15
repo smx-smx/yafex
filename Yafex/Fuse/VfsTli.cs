@@ -126,23 +126,7 @@ public sealed class TliExpander : IContentExpander
             foreach (var e in tar.Entries)
             {
                 var slice = new SliceVirtualFile(TliParser.SafeName(e.Name), file, tarStart + e.Offset, e.Length);
-                keepAlive.Add(slice);
-                nodes.Add(new PakVfsFile(slice, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(slice, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the slice
-                }
+                VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             return nodes;
         });

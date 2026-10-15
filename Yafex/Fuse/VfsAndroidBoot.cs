@@ -46,23 +46,7 @@ public sealed class AndroidBootExpander : IContentExpander
             void AddSlice(string name, long offset, long size, string? meta)
             {
                 var slice = new SliceVirtualFile(name, file, offset, size);
-                keepAlive.Add(slice);
-                nodes.Add(new PakVfsFile(slice, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(slice, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the slice
-                }
+                VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             foreach (var seg in header.Segments)
             {

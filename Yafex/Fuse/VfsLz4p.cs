@@ -81,23 +81,8 @@ public sealed class Lz4pExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var decoded = new Lz4pVirtualFile(file.Name + ".unlz4", file);
-            keepAlive.Add(decoded);
-            var nodes = new List<IVfsNode> { new PakVfsFile(decoded, Helpers.OctalLiteral(0444)) };
-            try
-            {
-                if (ContentExpanders.TryExpand(decoded, keepAlive, out var inner) && inner != null)
-                {
-                    inner.EnsureLoaded();
-                    foreach (var entry in inner.Tree.Values.Select(l => l.Node))
-                    {
-                        nodes.Add(entry);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // keep just the decoded blob
-            }
+            var nodes = new List<IVfsNode>();
+            VfsBuilder.AddWithNested(nodes, decoded, keepAlive);
             return nodes;
         });
     }

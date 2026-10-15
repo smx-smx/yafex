@@ -54,23 +54,7 @@ public sealed class AdbImgExpander : IContentExpander
             }
             foreach (var region in regions)
             {
-                keepAlive.Add(region);
-                nodes.Add(new PakVfsFile(region, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(region, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the region file
-                }
+                VfsBuilder.AddWithNested(nodes, region, keepAlive);
             }
             return nodes;
         });

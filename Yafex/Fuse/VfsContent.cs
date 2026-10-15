@@ -197,9 +197,7 @@ public sealed class SquashfsExpander : IContentExpander
             {
                 throw new InvalidDataException("squashfs open failed");
             }
-            var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
-            DiscTree.BuildNodes(tmp, reader);
-            return tmp.Tree.Values.Select(l => l.Node);
+            return DiscTree.Children(reader);
         });
     }
 }
@@ -619,6 +617,40 @@ public static class VfsBuilder
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Loaded children of the first expander matching <paramref name="file"/>,
+    /// or nothing when no expander matches or expansion fails: callers keep
+    /// just the blob.
+    /// </summary>
+    public static IReadOnlyList<IVfsNode> ExpandNested(IVirtualFile file, ICollection<object> keepAlive)
+    {
+        try
+        {
+            if (ContentExpanders.TryExpand(file, keepAlive, out var nested) && nested != null)
+            {
+                nested.EnsureLoaded();
+                return nested.Tree.Values.Select(l => l.Node).ToList();
+            }
+        }
+        catch (Exception)
+        {
+            // hostile nested content: keep just the blob
+        }
+        return Array.Empty<IVfsNode>();
+    }
+
+    /// <summary>
+    /// The common container-member shape: <paramref name="file"/> as a
+    /// read-only node, followed by its nested expansion (if any) flattened
+    /// alongside it. Keeps <paramref name="file"/> alive with the mount.
+    /// </summary>
+    public static void AddWithNested(List<IVfsNode> nodes, IVirtualFile file, ICollection<object> keepAlive)
+    {
+        keepAlive.Add(file);
+        nodes.Add(new PakVfsFile(file, Helpers.OctalLiteral(0444)));
+        nodes.AddRange(ExpandNested(file, keepAlive));
     }
 
     private sealed class RenamedVirtualFile : IVirtualFile

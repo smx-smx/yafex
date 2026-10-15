@@ -48,9 +48,7 @@ public sealed class UfsExpander : IContentExpander
             {
                 throw new InvalidDataException("ufs open failed");
             }
-            var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
-            DiscTree.BuildNodes(tmp, reader);
-            return tmp.Tree.Values.Select(l => l.Node);
+            return DiscTree.Children(reader);
         });
     }
 

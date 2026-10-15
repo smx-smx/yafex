@@ -36,25 +36,10 @@ public sealed class NfsbExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var inner = new SliceVirtualFile(file.Name + ".unnfsb", file,
-                Nfsb.HeaderSize, file.OpenRead().Length - Nfsb.HeaderSize);
-            keepAlive.Add(inner);
-            var nodes = new List<IVfsNode> { new PakVfsFile(inner, Helpers.OctalLiteral(0444)) };
+                Nfsb.HeaderSize, file.Length - Nfsb.HeaderSize);
+            var nodes = new List<IVfsNode>();
             // nested filesystem (squashfs): surface its tree next to the blob
-            try
-            {
-                if (ContentExpanders.TryExpand(inner, keepAlive, out var nested) && nested != null)
-                {
-                    nested.EnsureLoaded();
-                    foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                    {
-                        nodes.Add(entry);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // keep just the stripped blob
-            }
+            VfsBuilder.AddWithNested(nodes, inner, keepAlive);
             return nodes;
         });
     }

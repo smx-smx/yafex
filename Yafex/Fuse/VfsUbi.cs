@@ -65,23 +65,7 @@ public sealed class UbiExpander : IContentExpander
                     continue;
                 }
                 var mem = new MemoryVirtualFile(UbiFormat.SafeName(v.Name), v.Payload());
-                keepAlive.Add(mem);
-                nodes.Add(new PakVfsFile(mem, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(mem, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the volume file
-                }
+                VfsBuilder.AddWithNested(nodes, mem, keepAlive);
             }
             if (nodes.Count == 0)
             {

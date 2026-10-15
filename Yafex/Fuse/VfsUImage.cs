@@ -36,24 +36,9 @@ public sealed class UImageExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var inner = new SliceVirtualFile(file.Name + ".unpaked", file,
-                UImage.HeaderSize, file.OpenRead().Length - UImage.HeaderSize);
-            keepAlive.Add(inner);
-            var nodes = new List<IVfsNode> { new PakVfsFile(inner, Helpers.OctalLiteral(0444)) };
-            try
-            {
-                if (ContentExpanders.TryExpand(inner, keepAlive, out var nested) && nested != null)
-                {
-                    nested.EnsureLoaded();
-                    foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                    {
-                        nodes.Add(entry);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // keep just the stripped blob
-            }
+                UImage.HeaderSize, file.Length - UImage.HeaderSize);
+            var nodes = new List<IVfsNode>();
+            VfsBuilder.AddWithNested(nodes, inner, keepAlive);
             return nodes;
         });
     }

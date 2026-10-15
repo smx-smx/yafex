@@ -45,9 +45,7 @@ public sealed class Squashfs3Expander : IContentExpander
             {
                 throw new InvalidDataException("squashfs3 open failed");
             }
-            var tmp = new YafexDirectory(file.Name, Helpers.OctalLiteral(0755));
-            DiscTree.BuildNodes(tmp, reader);
-            return tmp.Tree.Values.Select(l => l.Node);
+            return DiscTree.Children(reader);
         });
     }
 

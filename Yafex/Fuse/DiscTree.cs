@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using log4net;
 
@@ -79,6 +80,14 @@ public static class DiscTree
     {
         var gate = new object();
         BuildNodes(vfsNode, fs.Root, gate);
+    }
+
+    /// <summary>Top-level mount nodes of <paramref name="fs"/>, for expander factories.</summary>
+    public static List<IVfsNode> Children(DiscFileSystem fs)
+    {
+        var tmp = new YafexDirectory("", Helpers.OctalLiteral(0755));
+        BuildNodes(tmp, fs);
+        return tmp.Tree.Values.Select(l => l.Node).ToList();
     }
 
     private static void BuildNodes(IVfsNode vfsNode, DiscDirectoryInfo dirNode, object gate)

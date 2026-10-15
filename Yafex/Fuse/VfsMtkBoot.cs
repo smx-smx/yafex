@@ -36,7 +36,7 @@ public sealed class MtkBootExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var nodes = new List<IVfsNode>();
-            long len = file.OpenRead().Length;
+            long len = file.Length;
             int firstSize = (int)Math.Min(len, MtkBoot.PblSize);
             var first = new SliceVirtualFile("mtk_1bl.bin", file, 0, firstSize);
             keepAlive.Add(first);
@@ -51,21 +51,7 @@ public sealed class MtkBootExpander : IContentExpander
                 if (segOff + 16 > len) continue;
                 var seg = new SliceVirtualFile(name + ".lzhs", file, segOff, len - segOff);
                 keepAlive.Add(seg);
-                try
-                {
-                    if (ContentExpanders.TryExpand(seg, keepAlive, out var inner) && inner != null)
-                    {
-                        inner.EnsureLoaded();
-                        foreach (var entry in inner.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // not a working LZHS segment here: skip the slot
-                }
+                nodes.AddRange(VfsBuilder.ExpandNested(seg, keepAlive));
             }
             return nodes;
         });

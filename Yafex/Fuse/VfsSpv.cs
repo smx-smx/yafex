@@ -52,23 +52,7 @@ public sealed class SpvExpander : IContentExpander
                 // parser computed against the same base image
                 var slice = new SliceVirtualFile(
                     SpvParser.SafeName(b.Name) + ".bin", file, b.Offset, length);
-                keepAlive.Add(slice);
-                nodes.Add(new PakVfsFile(slice, Helpers.OctalLiteral(0444)));
-                try
-                {
-                    if (ContentExpanders.TryExpand(slice, keepAlive, out var nested) && nested != null)
-                    {
-                        nested.EnsureLoaded();
-                        foreach (var entry in nested.Tree.Values.Select(l => l.Node))
-                        {
-                            nodes.Add(entry);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // keep just the slice
-                }
+                VfsBuilder.AddWithNested(nodes, slice, keepAlive);
             }
             if (nodes.Count == 0)
             {
