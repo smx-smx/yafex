@@ -32,7 +32,7 @@ namespace Yafex.Fuse
     /// A virtual package file, backed by a lazy <see cref="PakStream"/>. No payload
     /// is read or decrypted until a FUSE read request arrives.
     /// </summary>
-    public class PakVfsFile : VfsNode, IVfsFile
+    public class PakVfsFile : VfsNode, IVfsFile, IVfsStreamable
     {
         private readonly IVirtualFile _image;
 
@@ -43,6 +43,8 @@ namespace Yafex.Fuse
         }
 
         public override VfsNodeType Type => VfsNodeType.File;
+
+        public System.IO.Stream OpenRead() => _image.OpenRead();
 
         public byte[]? Read(long offset, long count)
         {
