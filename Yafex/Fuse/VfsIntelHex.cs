@@ -48,17 +48,7 @@ public sealed class IntelHexExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            using var s = file.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("HEX too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("truncated HEX");
-                off += n;
-            }
+            var buf = file.ReadAllBytes();
             if (!IntelHex.TryParse(buf, out var image))
             {
                 throw new InvalidDataException("not Intel HEX");

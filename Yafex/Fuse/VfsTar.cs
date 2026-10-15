@@ -34,16 +34,7 @@ public sealed class TarExpander : IContentExpander
             {
                 return false;
             }
-            using var s = file.OpenRead();
-            long len = Math.Min(s.Length, 128L * 1024);
-            var buf = new byte[len];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) break;
-                off += n;
-            }
+            var buf = file.ReadHead(128L * 1024);
             return TarFormat.FindStart(buf) >= 0;
         }
         catch (Exception)
@@ -56,18 +47,7 @@ public sealed class TarExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            byte[] image;
-            using (var s = file.OpenRead())
-            {
-                image = new byte[s.Length];
-                int off = 0;
-                while (off < image.Length)
-                {
-                    int n = s.Read(image, off, image.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] image = file.ReadAvailable();
             long start = TarFormat.FindStart(image);
             if (start < 0)
             {

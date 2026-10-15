@@ -36,17 +36,8 @@ public sealed class Jffs2Expander : IContentExpander
         // with a dirent/inode (e.g. Askey boot regions)
         try
         {
-            using var s = file.OpenRead();
-            long len = Math.Min(s.Length, 65536);
-            if (len < 12) return false;
-            var buf = new byte[len];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) return false;
-                off += n;
-            }
+            var buf = file.ReadHead(65536);
+            if (buf.Length < 12) return false;
             using var ms = new MemoryStream(buf, writable: false);
             return Jffs2FileSystem.Detect(ms);
         }

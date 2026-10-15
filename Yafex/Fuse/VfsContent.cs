@@ -109,13 +109,7 @@ public static class ExpanderSniff
                 probe.Seek(offset, SeekOrigin.Begin);
             }
             var buf = new byte[count];
-            int off = 0;
-            while (off < count)
-            {
-                int n = probe.Read(buf, off, count - off);
-                if (n <= 0) return false;
-                off += n;
-            }
+            if (probe.ReadAtLeast(buf, count, throwOnEndOfStream: false) < count) return false;
             return check(buf);
         }
         catch (Exception)

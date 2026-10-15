@@ -36,17 +36,7 @@ public sealed class IdbExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var nodes = new List<IVfsNode>();
-            using var s = file.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("IDB too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("truncated IDB");
-                off += n;
-            }
+            var buf = file.ReadAllBytes();
             if (!Idb.TryParse(buf, out var table))
             {
                 throw new InvalidDataException("not an IDB file");
@@ -64,11 +54,11 @@ public sealed class IdbExpander : IContentExpander
                 // same naming contract as extraction: real PNGs keep .png,
                 // anything else is exposed raw under .bin
                 string name = n2 + ".bin";
-                IVirtualFile node = new BytesVirtualFile(name, blob);
+                IVirtualFile node = new MemoryVirtualFile(name, blob);
                 if (IdbExtractor.IsPng(blob))
                 {
                     name = n2 + ".png";
-                    node = new BytesVirtualFile(name, blob);
+                    node = new MemoryVirtualFile(name, blob);
                 }
                 else
                 {
@@ -76,7 +66,7 @@ public sealed class IdbExpander : IContentExpander
                     if (png != null)
                     {
                         name = n2 + ".png";
-                        node = new BytesVirtualFile(name, png);
+                        node = new MemoryVirtualFile(name, png);
                     }
                 }
                 keepAlive.Add(node);
@@ -84,19 +74,5 @@ public sealed class IdbExpander : IContentExpander
             }
             return nodes;
         });
-    }
-
-    /// <summary>In-memory decoded image content.</summary>
-    private sealed class BytesVirtualFile : IVirtualFile
-    {
-        private readonly byte[] _content;
-        public BytesVirtualFile(string name, byte[] content)
-        {
-            Name = name;
-            _content = content;
-        }
-        public string Name { get; }
-        public long Length => _content.Length;
-        public Stream OpenRead() => new MemoryStream(_content, writable: false);
     }
 }

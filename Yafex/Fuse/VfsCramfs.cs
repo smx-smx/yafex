@@ -86,7 +86,7 @@ public sealed class CramfsExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            var image = ReadAll(file);
+            var image = file.ReadAllBytes();
             if (!CramfsReader.HasMagic(image, out bool bigEndian))
             {
                 throw new InvalidDataException("not a cramfs image");
@@ -123,21 +123,5 @@ public sealed class CramfsExpander : IContentExpander
             }
         }
         return nodes;
-    }
-
-    private static byte[] ReadAll(IVirtualFile file)
-    {
-        using var s = file.OpenRead();
-        if (s.Length > int.MaxValue)
-            throw new InvalidDataException("cramfs image too large");
-        var buf = new byte[s.Length];
-        int off = 0;
-        while (off < buf.Length)
-        {
-            int n = s.Read(buf, off, buf.Length - off);
-            if (n <= 0) throw new InvalidDataException("truncated cramfs image");
-            off += n;
-        }
-        return buf;
     }
 }

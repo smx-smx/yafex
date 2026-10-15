@@ -62,13 +62,7 @@ public static class DiscTree
             {
                 using var s = f.OpenRead();
                 content = new byte[s.Length];
-                int off = 0;
-                while (off < content.Length)
-                {
-                    int n = s.Read(content, off, content.Length - off);
-                    if (n <= 0) throw new InvalidDataException("short disc file read");
-                    off += n;
-                }
+                s.ReadExactly(content);
             }
             catch (Exception ex)
             {

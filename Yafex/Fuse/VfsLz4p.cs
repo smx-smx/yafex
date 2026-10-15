@@ -56,17 +56,7 @@ public sealed class Lz4pVirtualFile : IVirtualFile
         lock (_gate)
         {
             if (_decoded != null) return;
-            using var s = _source.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("LZ4P source too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("truncated LZ4P source");
-                off += n;
-            }
+            var buf = _source.ReadAllBytes();
             _decoded = Lz4p.Decode(buf);
         }
     }

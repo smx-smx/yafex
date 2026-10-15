@@ -35,16 +35,7 @@ public sealed class TliExpander : IContentExpander
             {
                 return false;
             }
-            using var s = file.OpenRead();
-            long len = Math.Min(s.Length, 256L * 1024);
-            var buf = new byte[len];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) break;
-                off += n;
-            }
+            var buf = file.ReadHead(256L * 1024);
             long scanEnd = Math.Min(buf.Length - 12, 64L * 1024);
             for (long at = 0; at <= scanEnd; at++)
             {
@@ -87,18 +78,7 @@ public sealed class TliExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            byte[] image;
-            using (var s = file.OpenRead())
-            {
-                image = new byte[s.Length];
-                int off = 0;
-                while (off < image.Length)
-                {
-                    int n = s.Read(image, off, image.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] image = file.ReadAvailable();
             long tarStart = -1;
             int found = 0;
             for (long at = 0; at + 12 <= image.Length && found < 64; at++)

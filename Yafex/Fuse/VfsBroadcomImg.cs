@@ -36,16 +36,7 @@ public sealed class BroadcomImgExpander : IContentExpander
             {
                 return false;
             }
-            using var s = file.OpenRead();
-            long len = Math.Min(s.Length, 8L * 1024 * 1024);
-            var buf = new byte[len];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) break;
-                off += n;
-            }
+            var buf = file.ReadHead(8L * 1024 * 1024);
             return BroadcomImgParser.TrySplit(buf, out _);
         }
         catch (Exception)
@@ -58,19 +49,7 @@ public sealed class BroadcomImgExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            byte[] head;
-            using (var s = file.OpenRead())
-            {
-                long len = Math.Min(s.Length, 8L * 1024 * 1024);
-                head = new byte[len];
-                int off = 0;
-                while (off < head.Length)
-                {
-                    int n = s.Read(head, off, head.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] head = file.ReadHead(8L * 1024 * 1024);
             if (!BroadcomImgParser.TrySplit(head, out long ubiStart))
             {
                 throw new InvalidOperationException("no Broadcom flash layout found");

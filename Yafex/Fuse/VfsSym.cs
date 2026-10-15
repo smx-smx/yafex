@@ -37,17 +37,7 @@ public sealed class SymExpander : IContentExpander
             var stem = file.Name.EndsWith(".sym", StringComparison.OrdinalIgnoreCase)
                 ? file.Name[..^4]
                 : file.Name;
-            using var s = file.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("SYM too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("truncated SYM");
-                off += n;
-            }
+            var buf = file.ReadAllBytes();
             if (!Sym.TryParse(buf, out var symbols))
             {
                 throw new InvalidDataException("not a SYM file");

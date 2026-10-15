@@ -36,16 +36,7 @@ public sealed class AmdPspExpander : IContentExpander
             {
                 return false;
             }
-            using var s = file.OpenRead();
-            long len = Math.Min(s.Length, 1L << 26);
-            var buf = new byte[len];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) break;
-                off += n;
-            }
+            var buf = file.ReadHead(1L << 26);
             return AmdPsp.FindEfs(buf).Count > 0 || AmdPsp.FindDirectories(buf).Count > 0;
         }
         catch (Exception)
@@ -58,18 +49,7 @@ public sealed class AmdPspExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            byte[] image;
-            using (var s = file.OpenRead())
-            {
-                image = new byte[s.Length];
-                int off = 0;
-                while (off < image.Length)
-                {
-                    int n = s.Read(image, off, image.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] image = file.ReadAvailable();
             var dirs = AmdPsp.FindDirectories(image);
             if (dirs.Count == 0)
             {

@@ -135,7 +135,7 @@ public sealed class UefiExpander : IContentExpander
                 {
                     // nested firmware volume image: recurse via the engine shape
                     var raw = Uefi.SectionBytes(window, s);
-                    var mem = new BytesVirtualFile($"{secName}.fv", raw);
+                    var mem = new MemoryVirtualFile($"{secName}.fv", raw);
                     keepAlive.Add(mem);
                     nodes.Add(new PakVfsFile(mem, Helpers.OctalLiteral(0444)));
                     var sub = new List<IVfsNode>();
@@ -162,7 +162,7 @@ public sealed class UefiExpander : IContentExpander
                     }
                     else if (Uefi.InnerFirmwareVolumes(inner).Count > 0)
                     {
-                        var mem = new BytesVirtualFile($"{secName}.fv", inner);
+                        var mem = new MemoryVirtualFile($"{secName}.fv", inner);
                         keepAlive.Add(mem);
                         nodes.Add(new PakVfsFile(mem, Helpers.OctalLiteral(0444)));
                         var sub = new List<IVfsNode>();
@@ -177,7 +177,7 @@ public sealed class UefiExpander : IContentExpander
                         var pseudo = new Uefi.FfsFile(0, Guid.Empty, 0, 0, inner.Length, 0, 0, 0);
                         foreach (var innerSec in Uefi.ReadSections(inner, pseudo))
                         {
-                            var mem = new BytesVirtualFile(
+                            var mem = new MemoryVirtualFile(
                                 $"{UefiStructures.SectionTypeName(innerSec.Type)}.bin",
                                 Uefi.SectionBytes(inner, innerSec));
                             keepAlive.Add(mem);
@@ -211,36 +211,10 @@ public sealed class UefiExpander : IContentExpander
 
     private static byte[] ReadAll(IVirtualFile file)
     {
-        using var s = file.OpenRead();
-        if (s.Length > 1 << 28)
+        if (file.Length > 1 << 28)
         {
             throw new InvalidDataException("UEFI image too large");
         }
-        var buf = new byte[s.Length];
-        int off = 0;
-        while (off < buf.Length)
-        {
-            int n = s.Read(buf, off, buf.Length - off);
-            if (n <= 0)
-            {
-                throw new InvalidDataException("truncated UEFI image");
-            }
-            off += n;
-        }
-        return buf;
-    }
-
-    /// <summary>In-memory decompressed section content.</summary>
-    private sealed class BytesVirtualFile : IVirtualFile
-    {
-        private readonly byte[] _content;
-        public BytesVirtualFile(string name, byte[] content)
-        {
-            Name = name;
-            _content = content;
-        }
-        public string Name { get; }
-        public long Length => _content.Length;
-        public Stream OpenRead() => new MemoryStream(_content, writable: false);
+        return file.ReadAllBytes();
     }
 }

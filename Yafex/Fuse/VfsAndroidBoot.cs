@@ -37,31 +37,8 @@ public sealed class AndroidBootExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var nodes = new List<IVfsNode>();
-            byte[] head;
-            using (var s = file.OpenRead())
-            {
-                head = new byte[Math.Min(s.Length, AndroidBoot.HeaderV2Size)];
-                int off = 0;
-                while (off < head.Length)
-                {
-                    int n = s.Read(head, off, head.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
             // full image needed for layout (segments reference file offsets)
-            byte[] image;
-            using (var s = file.OpenRead())
-            {
-                image = new byte[s.Length];
-                int off = 0;
-                while (off < image.Length)
-                {
-                    int n = s.Read(image, off, image.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] image = file.ReadAvailable();
             if (!AndroidBoot.TryReadHeader(image, out var header))
             {
                 throw new InvalidOperationException("android boot header parse failed");

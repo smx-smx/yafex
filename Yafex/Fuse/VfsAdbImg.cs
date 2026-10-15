@@ -38,18 +38,7 @@ public sealed class AdbImgExpander : IContentExpander
     {
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
-            byte[] image;
-            using (var s = file.OpenRead())
-            {
-                image = new byte[s.Length];
-                int off = 0;
-                while (off < image.Length)
-                {
-                    int n = s.Read(image, off, image.Length - off);
-                    if (n <= 0) break;
-                    off += n;
-                }
-            }
+            byte[] image = file.ReadAvailable();
             if (!AdbImgParser.TrySplit(image, out long start, out long end))
             {
                 throw new InvalidOperationException("no yIMG payload found");

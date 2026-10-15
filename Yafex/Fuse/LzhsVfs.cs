@@ -388,7 +388,7 @@ public sealed class LzhsExpander : IContentExpander
         }
         try
         {
-            var window = ReadAll(file);
+            var window = file.ReadAvailable();
             var mem = new MemoryDataSource(new Memory64<byte>(window))
             {
                 Name = file.Name,
@@ -421,7 +421,7 @@ public sealed class LzhsExpander : IContentExpander
 
     private static MemoryVirtualFile Inflate(IVirtualFile file)
     {
-        var data = new Memory64<byte>(ReadAll(file));
+        var data = new Memory64<byte>(file.ReadAvailable());
         var decoder = new LzhsDecoder(data);
         var decoded = decoder.DecodeToArray();
         if (!decoder.VerifyChecksum())
@@ -429,20 +429,6 @@ public sealed class LzhsExpander : IContentExpander
             throw new InvalidDataException("LZHS checksum mismatch");
         }
         return new MemoryVirtualFile(file.Name + ".bin", decoded);
-    }
-
-    private static byte[] ReadAll(IVirtualFile file)
-    {
-        using var s = file.OpenRead();
-        var buf = new byte[s.Length];
-        int off = 0;
-        while (off < buf.Length)
-        {
-            int n = s.Read(buf, off, buf.Length - off);
-            if (n <= 0) break;
-            off += n;
-        }
-        return buf[..off];
     }
 
     private static bool TryOpenSquashfs(IVirtualFile inflated, ICollection<object> keepAlive, out List<IVfsNode> tree)

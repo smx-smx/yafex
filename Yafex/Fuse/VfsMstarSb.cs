@@ -34,17 +34,7 @@ public sealed class MstarSbExpander : IContentExpander
         return new LazyVfsDirectory(file.Name, Helpers.OctalLiteral(0755), () =>
         {
             var nodes = new List<IVfsNode>();
-            using var s = file.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("image too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("short read");
-                off += n;
-            }
+            var buf = file.ReadAllBytes();
             // same split-at-boundaries as extraction
             var headers = MstarSb.FindHeaders(buf);
             for (int i = 0; i < headers.Count; i++)

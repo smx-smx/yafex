@@ -57,17 +57,7 @@ public sealed class LgLzoVirtualFile : IVirtualFile
         lock (_gate)
         {
             if (_decoded != null) return;
-            using var s = _source.OpenRead();
-            if (s.Length > int.MaxValue)
-                throw new InvalidDataException("LG-LZO source too large");
-            var buf = new byte[s.Length];
-            int off = 0;
-            while (off < buf.Length)
-            {
-                int n = s.Read(buf, off, buf.Length - off);
-                if (n <= 0) throw new InvalidDataException("truncated LG-LZO source");
-                off += n;
-            }
+            var buf = _source.ReadAllBytes();
             _decoded = LgLzo.DecompressAll(buf);
         }
     }
