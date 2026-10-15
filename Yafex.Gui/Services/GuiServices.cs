@@ -9,7 +9,6 @@
  */
 #endregion
 using System;
-using System.IO;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,7 +16,7 @@ using Yafex;
 
 namespace Yafex.Gui.Services;
 
-/// <summary>Minimal DI setup mirroring the CLI host (formats, keys, finder).</summary>
+/// <summary>DI container for the GUI, wired like the CLI host via <see cref="YafexServices"/>.</summary>
 public sealed class GuiServices : IDisposable
 {
     private ServiceProvider? _provider;
@@ -29,30 +28,31 @@ public sealed class GuiServices : IDisposable
 
     public FileFormatRepository Repository => Resolve<FileFormatRepository>();
 
-    public void Configure(string? keysPath)
+    public Extractor Extractor => Resolve<Extractor>();
+
+    /// <summary>
+    /// Rebuilds the services with the key bundle at <paramref name="keysPath"/>.
+    /// A malformed bundle falls back to no keys and is reported via the return value.
+    /// </summary>
+    public string? Configure(string? keysPath)
     {
         DisposeProvider();
         KeysPath = keysPath;
-        var services = new ServiceCollection();
-        FileFormatRepository.RegisterFileFormats(services);
-        KeyBundle keys = KeyBundle.Empty;
-        if (keysPath != null && System.IO.File.Exists(keysPath))
+        string? error = null;
+        KeyBundle keys;
+        try
         {
-            try
-            {
-                keys = new KeyBundle(keysPath);
-            }
-            catch (Exception)
-            {
-                keys = KeyBundle.Empty;
-            }
+            keys = YafexServices.LoadKeys(keysPath);
         }
-        services.AddSingleton(keys);
-        services.AddSingleton(new ProgramOptions());
-        services.AddSingleton<KeysRepository>();
-        services.AddSingleton<FileFormatRepository>();
-        services.AddSingleton<FormatFinder>();
-        _provider = services.BuildServiceProvider();
+        catch (Exception ex)
+        {
+            keys = KeyBundle.Empty;
+            error = ex.Message;
+        }
+        _provider = new ServiceCollection()
+            .AddYafex(new ProgramOptions(), keys)
+            .BuildServiceProvider();
+        return error;
     }
 
     private T Resolve<T>() where T : notnull

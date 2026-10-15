@@ -84,8 +84,9 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     public void SetKeysFile(string? path)
     {
-        _services.Configure(path);
-        Status = path == null ? "Keys cleared." : $"Keys loaded from {path}.";
+        var error = _services.Configure(path);
+        Status = error != null ? $"Keys not loaded: {error}"
+            : path == null ? "Keys cleared." : $"Keys loaded from {path}.";
     }
 
     public void OpenFile(string path)

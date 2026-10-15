@@ -9,12 +9,10 @@
  */
 #endregion
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 using log4net;
 
@@ -67,41 +65,11 @@ namespace Yafex
             _opts = ProcessArgs(args);
         }
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-        private void FuseUsageError()
-        {
-            Console.Error.WriteLine("Usage: fuse [filename] [mountpoint]");
-            Environment.Exit(1);
-        }
-
         IHost BuildHost()
         {
             var hostBuilder = Host.CreateApplicationBuilder();
-            FileFormatRepository.RegisterFileFormats(hostBuilder.Services);
-
-            var secretsPath = _opts.KeyBundlePath;
-            KeyBundle keyFile;
-            if (secretsPath != null && File.Exists(secretsPath))
-            {
-                keyFile = new KeyBundle(secretsPath);
-            }
-            else
-            {
-                log.WarnFormat("Secrets file \"{0}\" not found, continuing without keys", secretsPath ?? "");
-                keyFile = KeyBundle.Empty;
-            }
-
-            hostBuilder.Services.AddSingleton(keyFile);
-            hostBuilder.Services.AddSingleton(_opts);
-            hostBuilder.Services.AddSingleton<KeysRepository>();
-            hostBuilder.Services.AddSingleton<FileFormatRepository>();
-            hostBuilder.Services.AddSingleton<FormatFinder>();
-            hostBuilder.Services.AddSingleton<Extractor>();
-
-            var host = hostBuilder.Build();
-            return host;
+            hostBuilder.Services.AddYafex(_opts, YafexServices.LoadKeys(_opts.KeyBundlePath));
+            return hostBuilder.Build();
         }
 
         bool TryTake(IEnumerator<string> it, [MaybeNullWhen(false)] out string arg)
@@ -198,18 +166,6 @@ namespace Yafex
             {
                 throw new ArgumentException("Fuse mountpoint not specified");
             }
-            if (programMode == ProgramMode.List && inputFile == null)
-            {
-                throw new ArgumentException("Input filename not specified");
-            }
-            if (programMode == ProgramMode.Tree && inputFile == null)
-            {
-                throw new ArgumentException("Input filename not specified");
-            }
-            if (programMode == ProgramMode.Probe && inputFile == null)
-            {
-                throw new ArgumentException("Input filename not specified");
-            }
 
             if (!keysExplicit)
             {
@@ -243,7 +199,6 @@ namespace Yafex
 
             host.Start();
             var extractor = host.Services.GetRequiredService<Extractor>();
-            var keysRepo = host.Services.GetRequiredService<KeysRepository>();
 
             if (_opts.ProgramMode == ProgramMode.Help)
             {
@@ -278,48 +233,49 @@ namespace Yafex
                         RunTree(host.Services.GetRequiredService<FormatFinder>(), input);
                         return;
                     }
-                YafexVfs? fuseVfs = null;
-                var lazyVfs = false;
 
-                if (_opts.ProgramMode == ProgramMode.Fuse)
-                {
-                    var finder = host.Services.GetRequiredService<FormatFinder>();
-                    var (addon, result) = finder.DetectFormatAddon(input);
-                    if (addon != null && result != null)
-                    {
-                        fuseVfs = addon.CreateVfs(input, result);
-                    }
-                    if (fuseVfs != null)
-                    {
-                        lazyVfs = true;
-                    }
-                    else
-                    {
-                        // generic materializing fallback for other formats
-                        fuseVfs = new YafexVfs();
-                    }
-                }
+                    YafexVfs? fuseVfs = null;
+                    var lazyVfs = false;
 
-                if (lazyVfs)
-                {
-                    FuseInterop.Start(fuseVfs!, _opts.DestDir);
-                    return;
-                }
+                    if (_opts.ProgramMode == ProgramMode.Fuse)
+                    {
+                        var finder = host.Services.GetRequiredService<FormatFinder>();
+                        var (addon, result) = finder.DetectFormatAddon(input);
+                        if (addon != null && result != null)
+                        {
+                            fuseVfs = addon.CreateVfs(input, result);
+                        }
+                        if (fuseVfs != null)
+                        {
+                            lazyVfs = true;
+                        }
+                        else
+                        {
+                            // generic materializing fallback for other formats
+                            fuseVfs = new YafexVfs();
+                        }
+                    }
 
-                var artifacts = extractor.Extract(fuseVfs?.Root, input);
-                var numArtifacts = 0;
-                foreach (var artifact in artifacts)
-                {
-                    ++numArtifacts;
-                    if (artifact is IDisposable disposable) owned.Add(disposable);
-                    // $FIXME: centralized artifact printing
+                    if (lazyVfs)
+                    {
+                        FuseInterop.Start(fuseVfs!, _opts.DestDir);
+                        return;
+                    }
+
+                    var artifacts = extractor.Extract(fuseVfs?.Root, input);
+                    var numArtifacts = 0;
+                    foreach (var artifact in artifacts)
+                    {
+                        ++numArtifacts;
+                        if (artifact is IDisposable disposable) owned.Add(disposable);
+                        // $FIXME: centralized artifact printing
+                    }
+                    if (fuseVfs != null && _opts.DestDir != null && numArtifacts > 0)
+                    {
+                        FuseInterop.Start(fuseVfs, _opts.DestDir);
+                    }
                 }
-                if (fuseVfs != null && _opts.DestDir != null && numArtifacts > 0)
-                {
-                    FuseInterop.Start(fuseVfs, _opts.DestDir);
-                }
-                } // using MFile
-            } // try
+            }
             finally
             {
                 // release streamed mappings; outputs themselves stay on disk
@@ -368,18 +324,27 @@ namespace Yafex
             }
         }
 
-        private static void RunList(FormatFinder finder, IDataSource input)
+        private static bool TryDetect(FormatFinder finder, IDataSource input,
+            [NotNullWhen(true)] out IFormatAddon? addon, [NotNullWhen(true)] out DetectionResult? result)
         {
-            var (addon, result) = finder.DetectFormatAddon(input);
+            (addon, result) = finder.DetectFormatAddon(input);
             if (addon == null || result == null || !result.Succeded())
             {
                 Console.WriteLine("no format identified");
-                return;
+                return false;
             }
+            return true;
+        }
+
+        private static string FormatName(IFormatAddon addon) => Enum.GetName(addon.FileFormat)?.ToLowerInvariant() ?? "";
+
+        private static void RunList(FormatFinder finder, IDataSource input)
+        {
+            if (!TryDetect(finder, input, out var addon, out var result)) return;
             var lister = addon.CreateLister(result);
             if (lister == null)
             {
-                Console.WriteLine($"listing not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}");
+                Console.WriteLine($"listing not supported for {FormatName(addon)}");
                 return;
             }
             lister.List(input, result, Console.Out);
@@ -387,16 +352,11 @@ namespace Yafex
 
         private static void RunTree(FormatFinder finder, IDataSource input)
         {
-            var (addon, result) = finder.DetectFormatAddon(input);
-            if (addon == null || result == null || !result.Succeded())
-            {
-                Console.WriteLine("no format identified");
-                return;
-            }
+            if (!TryDetect(finder, input, out var addon, out var result)) return;
             var vfs = addon.CreateVfs(input, result);
             if (vfs == null)
             {
-                Console.WriteLine($"lazy VFS not supported for {Enum.GetName(addon.FileFormat)?.ToLowerInvariant()}");
+                Console.WriteLine($"lazy VFS not supported for {FormatName(addon)}");
                 return;
             }
             PrintTree(vfs.Root, "", Console.Out);
@@ -418,11 +378,6 @@ namespace Yafex
         {
             var prg = new Program(args);
             prg.Run();
-        }
-
-        private static bool IsRunningInCygwin()
-        {
-            return GetModuleHandle("cygwin1") != IntPtr.Zero;
         }
     }
 }
