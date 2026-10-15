@@ -81,6 +81,13 @@ public sealed partial class FolderViewModel : ViewModelBase
     /// <summary>All loaded child nodes (folders and files), ordinal by name.</summary>
     public IReadOnlyList<IVfsNode> Items { get; private set; } = Array.Empty<IVfsNode>();
 
+    /// <summary>
+    /// Nested-content views of this folder's files, by file name. Not listed:
+    /// a file is opened as a container on demand (sniffed only when asked).
+    /// </summary>
+    public IReadOnlyDictionary<string, NestedVfsDirectory> NestedViews { get; private set; }
+        = new Dictionary<string, NestedVfsDirectory>();
+
     [ObservableProperty]
     public partial bool IsExpanded { get; set; }
 
@@ -120,24 +127,31 @@ public sealed partial class FolderViewModel : ViewModelBase
     private async Task<IReadOnlyList<IVfsNode>> LoadCoreAsync()
     {
         IsLoading = true;
-        var (items, error) = await Task.Run(() =>
+        var (items, nested, error) = await Task.Run(() =>
         {
+            var none = (IReadOnlyList<NestedVfsDirectory>)Array.Empty<NestedVfsDirectory>();
             using var lease = Source.Lease();
             if (lease == null)
             {
-                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), "image closed");
+                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, "image closed");
             }
             try
             {
                 var children = VfsWalk.Children(Node);
-                return (children, (Node as LazyVfsDirectory)?.LoadError?.Message);
+                return (children, VfsWalk.NestedViewsOf(Node), (Node as LazyVfsDirectory)?.LoadError?.Message);
             }
             catch (Exception ex)
             {
-                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), ex.Message);
+                return ((IReadOnlyList<IVfsNode>)Array.Empty<IVfsNode>(), none, ex.Message);
             }
         });
         Items = items;
+        var views = new Dictionary<string, NestedVfsDirectory>();
+        foreach (var view in nested)
+        {
+            views.TryAdd(view.Image.Name, view);
+        }
+        NestedViews = views;
         LoadError = error;
         var explored = Children.Where(c => c.Kind == FolderKind.Container).ToList();
         Children.Clear();

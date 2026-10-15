@@ -309,6 +309,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void SetCurrent(FolderViewModel? folder)
     {
         CancelSearch();
+        _markCts?.Cancel();
         CurrentFolder = folder;
         Breadcrumbs.Clear();
         if (folder != null)
@@ -347,7 +348,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         if (CurrentFolder != folder) return;
         _folderEntries = items
-            .Select(n => new EntryViewModel(n, folder) { IsContainer = n.Type != VfsNodeType.Directory && HasContents(folder, n.Name) })
+            .Select(n => new EntryViewModel(n, folder) { IsContainer = folder.ContainerFor(n.Name) != null })
             .OrderBy(e => e.IsDirectory ? 0 : 1)
             .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -355,6 +356,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (folder.LoadError != null)
         {
             Status = $"Could not expand {folder.Name}: {folder.LoadError}";
+        }
+        _ = MarkContainersAsync(folder, _folderEntries);
+    }
+
+    private CancellationTokenSource? _markCts;
+
+    /// <summary>
+    /// Sniffs the shown folder's candidate files (those its format offers a
+    /// nested view for) in the background, one at a time, and flags the ones
+    /// holding a browsable format. Navigating away cancels it.
+    /// </summary>
+    private async Task MarkContainersAsync(FolderViewModel folder, IReadOnlyList<EntryViewModel> entries)
+    {
+        _markCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _markCts = cts;
+        foreach (var entry in entries)
+        {
+            if (cts.IsCancellationRequested || CurrentFolder != folder) return;
+            if (entry.IsDirectory || entry.IsContainer) continue;
+            if (!folder.NestedViews.TryGetValue(entry.Name, out var view)) continue;
+            var source = folder.Source;
+            bool has = await Task.Run(() =>
+            {
+                using var lease = source.Lease();
+                return lease != null && !cts.IsCancellationRequested && view.HasContent;
+            });
+            if (has && !cts.IsCancellationRequested) entry.IsContainer = true;
         }
     }
 
@@ -420,7 +449,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             using var lease = folder.Source.Lease();
             if (lease == null) return;
-            foreach (var e in VfsWalk.Walk(folder.Node))
+            foreach (var e in VfsWalk.Walk(folder.Node, VfsWalk.AllNested))
             {
                 if (cts.IsCancellationRequested) return;
                 if (!match(e.Node.Name)) continue;
@@ -495,18 +524,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private bool CanExplore(EntryViewModel? entry) => (entry ?? SelectedEntry) is { IsDirectory: false };
 
-    /// <summary>
-    /// The folder already showing <paramref name="fileName"/>'s content: one
-    /// explored earlier, or the mount's own lazy `&lt;name&gt;.d/` view.
-    /// </summary>
-    private static FolderViewModel? ContentsOf(FolderViewModel folder, string fileName)
-    {
-        return folder.ContainerFor(fileName)
-            ?? folder.Children.FirstOrDefault(c => c.Kind == FolderKind.Folder && c.Name == fileName + ".d");
-    }
-
-    private static bool HasContents(FolderViewModel folder, string fileName) => ContentsOf(folder, fileName) != null;
-
     /// <summary>Opens a file's content as a browsable folder (nested image, archive, filesystem).</summary>
     public async Task<bool> ExploreEntryAsync(EntryViewModel? entry)
     {
@@ -514,12 +531,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var parent = await FolderOfAsync(entry);
         if (parent == null) return false;
         await parent.LoadAsync();
-        var known = ContentsOf(parent, entry.Name);
+        var known = parent.ContainerFor(entry.Name);
         if (known != null)
         {
             entry.IsContainer = true;
             await GoToAsync(known);
             return true;
+        }
+        // the format offers a nested view for this file: sniff it now
+        if (parent.NestedViews.TryGetValue(entry.Name, out var view))
+        {
+            var source = parent.Source;
+            bool has;
+            using (BeginBusy($"Analyzing {entry.Name}…"))
+            {
+                has = await Task.Run(() =>
+                {
+                    using var lease = source.Lease();
+                    return lease != null && view.HasContent;
+                });
+            }
+            if (has)
+            {
+                var opened = parent.AddContainer(view, entry.Name, view.Expander!.Name);
+                entry.IsContainer = true;
+                await GoToAsync(opened);
+                Status = $"Opened {entry.Name} as {view.Expander!.Name}.";
+                return true;
+            }
         }
         NestedTree? tree;
         using (BeginBusy($"Analyzing {entry.Name}…"))
@@ -574,6 +613,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             await folder.LoadAsync();
             var next = folder.Children.FirstOrDefault(c => c.Kind == FolderKind.Folder && c.Name == part);
+            if (next == null && part.EndsWith(".d") && folder.NestedViews.TryGetValue(part[..^2], out var view))
+            {
+                // a hit inside nested content: open that file as a container
+                next = folder.AddContainer(view, part[..^2], view.Expander?.Name ?? "nested");
+            }
             if (next == null) return null;
             folder = next;
         }

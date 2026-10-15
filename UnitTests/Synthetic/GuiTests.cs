@@ -80,9 +80,10 @@ public class GuiTests
     {
         var vm = new MainWindowViewModel();
         Assert.IsTrue(await vm.OpenFileAsync(NestedImage()), vm.Status);
-        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw.tar.d"));
+        // the inflated tar is a file: opened as a container on demand
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw.tar"));
         await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw"));
-        Assert.AreEqual("fw.tar.gz/fw.tar.d/fw", vm.CurrentFolder!.DisplayPath);
+        Assert.AreEqual("fw.tar.gz/fw.tar/fw", vm.CurrentFolder!.DisplayPath);
         return vm;
     }
 
@@ -129,18 +130,18 @@ public class GuiTests
     public async Task Navigation_BreadcrumbsAndHistory()
     {
         using var vm = await OpenAtFw();
-        CollectionAssert.AreEqual(new[] { "fw.tar.gz", "fw.tar.d", "fw" }, vm.Breadcrumbs.Select(b => b.Name));
+        CollectionAssert.AreEqual(new[] { "fw.tar.gz", "fw.tar", "fw" }, vm.Breadcrumbs.Select(b => b.Name));
         Assert.IsTrue(vm.BackCommand.CanExecute(null));
         Assert.IsFalse(vm.ForwardCommand.CanExecute(null));
 
         await vm.BackCommand.ExecuteAsync(null);
-        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("fw.tar", vm.CurrentFolder!.Name);
         Assert.IsTrue(vm.ForwardCommand.CanExecute(null));
         await vm.ForwardCommand.ExecuteAsync(null);
         Assert.AreEqual("fw", vm.CurrentFolder!.Name);
 
         await vm.UpCommand.ExecuteAsync(null);
-        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("fw.tar", vm.CurrentFolder!.Name);
         Assert.AreEqual("fw", vm.SelectedEntry?.Name, "Up selects the folder it came from");
 
         await vm.NavigateCommand.ExecuteAsync(vm.Breadcrumbs[0]);
@@ -152,7 +153,7 @@ public class GuiTests
     public async Task TreeSelection_Navigates()
     {
         using var vm = await OpenAtFw();
-        var tarFolder = vm.Roots[0].Children.Single(c => c.Name == "fw.tar.d");
+        var tarFolder = vm.Roots[0].Children.Single(c => c.Name == "fw.tar");
         vm.SelectedTreeFolder = tarFolder;
         await Task.Delay(50);
         await tarFolder.LoadAsync();
@@ -192,8 +193,21 @@ public class GuiTests
         var nested = vm.Entries.Single(e => e.RelativeDir.Contains("extra"));
         await vm.ShowInFolderCommand.ExecuteAsync(nested);
         Assert.IsFalse(vm.IsSearchResults);
-        Assert.AreEqual("extra.tar.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("extra.tar", vm.CurrentFolder!.Name);
+        Assert.AreEqual("fw.tar.gz/fw.tar/fw/extra.tar.gz/extra.tar", vm.CurrentFolder!.DisplayPath);
         Assert.AreEqual("README.txt", vm.SelectedEntry?.Name);
+    }
+
+    [Test]
+    public async Task Listing_HidesNestedViewsAndMarksContainersInBackground()
+    {
+        using var vm = await OpenAtFw();
+        Assert.IsFalse(vm.Entries.Any(e => e.Name.EndsWith(".d")), "no .d folders in the listing");
+        var gz = Entry(vm, "extra.tar.gz");
+        var big = Entry(vm, "big.bin");
+        for (int i = 0; i < 100 && !gz.IsContainer; i++) await Task.Delay(20);
+        Assert.IsTrue(gz.IsContainer, "background sniff flags the gzip member");
+        Assert.IsFalse(big.IsContainer);
     }
 
     [Test]
@@ -201,20 +215,22 @@ public class GuiTests
     {
         using var vm = await OpenAtFw();
         var gz = Entry(vm, "extra.tar.gz");
-        Assert.IsTrue(gz.IsContainer, "a .d sibling marks the file as browsable");
         await vm.ActivateCommand.ExecuteAsync(gz);
-        Assert.AreEqual("extra.tar.gz.d", vm.CurrentFolder!.Name);
+        Assert.AreEqual("extra.tar.gz", vm.CurrentFolder!.Name);
+        Assert.AreEqual(FolderKind.Container, vm.CurrentFolder.Kind);
+        Assert.AreEqual("gzip", vm.CurrentFolder.Detail);
+        CollectionAssert.AreEqual(new[] { "extra.tar" }, vm.Entries.Select(e => e.Name));
     }
 
     [Test]
     public async Task Explore_MountsAFileOnDemand()
     {
-        // a member with no .d view of its own: explore it via a buffered copy
         using var vm = new MainWindowViewModel();
         await vm.OpenFileAsync(NestedImage());
         var tarFile = Entry(vm, "fw.tar");
         Assert.IsTrue(await vm.ExploreEntryAsync(tarFile));
-        Assert.AreEqual("fw.tar.d", vm.CurrentFolder!.Name, "uses the existing .d view");
+        Assert.AreEqual("fw.tar", vm.CurrentFolder!.Name);
+        Assert.AreEqual("tar", vm.CurrentFolder.Detail);
 
         await vm.ActivateCommand.ExecuteAsync(Entry(vm, "fw"));
         var big = Entry(vm, "big.bin");
@@ -253,7 +269,8 @@ public class GuiTests
         Assert.AreEqual("gzip", vm.Preview.Detected);
         Assert.AreEqual((int)PreviewTab.Hex, vm.Preview.SelectedTab);
 
-        await vm.Preview.ShowAsync(vm.Entries.First(e => e.IsDirectory), null);
+        await vm.UpCommand.ExecuteAsync(null);
+        await vm.Preview.ShowAsync(Entry(vm, "fw"), null);
         Assert.IsFalse(vm.Preview.IsFile);
         Assert.IsNull(vm.Preview.Hex);
         Assert.AreEqual((int)PreviewTab.Info, vm.Preview.SelectedTab);
@@ -275,13 +292,20 @@ public class GuiTests
     {
         using var vm = await OpenAtFw();
         var dest = TempDir();
-        var items = new[] { Entry(vm, "README.txt"), Entry(vm, "extra.tar.gz.d") }
-            .Select(e => (e.Node, e.Name)).ToList();
-        int n = await vm.ExportToAsync(items, dest, vm.CurrentFolder!.Source);
-        Assert.AreEqual(3, n, vm.Status); // README + extra.tar + its README
-        Assert.AreEqual("outer readme", File.ReadAllText(Path.Combine(dest, "README.txt")));
-        Assert.AreEqual("inner readme", File.ReadAllText(Path.Combine(dest, "extra.tar.gz.d", "extra.tar.d", "README.txt")));
+        var fw = vm.CurrentFolder!;
+        int n = await vm.ExportToAsync(new[] { (fw.Node, "fw") }, dest, fw.Source);
+        // own structure only: README, big.bin, extra.tar.gz (not its contents)
+        Assert.AreEqual(3, n, vm.Status);
+        Assert.AreEqual("outer readme", File.ReadAllText(Path.Combine(dest, "fw", "README.txt")));
+        Assert.IsFalse(Directory.Exists(Path.Combine(dest, "fw", "extra.tar.gz.d")));
         StringAssert.StartsWith("Exported 3 files", vm.Status);
+
+        // an opened container exports its contents
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "extra.tar.gz"));
+        await vm.ActivateCommand.ExecuteAsync(Entry(vm, "extra.tar"));
+        var inner = vm.CurrentFolder!;
+        Assert.AreEqual(1, await vm.ExportToAsync(new[] { (inner.Node, inner.Name) }, dest, inner.Source));
+        Assert.AreEqual("inner readme", File.ReadAllText(Path.Combine(dest, "extra.tar", "README.txt")));
     }
 
     [Test]
