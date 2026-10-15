@@ -130,10 +130,7 @@ public class AllwinnerImgTests
         var img = TinyImage(out _, out _);
         var ds = new MemoryDataSource(img) { Name = "tiny.img" };
         var det = (AllwinnerImgDetectionResult)new AllwinnerImgDetector().Detect(ds);
-        var lister = new AllwinnerImgLister(det);
-        using var sw = new StringWriter();
-        lister.List(ds, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new AllwinnerImgAddon(), det, ds);
         Assert.IsTrue(text.Contains("SYS_CONFIG"));
         Assert.IsTrue(text.Contains("ROOTFS"));
     }

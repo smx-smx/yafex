@@ -20,7 +20,7 @@ using Yafex.Support;
 namespace Yafex.FileFormats.EpkV1
 {
     /// <summary>
-    /// Header-only walk of EPKv1 packages shared by the extractor and the lister:
+    /// Header-only walk of EPKv1 packages shared by the extractor and the lazy VFS:
     /// (pak name, header offset, payload size) without reading payloads.
     /// </summary>
     public static class Epk1Walker
@@ -63,22 +63,4 @@ namespace Yafex.FileFormats.EpkV1
         }
     }
 
-    public class Epk1Lister : IFormatLister
-    {
-        private readonly Epk1Type _epkType;
-
-        public Epk1Lister(Epk1DetectionResult result)
-        {
-            _epkType = result.EpkType;
-        }
-
-        public void List(IDataSource source, DetectionResult result, TextWriter output)
-        {
-            output.WriteLine($"EPKv1 ({_epkType}):");
-            foreach (var (name, offset, size) in Epk1Walker.EnumeratePaks(source.Data, _epkType))
-            {
-                output.WriteLine($"  {name}.pak  offset=0x{offset:X}  size={size}");
-            }
-        }
-    }
 }

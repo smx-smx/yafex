@@ -32,11 +32,6 @@ public class AmdPspAddon : FormatAddon<AmdPspDetectionResult>
         return new AmdPspExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(AmdPspDetectionResult typed)
-    {
-        return new AmdPspLister(typed);
-    }
-
     // Lazy mount: carved entries plus UEFI volume slices as range views
     // (no copies), mirroring the extractor including the FV supersede rule.
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

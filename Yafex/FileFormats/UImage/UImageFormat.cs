@@ -39,24 +39,6 @@ public class UImageDetector : IFormatDetector
     }
 }
 
-public class UImageLister : IFormatLister
-{
-    private readonly UImageDetectionResult _result;
-
-    public UImageLister(UImageDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var h = _result.Header;
-        output.WriteLine($"UImage (u-boot legacy image, {source.Name}):");
-        output.WriteLine($"  name={h.Name} size={h.Size} load=0x{h.Load:X} entry=0x{h.Entry:X}" +
-            $" os={h.Os} arch={h.Arch} type={h.Type} comp={h.Comp}");
-    }
-}
-
 public class UImageExtractor : IFormatExtractor
 {
     public UImageExtractor(UImageDetectionResult result)

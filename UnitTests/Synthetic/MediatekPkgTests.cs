@@ -99,12 +99,7 @@ public class MediatekPkgTests
         var ds = Mem(cipher);
         var det = (MediatekPkgDetectionResult)new MediatekPkgDetector(keys).Detect(ds);
         Assert.AreEqual(100, det.Confidence);
-        var lister = new MediatekPkgAddon(keys).CreateLister(det);
-        Assert.NotNull(lister);
-        var sw = new StringWriter();
-        lister!.List(ds, det, sw);
-        var text = sw.ToString();
-        Assert.That(text, Does.Contain("MediatekPkg"));
+        var text = Synthetic.ListTree(new MediatekPkgAddon(keys), det, ds);
         Assert.That(text, Does.Contain("cfig.pak"));
     }
 
@@ -146,14 +141,10 @@ public class MediatekPkgTests
         var det = (MediatekPkgDetectionResult)new MediatekPkgDetector(keys).Detect(ds);
         Assert.AreEqual(100, det.Confidence);
         Assert.AreEqual(MtkPkgVariant.New, det.Context!.Variant);
-        var lister = new MediatekPkgAddon(keys).CreateLister(det);
-        Assert.NotNull(lister);
-        var sw = new StringWriter();
-        lister!.List(ds, det, sw);
-        var newText = sw.ToString();
+        var newText = Synthetic.ListTree(new MediatekPkgAddon(keys), det, ds);
         Assert.That(newText, Does.Contain("sysm.pak"));
         Assert.That(newText, Does.Contain("zz9_.pak"));
-        // header + exactly 2 parts: any stride error multiplies lines
-        Assert.AreEqual(3, newText.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+        // exactly 2 parts: any stride error multiplies entries
+        Assert.AreEqual(2, newText.Split('\n').Count(l => l.TrimEnd().EndsWith(".pak")), newText);
     }
 }

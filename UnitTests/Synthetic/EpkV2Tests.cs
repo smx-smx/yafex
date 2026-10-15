@@ -80,10 +80,7 @@ public class EpkV2Tests
         WriteAscii(buf, 12, "EPK2");
         var ds = Mem(buf);
         var det = (Epk2DetectionResult<EPK_V2_BETA_HEADER>)new Epk2BetaDetector(EmptyKeys()).Detect(ds);
-        var lister = new Epk2BetaAddon(EmptyKeys()).CreateLister(det);
-        Assert.NotNull(lister);
-        var sw = new StringWriter();
-        lister!.List(ds, det, sw);
-        Assert.That(sw.ToString().Length, Is.GreaterThan(0));
+        var text = Synthetic.ListTree(new Epk2BetaAddon(EmptyKeys()), det, ds);
+        Assert.That(text.Length, Is.GreaterThan(0));
     }
 }

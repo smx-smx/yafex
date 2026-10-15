@@ -31,8 +31,4 @@ public class TarAddon : FormatAddon<TarDetectionResult>
         return new TarExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(TarDetectionResult typed)
-    {
-        return new TarLister(typed);
-    }
 }

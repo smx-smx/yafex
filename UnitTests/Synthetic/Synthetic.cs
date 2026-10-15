@@ -11,12 +11,15 @@
 // Shared builders for the synthetic format tests. Everything stays in
 // memory: no disk IO, no temp files, no firmware samples, no key files.
 using System;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Security.Cryptography;
 
 using Smx.SharpIO.Memory.Buffers;
 
 using Yafex;
+using Yafex.Fuse;
 
 namespace UnitTests;
 
@@ -31,6 +34,24 @@ internal static class Synthetic
             Name = name,
             Flags = DataSourceFlags.Input
         };
+    }
+
+    /// <summary>
+    /// Uniform `--list` output of the lazy tree for a detected image, followed
+    /// by the text of every `.meta` sidecar (format headers live there).
+    /// </summary>
+    internal static string ListTree(IFormatAddon addon, DetectionResult det, IDataSource ds)
+    {
+        var vfs = VfsMount.CreateLazy(addon, det, ds);
+        if (vfs == null) throw new InvalidOperationException("no lazy tree");
+        var sw = new StringWriter();
+        VfsListing.WriteFlat(vfs.Root, sw);
+        foreach (var e in VfsWalk.Walk(vfs.Root).Where(e => !e.IsDirectory && e.Path.EndsWith(".meta")))
+        {
+            using var r = new StreamReader(VfsWalk.OpenRead(e.Node));
+            sw.WriteLine(r.ReadToEnd());
+        }
+        return sw.ToString();
     }
 
     internal static byte[] Zeros(int n) => new byte[n];

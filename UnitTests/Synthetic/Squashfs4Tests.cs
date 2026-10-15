@@ -163,12 +163,9 @@ public class Squashfs4Tests
     {
         var mem = Mem(BuildImage(), "sq4.img");
         var det = (Squashfs4DetectionResult)new Squashfs4Addon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new Squashfs4Addon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        StringAssert.Contains("hello.txt", sw.ToString());
-        StringAssert.Contains("size=6", sw.ToString());
+        var text = Synthetic.ListTree(new Squashfs4Addon(), det, mem);
+        StringAssert.Contains("hello.txt", text);
+        StringAssert.Contains($"f {6,12} ", text);
     }
 
     [Test]

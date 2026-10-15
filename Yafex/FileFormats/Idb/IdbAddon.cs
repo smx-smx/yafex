@@ -29,8 +29,4 @@ public class IdbAddon : FormatAddon<IdbDetectionResult>
         return new IdbExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(IdbDetectionResult typed)
-    {
-        return new IdbLister(typed);
-    }
 }

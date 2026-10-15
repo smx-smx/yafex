@@ -50,43 +50,6 @@ public class UfsDetector : IFormatDetector
     }
 }
 
-public class UfsLister : IFormatLister
-{
-    private readonly byte[] _image;
-
-    public UfsLister(UfsDetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        var ctx = UfsContext.Open(stream);
-        var top = ctx.ReadDirectory(2);
-        output.WriteLine($"Ufs ({source.Name}, {top.Count} top entries):");
-        Walk(ctx, 2, "", output);
-    }
-
-    private static void Walk(UfsContext ctx, uint ino, string prefix, TextWriter output)
-    {
-        foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
-        {
-            if (e.Name == "." || e.Name == "..")
-            {
-                continue;
-            }
-            var inode = ctx.GetInode(e.Ino);
-            var kind = inode.IsDirectory ? "d" : inode.IsSymlink ? "l" : "f";
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={inode.Size}");
-            if (inode.IsDirectory && e.Name != "." && e.Name != "..")
-            {
-                Walk(ctx, e.Ino, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class UfsExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

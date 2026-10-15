@@ -101,52 +101,6 @@ public class AdbImgDetector : IFormatDetector
     }
 }
 
-public class AdbImgLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _start;
-    private readonly long _end;
-
-    public AdbImgLister(AdbImgDetectionResult result)
-    {
-        _image = result.Image!;
-        _start = result.PayloadStart;
-        _end = result.PayloadEnd;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        string board = AdbImgParser.ReadAsciiZ(_image, 0x30, 16);
-        string date = AdbImgParser.ReadAsciiZ(_image, 0x40, 16);
-        output.WriteLine($"AdbImg ({source.Name}, board {board}, built {date}, payload 0x{_start:X}..0x{_end:X}):");
-        var payload = new byte[_end - _start];
-        Array.Copy(_image, _start, payload, 0, payload.Length);
-        using var ms = new MemoryStream(payload, writable: false);
-        var ctx = Jffs2Context.Open(ms);
-        Walk(ctx, 1, "", output);
-        if (_end < _image.Length)
-        {
-            output.WriteLine($"  s signature.bin size={_image.Length - _end}");
-        }
-    }
-
-    private static void Walk(Jffs2Context ctx, uint ino, string prefix, TextWriter output)
-    {
-        foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
-        {
-            var inode = ctx.GetInode(e.Ino);
-            bool dir = e.Dtype == 4 || (inode.Mode & 0xF000) == 0x4000;
-            bool link = !dir && (e.Dtype == 10 || (inode.Mode & 0xF000) == 0xA000);
-            var kind = dir ? "d" : link ? "l" : "f";
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={inode.Size}");
-            if (dir)
-            {
-                Walk(ctx, e.Ino, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class AdbImgExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

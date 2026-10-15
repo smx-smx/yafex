@@ -29,8 +29,4 @@ public class UImageAddon : FormatAddon<UImageDetectionResult>
         return new UImageExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(UImageDetectionResult typed)
-    {
-        return new UImageLister(typed);
-    }
 }

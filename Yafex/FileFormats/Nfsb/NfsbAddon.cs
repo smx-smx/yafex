@@ -29,8 +29,4 @@ public class NfsbAddon : FormatAddon<NfsbDetectionResult>
         return new NfsbExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(NfsbDetectionResult typed)
-    {
-        return new NfsbLister(typed);
-    }
 }

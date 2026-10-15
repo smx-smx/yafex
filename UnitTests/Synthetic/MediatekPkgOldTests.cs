@@ -92,12 +92,7 @@ public class MediatekPkgOldTests
         var ds = Mem(OldFile());
         var det = (MediatekPkgOldDetectionResult)new MediatekPkgOldDetector(keys).Detect(ds);
         Assert.AreEqual(100, det.Confidence);
-        var lister = new MediatekPkgOldAddon(keys).CreateLister(det);
-        Assert.NotNull(lister);
-        var sw = new StringWriter();
-        lister!.List(ds, det, sw);
-        var text = sw.ToString();
-        Assert.That(text, Does.Contain("MediatekPkgOld"));
+        var text = Synthetic.ListTree(new MediatekPkgOldAddon(keys), det, ds);
         Assert.That(text, Does.Contain("test.pak"));
     }
 }

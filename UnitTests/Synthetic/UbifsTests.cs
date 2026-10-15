@@ -216,11 +216,7 @@ public class UbifsTests
     {
         var mem = Mem(BuildImage(), "v.ubifs");
         var det = (UbifsDetectionResult)new UbifsAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new UbifsAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new UbifsAddon(), det, mem);
         StringAssert.Contains("hello.txt", text);
         StringAssert.Contains("sub/deep.bin", text);
         StringAssert.Contains("link", text);

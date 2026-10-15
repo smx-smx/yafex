@@ -125,11 +125,7 @@ public class MtkBdpTests
     {
         var mem = Mem(BuildImage(), "f.bin");
         var det = (MtkBdpDetectionResult)new MtkBdpAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new MtkBdpAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new MtkBdpAddon(), det, mem);
         StringAssert.Contains("boot_1", text);
         StringAssert.Contains("rootfs", text);
     }

@@ -39,28 +39,6 @@ public class AndroidBootDetector : IFormatDetector
     }
 }
 
-public class AndroidBootLister : IFormatLister
-{
-    private readonly AndroidBootDetectionResult _result;
-
-    public AndroidBootLister(AndroidBootDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var h = _result.Header;
-        output.WriteLine($"AndroidBoot (android boot image v{h.HeaderVersion}, {source.Name}):");
-        output.WriteLine($"  page={h.PageSize} kernel={h.KernelSize} ramdisk={h.RamdiskSize}" +
-            $" second={h.SecondSize} recovery_dtbo={h.RecoveryDtboSize} dtb={h.DtbSize}");
-        foreach (var s in h.Segments)
-        {
-            output.WriteLine($"  {s.Name} @0x{s.Offset:X} ({s.Size})");
-        }
-    }
-}
-
 public class AndroidBootExtractor : IFormatExtractor
 {
     private readonly AndroidBootDetectionResult _result;

@@ -39,27 +39,6 @@ public class MtkBdpDetector : IFormatDetector
     }
 }
 
-public class MtkBdpLister : IFormatLister
-{
-    private readonly List<MtkBdpImage> _parts;
-
-    public MtkBdpLister(MtkBdpDetectionResult result)
-    {
-        _parts = result.Parts;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"MtkBdp ({source.Name}, {_parts.Count} partitions):");
-        foreach (var p in _parts.OrderBy(x => x.Part.Id))
-        {
-            long bytes = 0;
-            foreach (var c in p.Chunks) bytes = Math.Max(bytes, (long)c.InPartOffset + c.Size);
-            output.WriteLine($"  p {p.Part.Name} id={p.Part.Id} nand=0x{p.Part.NandOffset:X}/0x{p.Part.NandSize:X} chunks={p.Chunks.Count} bytes={bytes}");
-        }
-    }
-}
-
 public class MtkBdpExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

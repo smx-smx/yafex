@@ -33,11 +33,6 @@ namespace Yafex.FileFormats.LxBoot
             return new LxSecureBootExtractor(result.Context);
         }
 
-        protected override IFormatLister? CreateLister(LxSecureBootDetectionResult result)
-        {
-            return result.Context != null ? new LxSecureBootLister(result.Context) : null;
-        }
-
         public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
             if (result is not LxSecureBootDetectionResult typed || typed.Context == null) return null;

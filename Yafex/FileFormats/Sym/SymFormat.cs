@@ -40,22 +40,6 @@ public class SymDetector : IFormatDetector
     }
 }
 
-public class SymLister : IFormatLister
-{
-    private readonly SymDetectionResult _result;
-
-    public SymLister(SymDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"Sym (LG symbol table, {source.Name}):");
-        output.WriteLine($"  symbols={_result.Symbols.Count}");
-    }
-}
-
 public class SymExtractor : IFormatExtractor
 {
     private readonly SymDetectionResult _result;

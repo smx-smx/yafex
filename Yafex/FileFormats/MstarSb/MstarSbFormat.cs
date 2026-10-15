@@ -45,30 +45,6 @@ public class MstarSbDetector : IFormatDetector
     }
 }
 
-public class MstarSbLister : IFormatLister
-{
-    private readonly MstarSbDetectionResult _result;
-
-    public MstarSbLister(MstarSbDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var bytes = source.Data.ToArray();
-        output.WriteLine($"MstarSb (MStar secure boot, {source.Name}):");
-        foreach (var h in MstarSb.FindHeaders(bytes))
-        {
-            output.WriteLine($"  SECURITY @0x{h.Offset:X} frags={h.FragNum} unit={h.FragUnitSize}");
-        }
-        foreach (var k in MstarSb.FindKeySlots(bytes))
-        {
-            output.WriteLine($"  keyslot @0x{k.Offset:X} id={k.MagicId}");
-        }
-    }
-}
-
 public class MstarSbExtractor : IFormatExtractor
 {
     public MstarSbExtractor(MstarSbDetectionResult result)

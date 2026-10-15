@@ -32,11 +32,6 @@ namespace Yafex.FileFormats.EpkV1
             return new Epk1Extractor(result);
         }
 
-        protected override IFormatLister? CreateLister(Epk1DetectionResult typed)
-        {
-            return new Epk1Lister(typed);
-        }
-
         public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
         {
             return EpkVfs.TryCreate(input, new KeysRepository(KeyBundle.Empty), out var vfs) ? vfs : null;

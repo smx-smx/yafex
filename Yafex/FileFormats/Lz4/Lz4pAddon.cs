@@ -29,8 +29,4 @@ public class Lz4pAddon : FormatAddon<Lz4pDetectionResult>
         return new Lz4pExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(Lz4pDetectionResult typed)
-    {
-        return new Lz4pLister(typed);
-    }
 }

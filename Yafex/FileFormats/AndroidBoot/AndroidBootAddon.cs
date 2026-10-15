@@ -30,11 +30,6 @@ public class AndroidBootAddon : FormatAddon<AndroidBootDetectionResult>
         return new AndroidBootExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(AndroidBootDetectionResult typed)
-    {
-        return new AndroidBootLister(typed);
-    }
-
     // Lazy mount: header + each segment as a range view (no copies);
     // kernel-embedded DTB (e.g. edk-fajita) gets its own view too.
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

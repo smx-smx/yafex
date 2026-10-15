@@ -55,12 +55,7 @@ public class EpkV1Tests
         var ds = Mem(buf);
         var det = (Epk1DetectionResult)new Epk1Detector().Detect(ds);
         Assert.AreEqual(99, det.Confidence);
-        var lister = new Epk1Addon().CreateLister(det);
-        Assert.NotNull(lister);
-        var sw = new StringWriter();
-        lister!.List(ds, det, sw);
-        var text = sw.ToString();
-        Assert.That(text, Does.Contain("EPKv1"));
+        var text = Synthetic.ListTree(new Epk1Addon(), det, ds);
         Assert.That(text, Does.Contain("kern.pak"));
     }
 }

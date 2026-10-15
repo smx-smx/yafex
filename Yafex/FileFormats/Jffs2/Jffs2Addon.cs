@@ -31,8 +31,4 @@ public class Jffs2Addon : FormatAddon<Jffs2DetectionResult>
         return new Jffs2Extractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(Jffs2DetectionResult typed)
-    {
-        return new Jffs2Lister(typed);
-    }
 }

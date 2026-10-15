@@ -33,11 +33,6 @@ public class SpvAddon : FormatAddon<SpvDetectionResult>
         return new SpvExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(SpvDetectionResult typed)
-    {
-        return new SpvLister(typed);
-    }
-
     // Lazy mount: one range view per populated bin (no copies),
     // mirroring the extractor.
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

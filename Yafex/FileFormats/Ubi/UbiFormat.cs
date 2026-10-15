@@ -80,32 +80,6 @@ public class UbiDetector : IFormatDetector
     }
 }
 
-public class UbiLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _offset;
-
-    public UbiLister(UbiDetectionResult result)
-    {
-        _image = result.Image!;
-        _offset = result.Offset;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var ubi = UbiFormat.OpenAt(_image, _offset);
-        int count = ubi?.Volumes.Count ?? 0;
-        output.WriteLine($"Ubi ({source.Name}, {count} volumes at 0x{_offset:X}):");
-        if (ubi != null)
-        {
-            foreach (var v in ubi.Volumes)
-            {
-                output.WriteLine($"  v {v.Name} id={v.VolId} lebs={v.LebCount} leb_size={v.LebSize}");
-            }
-        }
-    }
-}
-
 public class UbiExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

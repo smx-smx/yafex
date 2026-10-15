@@ -40,28 +40,6 @@ public class MtkBootDetector : IFormatDetector
     }
 }
 
-public class MtkBootLister : IFormatLister
-{
-    private readonly MtkBootDetectionResult _result;
-
-    public MtkBootLister(MtkBootDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var bytes = source.Data.ToArray();
-        var segs = MtkBoot.Split(bytes);
-        output.WriteLine($"MtkBoot (mediatek boot, {source.Name}):");
-        output.WriteLine($"  first-stage={(_result.IsPbl ? "pbl" : "rom")} segments={segs.Count}");
-        foreach (var s in segs)
-        {
-            output.WriteLine($"  {s.Name} @0x{s.Offset:X} ({s.Decoded.Length})");
-        }
-    }
-}
-
 public class MtkBootExtractor : IFormatExtractor
 {
     private readonly MtkBootDetectionResult _result;

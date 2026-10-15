@@ -39,23 +39,6 @@ public class GzipDetector : IFormatDetector
     }
 }
 
-public class GzipLister : IFormatLister
-{
-    private readonly GzipDetectionResult _result;
-
-    public GzipLister(GzipDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var m = _result.Member;
-        output.WriteLine($"Gzip (gzip stream, {source.Name}):");
-        output.WriteLine($"  name={m.FileName} size={m.Payload.Length} mtime={m.MTime} os={m.Os}");
-    }
-}
-
 public class GzipExtractor : IFormatExtractor
 {
     private readonly GzipDetectionResult _result;

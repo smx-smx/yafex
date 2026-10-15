@@ -81,53 +81,6 @@ public class BroadcomImgDetector : IFormatDetector
     }
 }
 
-public class BroadcomImgLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _ubiStart;
-
-    public BroadcomImgLister(BroadcomImgDetectionResult result)
-    {
-        _image = result.Image!;
-        _ubiStart = result.UbiStart;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var jffs = new byte[_ubiStart];
-        Array.Copy(_image, jffs, _ubiStart);
-        using var ms = new MemoryStream(jffs, writable: false);
-        var ctx = Jffs2Context.Open(ms);
-        output.WriteLine($"BroadcomImg ({source.Name}, jffs2 boot + ubi at 0x{_ubiStart:X}):");
-        Walk(ctx, 1, "", output);
-        var ubi = UbiFormat.OpenAt(_image, _ubiStart);
-        if (ubi != null)
-        {
-            foreach (var v in ubi.Volumes)
-            {
-                if (v.VolId >= 0x7F00) continue;
-                output.WriteLine($"  v {v.Name} id={v.VolId} lebs={v.LebCount}");
-            }
-        }
-    }
-
-    private static void Walk(Jffs2Context ctx, uint ino, string prefix, TextWriter output)
-    {
-        foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
-        {
-            var inode = ctx.GetInode(e.Ino);
-            bool dir = e.Dtype == 4 || (inode.Mode & 0xF000) == 0x4000;
-            bool link = !dir && (e.Dtype == 10 || (inode.Mode & 0xF000) == 0xA000);
-            var kind = dir ? "d" : link ? "l" : "f";
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={inode.Size}");
-            if (dir)
-            {
-                Walk(ctx, e.Ino, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class BroadcomImgExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

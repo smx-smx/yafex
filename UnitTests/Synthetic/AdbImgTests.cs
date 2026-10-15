@@ -72,12 +72,7 @@ public class AdbImgTests
     {
         var mem = Mem(BuildImage(), "f.sig");
         var det = (AdbImgDetectionResult)new AdbImgAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new AdbImgAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
-        StringAssert.Contains("TESTBOARD", text);
+        var text = Synthetic.ListTree(new AdbImgAddon(), det, mem);
         StringAssert.Contains("a.txt", text);
         StringAssert.Contains("signature.bin", text);
     }

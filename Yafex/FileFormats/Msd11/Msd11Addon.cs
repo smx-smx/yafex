@@ -43,11 +43,6 @@ public class Msd11Addon : FormatAddon<Msd11DetectionResult>
         return new Msd11Extractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(Msd11DetectionResult typed)
-    {
-        return new Msd11Lister(typed);
-    }
-
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
         if (result is not Msd11DetectionResult r || r.Context == null) return null;

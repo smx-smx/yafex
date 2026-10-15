@@ -81,39 +81,6 @@ public class TarDetector : IFormatDetector
     }
 }
 
-public class TarLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _offset;
-
-    public TarLister(TarDetectionResult result)
-    {
-        _image = result.Image!;
-        _offset = result.Offset;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var tar = TarFormat.OpenAt(_image, _offset);
-        int count = 0;
-        if (tar != null)
-        {
-            foreach (var e in tar.Entries)
-            {
-                count++;
-            }
-        }
-        output.WriteLine($"Tar ({source.Name}, {count} members at 0x{_offset:X}):");
-        if (tar != null)
-        {
-            foreach (var e in tar.Entries)
-            {
-                output.WriteLine($"  f {e.Name} size={e.Length}");
-            }
-        }
-    }
-}
-
 public class TarExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

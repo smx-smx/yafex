@@ -125,40 +125,6 @@ public static class SpvParser
         long spanLength = Math.Min((long)bin.Size, image.Length - bin.SpanStart);
         return Math.Min(spanLength - (bin.Offset - bin.SpanStart), image.Length - bin.Offset);
     }
-
-    /// <summary>Read a NUL-terminated build string via its flash address.</summary>
-    public static string ReadBuildString(byte[] image, uint addr, uint floor)
-    {
-        try
-        {
-            long offset = (long)addr - floor;
-            if (offset < 0 || offset >= image.Length) return string.Empty;
-            int len = 0;
-            while (len < 64 && offset + len < image.Length && image[offset + len] != 0) len++;
-            string s = Encoding.ASCII.GetString(image, (int)offset, len);
-            if (s.Length == 0 || s.Any(c => c < 0x20 || c >= 0x7F)) return string.Empty;
-            return s;
-        }
-        catch (Exception)
-        {
-            return string.Empty;
-        }
-    }
-
-    public static uint FloorAddress(byte[] image)
-    {
-        uint floor = uint.MaxValue;
-        uint total = ReadU32LE(image, 28);
-        for (int i = 0; i < total; i++)
-        {
-            long at = 32 + i * BinRecordSize;
-            uint size = ReadU32LE(image, at + 8);
-            if (size == 0) continue;
-            uint addr = ReadU32LE(image, at + 4);
-            if (addr < floor) floor = addr;
-        }
-        return floor;
-    }
 }
 
 public record SpvDetectionResult(int Confidence, byte[]? Image, List<SpvParser.BinEntry> Bins) : DetectionResult(Confidence);
@@ -178,35 +144,6 @@ public class SpvDetector : IFormatDetector
         catch (Exception)
         {
             return DetectionResult.Fail;
-        }
-    }
-}
-
-public class SpvLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly List<SpvParser.BinEntry> _bins;
-
-    public SpvLister(SpvDetectionResult result)
-    {
-        _image = result.Image!;
-        _bins = result.Bins;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"Spv ({source.Name}, {_bins.Count} bins):");
-        uint floor = SpvParser.FloorAddress(_image);
-        string date = SpvParser.ReadBuildString(_image, SpvParser.ReadU32LE(_image, 20), floor);
-        string time = SpvParser.ReadBuildString(_image, SpvParser.ReadU32LE(_image, 24), floor);
-        if (date.Length > 0 || time.Length > 0)
-        {
-            output.WriteLine($"  build {date} {time}".TrimEnd());
-        }
-        foreach (var b in _bins)
-        {
-            long length = SpvParser.PayloadLength(_image, b);
-            output.WriteLine($"  f {b.Name}.bin addr=0x{b.Addr:X} size={length} checksum=0x{b.Checksum:X8}");
         }
     }
 }

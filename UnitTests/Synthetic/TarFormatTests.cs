@@ -62,14 +62,9 @@ public class TarFormatTests
     {
         var mem = Mem(TarTests.BuildArchive(), "a.tar");
         var det = (TarDetectionResult)new TarAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new TarAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
-        StringAssert.Contains("Tar", text);
+        var text = Synthetic.ListTree(new TarAddon(), det, mem);
         StringAssert.Contains("hello.txt", text);
-        StringAssert.Contains("size=5", text);
+        StringAssert.Contains($"f {5,12} ", text);
     }
 
     [Test]

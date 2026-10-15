@@ -144,15 +144,10 @@ public class TliTests
         var kernel = new byte[] { 0xAA, 0xBB, 0xCC };
         var mem = Mem(BuildImage(kernel, new byte[] { 0x11 }), "update.tli");
         var det = (TliDetectionResult)new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new TliAddon(new KeysRepository(KeyBundle.Empty)).CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
-        StringAssert.Contains("Tli", text);
+        var text = Synthetic.ListTree(new TliAddon(new KeysRepository(KeyBundle.Empty)), det, mem);
         StringAssert.Contains("kernel", text);
         StringAssert.Contains("cfg/opt", text);
-        StringAssert.Contains("size=3", text);
+        StringAssert.Contains($"f {3,12} ", text);
     }
 
     [Test]

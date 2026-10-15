@@ -54,11 +54,7 @@ public class BroadcomImgTests
     {
         var mem = Mem(BuildImage(), "f.imgbin");
         var det = (BroadcomImgDetectionResult)new BroadcomImgAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new BroadcomImgAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new BroadcomImgAddon(), det, mem);
         StringAssert.Contains("a.txt", text);
         StringAssert.Contains("testvol", text);
     }

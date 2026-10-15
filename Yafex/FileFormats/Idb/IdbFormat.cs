@@ -40,33 +40,6 @@ public class IdbDetector : IFormatDetector
     }
 }
 
-public class IdbLister : IFormatLister
-{
-    private readonly IdbDetectionResult _result;
-
-    public IdbLister(IdbDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var table = _result.Table;
-        long payload = 0;
-        int live = 0;
-        foreach (var e in table.Entries)
-        {
-            if (e.Size > 0)
-            {
-                live++;
-                payload += e.Size;
-            }
-        }
-        output.WriteLine($"Idb (image database, {source.Name}):");
-        output.WriteLine($"  images={table.ImageCount} live={live} payload={payload}");
-    }
-}
-
 public class IdbExtractor : IFormatExtractor
 {
     private readonly IdbDetectionResult _result;

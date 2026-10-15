@@ -42,22 +42,6 @@ public class Lz4pDetector : IFormatDetector
     }
 }
 
-public class Lz4pLister : IFormatLister
-{
-    private readonly Lz4pDetectionResult _result;
-
-    public Lz4pLister(Lz4pDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"Lz4p (LG LZ4 archive, {source.Name}):");
-        output.WriteLine($"  blocks={_result.BlockCount} chunksize={_result.ChunkSize} out={_result.OutputSize}");
-    }
-}
-
 public class Lz4pExtractor : IFormatExtractor
 {
     public Lz4pExtractor(Lz4pDetectionResult result)

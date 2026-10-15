@@ -28,11 +28,6 @@ namespace Yafex
         IFormatExtractor CreateExtractor(DetectionResult result);
 
         /// <summary>
-        /// On-the-fly lister, or null when the format has none. Default: unsupported.
-        /// </summary>
-        IFormatLister? CreateLister(DetectionResult result) => null;
-
-        /// <summary>
         /// Lazy virtual filesystem for mount/cat without extraction, or null to fall
         /// back to the materializing path. Default: unsupported.
         /// </summary>
@@ -66,11 +61,6 @@ namespace Yafex
             return CreateExtractor(typed);
         }
 
-        public IFormatLister? CreateLister(DetectionResult result)
-        {
-            return result is TResult typed && IsUsable(typed) ? CreateLister(typed) : null;
-        }
-
         public virtual YafexVfs? CreateVfs(IDataSource source, DetectionResult result) => null;
 
         public virtual IVfsNode CreateVfsNode(IDataSource ds) => new YafexFile(ds, Helpers.OctalLiteral(0444));
@@ -81,8 +71,5 @@ namespace Yafex
         protected virtual bool IsUsable(TResult result) => true;
 
         protected abstract IFormatExtractor CreateExtractor(TResult result);
-
-        /// <summary>On-the-fly lister for a usable result. Default: unsupported.</summary>
-        protected virtual IFormatLister? CreateLister(TResult result) => null;
     }
 }

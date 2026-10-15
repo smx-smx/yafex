@@ -50,25 +50,6 @@ public class LgLzoDetector : IFormatDetector
     }
 }
 
-public class LgLzoLister : IFormatLister
-{
-    private readonly LgLzoContext _ctx;
-
-    public LgLzoLister(LgLzoDetectionResult result)
-    {
-        _ctx = result.Context!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var h = _ctx.Header;
-        output.WriteLine($"LgLzo (LG LZO stream, {source.Name}):");
-        output.WriteLine($"  declared={h.DecompressedSize} blocks={_ctx.BlockCount}" +
-            $" mapped={_ctx.TotalOut} blocksize={h.BlockSize} method={h.Method} level={h.Level}" +
-            $" checksum={((h.Flags & 1) != 0 ? "adler32" : "none")}");
-    }
-}
-
 public class LgLzoExtractor : IFormatExtractor
 {
     private readonly LgLzoContext _ctx;

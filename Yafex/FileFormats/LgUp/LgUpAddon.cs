@@ -43,11 +43,6 @@ public class LgUpAddon : FormatAddon<LgUpDetectionResult>
         return new LgUpExtractor(result.Context!);
     }
 
-    protected override IFormatLister? CreateLister(LgUpDetectionResult typed)
-    {
-        return new LgUpLister(typed);
-    }
-
     public override YafexVfs? CreateVfs(IDataSource source, DetectionResult result)
     {
         return result is LgUpDetectionResult typed && typed.Context != null

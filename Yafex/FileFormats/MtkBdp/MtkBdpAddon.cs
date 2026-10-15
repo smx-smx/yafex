@@ -33,13 +33,6 @@ public class MtkBdpAddon : IFormatAddon
         return new MtkBdpExtractor(typed);
     }
 
-    public IFormatLister? CreateLister(DetectionResult result)
-    {
-        return result is MtkBdpDetectionResult typed && typed.Image != null
-            ? new MtkBdpLister(typed)
-            : null;
-    }
-
     public IVfsNode CreateVfsNode(IDataSource ds)
     {
         return new YafexFile(ds, Helpers.OctalLiteral(0444));

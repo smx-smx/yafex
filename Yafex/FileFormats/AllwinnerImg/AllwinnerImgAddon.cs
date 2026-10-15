@@ -28,11 +28,6 @@ public class AllwinnerImgAddon : FormatAddon<AllwinnerImgDetectionResult>
         return new AllwinnerImgExtractor(result);
     }
 
-    protected override IFormatLister? CreateLister(AllwinnerImgDetectionResult result)
-    {
-        return new AllwinnerImgLister(result);
-    }
-
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
         if (result is not AllwinnerImgDetectionResult r || r.Context == null) return null;

@@ -30,11 +30,6 @@ public class UefiAddon : FormatAddon<UefiDetectionResult>
         return new UefiExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(UefiDetectionResult typed)
-    {
-        return new UefiLister(typed);
-    }
-
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
         try

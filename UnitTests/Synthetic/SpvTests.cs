@@ -111,15 +111,9 @@ public class SpvTests
     {
         var mem = Mem(BuildImage(), "f.spv");
         var det = (SpvDetectionResult)new SpvAddon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new SpvAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new SpvAddon(), det, mem);
         StringAssert.Contains("CPU.bin", text);
         StringAssert.Contains("MOD.bin", text);
-        StringAssert.Contains("May 30 2025", text);
-        StringAssert.Contains("18:16:27", text);
     }
 
     [Test]

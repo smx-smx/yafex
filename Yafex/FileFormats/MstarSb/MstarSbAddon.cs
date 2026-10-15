@@ -29,8 +29,4 @@ public class MstarSbAddon : FormatAddon<MstarSbDetectionResult>
         return new MstarSbExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(MstarSbDetectionResult typed)
-    {
-        return new MstarSbLister(typed);
-    }
 }

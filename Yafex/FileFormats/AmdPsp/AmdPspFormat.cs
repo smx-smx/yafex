@@ -53,42 +53,6 @@ public class AmdPspDetector : IFormatDetector
     }
 }
 
-public class AmdPspLister : IFormatLister
-{
-    private readonly AmdPspDetectionResult _result;
-
-    public AmdPspLister(AmdPspDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"AmdPsp (AMD PSP directories, {source.Name}):");
-        foreach (var efs in _result.EfsList)
-        {
-            foreach (var (field, dir) in efs.ResolvedPointers)
-            {
-                output.WriteLine($"  EFS @0x{efs.Offset:X} [+0x{field:X} -> dir @0x{dir:X}]");
-            }
-        }
-        for (int di = 0; di < _result.Directories.Count; di++)
-        {
-            var dir = _result.Directories[di];
-            output.WriteLine($"  dir[{di}] {dir.CookieName} @0x{dir.Offset:X} entries={dir.NumEntries}");
-            for (int i = 0; i < dir.Entries.Count; i++)
-            {
-                var e = dir.Entries[i];
-                string loc = e.ResolvedOffset < 0
-                    ? "unresolvable"
-                    : $"@0x{e.ResolvedOffset:X}";
-                string tail = e.Avail < e.Size ? $" avail=0x{e.Avail:X} truncated" : "";
-                output.WriteLine($"    [{i}] {e.TypeName} (0x{e.Type:X2}) {loc} size=0x{e.Size:X}{tail}");
-            }
-        }
-    }
-}
-
 public class AmdPspExtractor : IFormatExtractor
 {
     private readonly AmdPspDetectionResult _result;

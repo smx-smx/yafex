@@ -32,11 +32,6 @@ public class BroadcomImgAddon : FormatAddon<BroadcomImgDetectionResult>
         return new BroadcomImgExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(BroadcomImgDetectionResult typed)
-    {
-        return new BroadcomImgLister(typed);
-    }
-
     // Lazy mount: one range view per flash region (no copies). Content
     // expansion (JFFS2 tree, UBI volumes, nested UBIFS) is handled by the
     // expander registry on first access.

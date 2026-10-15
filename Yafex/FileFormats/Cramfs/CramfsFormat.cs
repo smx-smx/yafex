@@ -39,40 +39,6 @@ public class CramfsDetector : IFormatDetector
     }
 }
 
-public class CramfsLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly bool _bigEndian;
-
-    public CramfsLister(CramfsDetectionResult result)
-    {
-        _image = result.Image!;
-        _bigEndian = result.BigEndian;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var reader = new CramfsReader(_image, _bigEndian);
-        output.WriteLine($"Cramfs ({source.Name}, {reader.DeclaredSize} bytes):");
-        Walk(reader, reader.Root, "", output);
-    }
-
-    private static void Walk(CramfsReader reader, CramfsInode dir, string prefix, TextWriter output)
-    {
-        foreach (var e in reader.ReadDirectory(dir))
-        {
-            var kind = e.IsDirectory ? "d" : e.IsSymlink ? "l" : "f";
-            var extra = e.IsSymlink ? $" -> {reader.ReadSymlink(e)}"
-                : e.IsRegular && e.IsRaw ? " (raw)" : "";
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={reader.FileSize(e)}{extra}");
-            if (e.IsDirectory)
-            {
-                Walk(reader, e, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class CramfsExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

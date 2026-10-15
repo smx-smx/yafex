@@ -31,8 +31,4 @@ public class CramfsAddon : FormatAddon<CramfsDetectionResult>
         return new CramfsExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(CramfsDetectionResult typed)
-    {
-        return new CramfsLister(typed);
-    }
 }

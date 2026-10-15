@@ -40,22 +40,6 @@ public class NfsbDetector : IFormatDetector
     }
 }
 
-public class NfsbLister : IFormatLister
-{
-    private readonly NfsbDetectionResult _result;
-
-    public NfsbLister(NfsbDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        output.WriteLine($"Nfsb (NFSB wrapper, {source.Name}):");
-        output.WriteLine($"  header=0x{Nfsb.HeaderSize:X} inner={_result.InnerSize}");
-    }
-}
-
 public class NfsbExtractor : IFormatExtractor
 {
     public NfsbExtractor(NfsbDetectionResult result)

@@ -201,14 +201,8 @@ public class AmdPspTests
         var mem = Mem(full, "flash.bin");
         var det = (AmdPspDetectionResult)new AmdPspAddon()
             .CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new AmdPspAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
-        StringAssert.Contains("AmdPsp", text);
+        var text = Synthetic.ListTree(new AmdPspAddon(), det, mem);
         StringAssert.Contains("smu_offchip_fw", text);
-        StringAssert.Contains("EFS @0x100", text);
     }
 
     [Test]

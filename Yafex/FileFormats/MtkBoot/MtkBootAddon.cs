@@ -29,8 +29,4 @@ public class MtkBootAddon : FormatAddon<MtkBootDetectionResult>
         return new MtkBootExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(MtkBootDetectionResult typed)
-    {
-        return new MtkBootLister(typed);
-    }
 }

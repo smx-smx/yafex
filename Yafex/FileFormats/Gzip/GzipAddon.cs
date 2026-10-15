@@ -29,8 +29,4 @@ public class GzipAddon : FormatAddon<GzipDetectionResult>
         return new GzipExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(GzipDetectionResult typed)
-    {
-        return new GzipLister(typed);
-    }
 }

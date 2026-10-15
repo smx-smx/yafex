@@ -29,8 +29,4 @@ public class SymAddon : FormatAddon<SymDetectionResult>
         return new SymExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(SymDetectionResult typed)
-    {
-        return new SymLister(typed);
-    }
 }

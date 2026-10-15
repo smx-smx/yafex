@@ -49,42 +49,6 @@ public class UbifsDetector : IFormatDetector
     }
 }
 
-public class UbifsLister : IFormatLister
-{
-    private readonly byte[] _image;
-
-    public UbifsLister(UbifsDetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        var ctx = UbifsContext.Open(stream);
-        var top = ctx.ReadDirectory(1);
-        output.WriteLine($"Ubifs ({source.Name}, {top.Count} top entries):");
-        Walk(ctx, 1, "", output);
-    }
-
-    private static void Walk(UbifsContext ctx, uint ino, string prefix, TextWriter output)
-    {
-        foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
-        {
-            var inode = ctx.GetInode(e.Ino);
-            bool dir = (inode.Mode & 0xF000) == 0x4000;
-            bool link = !dir && (inode.Mode & 0xF000) == 0xA000;
-            var kind = dir ? "d" : link ? "l" : "f";
-            long size = link ? ctx.ReadSymlink(e.Ino).Length : (long)inode.Size;
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={size}");
-            if (dir)
-            {
-                Walk(ctx, e.Ino, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class UbifsExtractor : IFormatExtractor
 {
     private static readonly ILog log = LogManager.GetLogger(nameof(UbifsExtractor));

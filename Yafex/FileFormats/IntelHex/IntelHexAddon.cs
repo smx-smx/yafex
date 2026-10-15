@@ -29,8 +29,4 @@ public class IntelHexAddon : FormatAddon<IntelHexDetectionResult>
         return new IntelHexExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(IntelHexDetectionResult typed)
-    {
-        return new IntelHexLister(typed);
-    }
 }

@@ -67,110 +67,6 @@ public class UefiDetector : IFormatDetector
     }
 }
 
-public class UefiLister : IFormatLister
-{
-    private readonly UefiDetectionResult _result;
-
-    public UefiLister(UefiDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var bytes = source.Data.ToArray();
-        output.WriteLine($"Uefi (UEFI firmware, {source.Name}):");
-        foreach (var r in Uefi.ReadRegions(bytes))
-        {
-            output.WriteLine($"  region {r.Name} @0x{r.Offset:X} len=0x{r.Length:X}");
-        }
-        var volumes = Uefi.FindVolumes(bytes);
-        foreach (var v in volumes)
-        {
-            string fs = v.FsGuid == UefiStructures.FsFfs2 ? "FFS2"
-                : v.FsGuid == UefiStructures.FsFfs1 ? "FFS1"
-                : v.FsGuid == UefiStructures.FsFfs3 ? "FFS3"
-                : v.FsGuid == UefiStructures.FsNvramEvsa ? "NVRAM"
-                : UefiStructures.ShortGuid(v.FsGuid);
-            var files = Uefi.ReadFiles(bytes, v);
-            output.WriteLine($"  FV @0x{v.Offset:X} len=0x{v.Length:X} fs={fs} files={files.Count}");
-            for (int fi = 0; fi < Math.Min(files.Count, 20); fi++)
-            {
-                var f = files[fi];
-                string ui = UiOf(bytes, f);
-                output.WriteLine($"    #{fi:D4} {UefiStructures.ShortGuid(f.Name)}"
-                    + $" {UefiStructures.FileTypeName(f.Type)} size=0x{f.Size:X}"
-                    + (ui != null ? $" ui='{ui}'" : ""));
-            }
-            if (files.Count > 20)
-            {
-                output.WriteLine($"    ... {files.Count - 20} more");
-            }
-            foreach (var f in files.Where(f => f.Name == UefiStructures.FsNvramNvar).Take(4))
-            {
-                var vars = NvarOf(bytes, f);
-                output.WriteLine($"    NVRAM {UefiStructures.ShortGuid(f.Name)}:"
-                    + $" {vars.Count} vars [{string.Join(",", vars.Take(12))}]");
-            }
-        }
-        foreach (var e in Uefi.ReadFit(bytes).Where(e => e.Type == 0x01).Take(8))
-        {
-            string info = "";
-            if (e.FileOffset >= 0 && e.FileOffset + 40 <= bytes.Length
-                && Uefi.TryReadMicrocode(bytes, e, out var ucode))
-            {
-                int rev = ucode[4] | (ucode[5] << 8) | (ucode[6] << 16) | (ucode[7] << 24);
-                info = $" rev=0x{rev:X} size=0x{ucode.Length:X}";
-            }
-            output.WriteLine($"  FIT microcode @0x{e.FileOffset:X}{info}");
-        }
-    }
-
-    internal static string? UiOf(byte[] img, Uefi.FfsFile file)
-    {
-        foreach (var s in Uefi.ReadSections(img, file, cap: 8))
-        {
-            if (s.Type == 0x15)
-            {
-                var ui = Uefi.ReadUiName(img, s);
-                if (ui != null)
-                {
-                    return UefiStructures.SanitizeUi(ui);
-                }
-            }
-        }
-        return null;
-    }
-
-    internal static List<string> NvarOf(byte[] img, Uefi.FfsFile file)
-    {
-        var names = new List<string>();
-        try
-        {
-            int len = (int)Math.Min(file.Size - file.HeaderSize, img.Length - file.BodyOffset);
-            if (len <= 12)
-            {
-                return names;
-            }
-            foreach (var v in Uefi.ReadNvarStore(img, file.BodyOffset, len))
-            {
-                if (v.Name != null)
-                {
-                    names.Add(v.Name);
-                }
-                if (names.Count >= 40)
-                {
-                    break;
-                }
-            }
-        }
-        catch (IndexOutOfRangeException)
-        {
-        }
-        return names;
-    }
-}
-
 public class UefiExtractor : IFormatExtractor
 {
     private readonly UefiDetectionResult _result;
@@ -218,7 +114,7 @@ public class UefiExtractor : IFormatExtractor
             for (int fi = 0; fi < files.Count; fi++)
             {
                 var file = files[fi];
-                string? ui = UefiLister.UiOf(bios, file);
+                string? ui = UiOf(bios, file);
                 // volume geometry in the stem: the same (vi, seq) recurs at
                 // every nesting level, geometry keeps them distinct
                 string stem = $"fv{vi:D2}@{vol.Offset:X}-{vol.Length:X}-{fi:D4}"
@@ -399,5 +295,21 @@ public class UefiExtractor : IFormatExtractor
                 break;
             }
         }
+    }
+
+    private static string? UiOf(byte[] img, Uefi.FfsFile file)
+    {
+        foreach (var s in Uefi.ReadSections(img, file, cap: 8))
+        {
+            if (s.Type == 0x15)
+            {
+                var ui = Uefi.ReadUiName(img, s);
+                if (ui != null)
+                {
+                    return UefiStructures.SanitizeUi(ui);
+                }
+            }
+        }
+        return null;
     }
 }

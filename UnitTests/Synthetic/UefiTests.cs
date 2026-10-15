@@ -227,9 +227,7 @@ public class UefiTests
         Assert.AreEqual(0x07, files[0].Type);
         var secs = Uefi.ReadSections(img, files[0]);
         Assert.AreEqual(2, secs.Count);
-        var out_ = new StringWriter();
-        new UefiLister(det).List(Mem(img), det, out_);
-        string listing = out_.ToString();
+        string listing = Synthetic.ListTree(new UefiAddon(), det, Mem(img));
         Assert.IsTrue(listing.Contains("TestUi"), listing);
         Assert.IsTrue(listing.Contains("DRIVER"), listing);
         var artifacts = new UefiExtractor(det).Extract(Mem(img)).ToList();
@@ -261,9 +259,8 @@ public class UefiTests
         Assert.IsTrue(Uefi.TryReadMicrocode(img, entries[1], out var ucode));
         Assert.AreEqual(48, ucode.Length);
         var det = (UefiDetectionResult)new UefiDetector().Detect(Mem(img));
-        var out_ = new StringWriter();
-        new UefiLister(det).List(Mem(img), det, out_);
-        Assert.IsTrue(out_.ToString().Contains("FIT microcode"));
+        var listing = Synthetic.ListTree(new UefiAddon(), det, Mem(img));
+        Assert.IsTrue(listing.Contains("FIT type=MICROCODE"), listing);
         var artifacts = new UefiExtractor(det).Extract(Mem(img)).ToList();
         Assert.AreEqual(1, artifacts.Count(a => a.Name == "fit-00-microcode.bin"));
     }

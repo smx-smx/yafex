@@ -180,33 +180,6 @@ public class TliDetector : IFormatDetector
     }
 }
 
-public class TliLister : IFormatLister
-{
-    private readonly byte[] _image;
-    private readonly long _offset;
-    private readonly int _headerLength;
-    private readonly long _tarStart;
-
-    public TliLister(TliDetectionResult result)
-    {
-        _image = result.Image!;
-        _offset = result.Offset;
-        _headerLength = result.HeaderLength;
-        _tarStart = result.TarStart;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var tar = TliParser.OpenTar(_image, _tarStart);
-        int count = TliParser.CountEntries(tar);
-        output.WriteLine($"Tli ({source.Name}, {count} images, header {_headerLength} bytes at 0x{_offset:X}):");
-        foreach (var e in tar.Entries)
-        {
-            output.WriteLine($"  f {e.Name} size={e.Length}");
-        }
-    }
-}
-
 public class TliExtractor : IFormatExtractor
 {
     private readonly byte[] _image;

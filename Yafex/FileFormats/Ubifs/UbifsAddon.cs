@@ -31,8 +31,4 @@ public class UbifsAddon : FormatAddon<UbifsDetectionResult>
         return new UbifsExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(UbifsDetectionResult typed)
-    {
-        return new UbifsLister(typed);
-    }
 }

@@ -38,11 +38,6 @@ public class MediatekPkgOldAddon : FormatAddon<MediatekPkgOldDetectionResult>
         return new MediatekPkgOldExtractor(result.Context!, _keys);
     }
 
-    protected override IFormatLister? CreateLister(MediatekPkgOldDetectionResult typed)
-    {
-        return new MediatekPkgOldLister(typed);
-    }
-
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)
     {
         if (result is not MediatekPkgOldDetectionResult typed) return null;

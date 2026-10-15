@@ -43,19 +43,11 @@ public abstract class DiscImageAddon<TResult> : FormatAddon<TResult>
     /// <summary>Opens the driver over <paramref name="image"/> (positioned at the filesystem start).</summary>
     public abstract DiscFileSystem OpenFileSystem(Stream image);
 
-    /// <summary>Heading printed by the lister.</summary>
-    protected virtual string DisplayName => FileFormat.ToString();
-
     protected override bool IsUsable(TResult result) => result.Image != null;
 
     protected override IFormatExtractor CreateExtractor(TResult result)
     {
         return new DiscImageExtractor(OpenFor(result));
-    }
-
-    protected override IFormatLister? CreateLister(TResult result)
-    {
-        return new DiscImageLister(DisplayName, OpenFor(result));
     }
 
     // Lifetime: the factory closure keeps the image and driver alive for as
@@ -71,40 +63,6 @@ public abstract class DiscImageAddon<TResult> : FormatAddon<TResult>
     }
 
     private Func<DiscFileSystem> OpenFor(TResult result) => () => OpenFileSystem(result.OpenImage());
-}
-
-/// <summary>Recursive `d`/`f` listing of a <see cref="DiscFileSystem"/>.</summary>
-public sealed class DiscImageLister : IFormatLister
-{
-    private readonly string _displayName;
-    private readonly Func<DiscFileSystem> _open;
-
-    public DiscImageLister(string displayName, Func<DiscFileSystem> open)
-    {
-        _displayName = displayName;
-        _open = open;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var fs = _open();
-        var top = fs.Root.GetFiles().Length + fs.Root.GetDirectories().Length;
-        output.WriteLine($"{_displayName} ({source.Name}, {top} top entries):");
-        Walk(fs.Root, "", output);
-    }
-
-    private static void Walk(DiscDirectoryInfo dir, string prefix, TextWriter output)
-    {
-        foreach (var d in dir.GetDirectories())
-        {
-            output.WriteLine($"  d {prefix}{d.Name}");
-            Walk(d, prefix + d.Name + "/", output);
-        }
-        foreach (var f in dir.GetFiles())
-        {
-            output.WriteLine($"  f {prefix}{f.Name} size={f.Length}");
-        }
-    }
 }
 
 /// <summary>Flat extraction of a <see cref="DiscFileSystem"/> (`a/b` becomes `a_b`).</summary>

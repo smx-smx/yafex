@@ -243,11 +243,7 @@ public class Squashfs2Tests
     {
         var mem = Mem(BuildImage(), "sq2.img");
         var det = (Squashfs2DetectionResult)new Squashfs2Addon().CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new Squashfs2Addon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
+        var text = Synthetic.ListTree(new Squashfs2Addon(), det, mem);
         StringAssert.Contains("hello.txt", text);
         StringAssert.Contains("data.bin", text);
     }

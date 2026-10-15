@@ -32,11 +32,6 @@ public class AdbImgAddon : FormatAddon<AdbImgDetectionResult>
         return new AdbImgExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(AdbImgDetectionResult typed)
-    {
-        return new AdbImgLister(typed);
-    }
-
     // Lazy mount: a range view of the payload plus the signature blob,
     // mirroring the extractor.
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

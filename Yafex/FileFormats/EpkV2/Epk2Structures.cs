@@ -101,7 +101,7 @@ namespace Yafex.FileFormats.EpkV2
         uint FileSize { get; }
         uint GetImageOffset(int idx);
 
-        // layout traits shared by extractor, lazy VFS, and lister:
+        // layout traits shared by extractor and lazy VFS:
         // single source of truth instead of three hardcoded call sites
         static abstract int SignatureSize { get; }
         static abstract int PakStructureSize { get; }

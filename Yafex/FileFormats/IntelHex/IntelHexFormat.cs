@@ -40,30 +40,6 @@ public class IntelHexDetector : IFormatDetector
     }
 }
 
-public class IntelHexLister : IFormatLister
-{
-    private readonly IntelHexDetectionResult _result;
-
-    public IntelHexLister(IntelHexDetectionResult result)
-    {
-        _result = result;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        var img = _result.Image;
-        long total = 0;
-        foreach (var s in img.Segments) total += s.Data.Length;
-        output.WriteLine($"IntelHex (micom firmware, {source.Name}):");
-        output.WriteLine($"  header={img.HeaderCode}:{img.HeaderPayload} segments={img.Segments.Count} bytes={total}" +
-            (img.HasStartAddress ? $" start=0x{img.StartAddress:X}" : ""));
-        foreach (var s in img.Segments)
-        {
-            output.WriteLine($"  0x{s.Start:X}-0x{s.Start + s.Data.Length:X} ({s.Data.Length})");
-        }
-    }
-}
-
 public class IntelHexExtractor : IFormatExtractor
 {
     private readonly IntelHexDetectionResult _result;

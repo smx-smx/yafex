@@ -53,41 +53,6 @@ public class Jffs2Detector : IFormatDetector
     }
 }
 
-public class Jffs2Lister : IFormatLister
-{
-    private readonly byte[] _image;
-
-    public Jffs2Lister(Jffs2DetectionResult result)
-    {
-        _image = result.Image!;
-    }
-
-    public void List(IDataSource source, DetectionResult result, TextWriter output)
-    {
-        using var stream = new MemoryStream(_image, writable: false);
-        var ctx = Jffs2Context.Open(stream);
-        var top = ctx.ReadDirectory(1);
-        output.WriteLine($"Jffs2 ({source.Name}, {top.Count} top entries):");
-        Walk(ctx, 1, "", output);
-    }
-
-    private static void Walk(Jffs2Context ctx, uint ino, string prefix, TextWriter output)
-    {
-        foreach (var e in ctx.ReadDirectory(ino).OrderBy(x => x.Name))
-        {
-            var inode = ctx.GetInode(e.Ino);
-            bool dir = e.Dtype == 4 || (inode.Mode & 0xF000) == 0x4000;
-            bool link = !dir && (e.Dtype == 10 || (inode.Mode & 0xF000) == 0xA000);
-            var kind = dir ? "d" : link ? "l" : "f";
-            output.WriteLine($"  {kind} {prefix}{e.Name} size={inode.Size}");
-            if (dir)
-            {
-                Walk(ctx, e.Ino, prefix + e.Name + "/", output);
-            }
-        }
-    }
-}
-
 public class Jffs2Extractor : IFormatExtractor
 {
     private static readonly ILog log = LogManager.GetLogger(nameof(Jffs2Extractor));

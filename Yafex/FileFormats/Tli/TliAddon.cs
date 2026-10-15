@@ -45,11 +45,6 @@ public class TliAddon : FormatAddon<TliDetectionResult>
         return new TliExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(TliDetectionResult typed)
-    {
-        return new TliLister(typed);
-    }
-
     // Lazy mount: one range view per tar-archived image (no copies),
     // mirroring the extractor.
     public override YafexVfs? CreateVfs(IDataSource input, DetectionResult result)

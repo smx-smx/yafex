@@ -157,12 +157,7 @@ public class AndroidBootTests
         var mem = Mem(BuildImage(), "boot.img");
         var det = (AndroidBootDetectionResult)new AndroidBootAddon()
             .CreateDetector(new Dictionary<string, string>()).Detect(mem);
-        var lister = new AndroidBootAddon().CreateLister(det);
-        Assert.NotNull(lister);
-        using var sw = new StringWriter();
-        lister!.List(mem, det, sw);
-        var text = sw.ToString();
-        StringAssert.Contains("AndroidBoot", text);
+        var text = Synthetic.ListTree(new AndroidBootAddon(), det, mem);
         StringAssert.Contains("kernel", text);
         StringAssert.Contains("ramdisk", text);
     }

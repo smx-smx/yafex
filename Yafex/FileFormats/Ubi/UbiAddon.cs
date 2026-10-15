@@ -31,8 +31,4 @@ public class UbiAddon : FormatAddon<UbiDetectionResult>
         return new UbiExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(UbiDetectionResult typed)
-    {
-        return new UbiLister(typed);
-    }
 }

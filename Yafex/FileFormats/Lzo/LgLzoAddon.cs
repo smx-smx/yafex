@@ -31,8 +31,4 @@ public class LgLzoAddon : FormatAddon<LgLzoDetectionResult>
         return new LgLzoExtractor(typed);
     }
 
-    protected override IFormatLister? CreateLister(LgLzoDetectionResult typed)
-    {
-        return new LgLzoLister(typed);
-    }
 }
