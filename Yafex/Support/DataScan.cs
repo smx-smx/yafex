@@ -47,14 +47,16 @@ public static class DataScan
     }
 
     /// <summary>First offset of <paramref name="needle"/> at or after <paramref name="start"/>, or -1.</summary>
-    public static long IndexOf(Memory64<byte> data, byte[] needle, long start = 0)
+    /// <param name="stepSize">Bytes per span view (tests use small steps to cover boundaries).</param>
+    public static long IndexOf(Memory64<byte> data, byte[] needle, long start = 0, int stepSize = StepSize)
     {
+        if (stepSize < needle.Length) throw new ArgumentOutOfRangeException(nameof(stepSize));
         if (needle.Length == 0) throw new ArgumentException("empty needle", nameof(needle));
         long length = data.Length;
         long pos = Math.Max(0, start);
         while (pos + needle.Length <= length)
         {
-            int count = (int)Math.Min(StepSize, length - pos);
+            int count = (int)Math.Min(stepSize, length - pos);
             var view = (ReadOnlySpan<byte>)data.Slice(pos, count).Span;
             int i = view.IndexOf(needle);
             if (i >= 0) return pos + i;
