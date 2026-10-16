@@ -18,12 +18,12 @@ namespace Yafex.FileFormats.Cdtm;
 
 /// <summary>Linksys WRTP54G (TI AR7 "Titan", PSPBoot) web firmware image: a
 /// <c>CDTM</c> header with a ProductID and an entry table (kernel/rootfs
-/// blobs), plus an 8-byte trailer (magic + checksum). Entry checksums and
-/// the trailer checksum use an unidentified algorithm and are read, never
-/// verified. Payload codecs are opaque blobs to this layer.</summary>
+/// blobs), plus an 8-byte trailer (magic + checksum) on web images.
+/// Entry checksums and payload codecs are opaque to this layer; file
+/// integrity comes from the verified trailer checksum.</summary>
 public sealed class CdtmEntry
 {
-    public uint Index;
+    public uint MtdNum;
     public string Name = "";
     public long Offset;
     public long Size;
@@ -38,7 +38,6 @@ public static class CdtmParser
 {
     public const int TrailerSize = 8;
     public const uint TrailerMagic = 0xC453DE23;
-    public const int TableOffset = 0xBC;
     public const int EntrySize = 40;
     public const int EntryIndexOffset = 20;
     public const int EntryNameSize = 16;
@@ -75,50 +74,69 @@ public static class CdtmParser
 
     /// <summary>Validates the header, entry table and trailer. Returns the
     /// file name plus entries, or null. All multi-byte integers are
-    /// little-endian.</summary>
+    /// little-endian. The trailer checksum (TI Titan checksum over all
+    /// bytes before the trailer) is verified; entry checksums are read
+    /// and ignored (whole-file integrity already follows from it).</summary>
     public static (string, List<CdtmEntry>)? Open(byte[] image)
     {
-        if (image.Length < TableOffset + 8 + TrailerSize) return null;
+        if (image.Length < 0xBC + 8 + TrailerSize) return null;
         if (!MagicOk(image, 0, Magic)) return null;
         // Flags: 0xFFFFFFFF for web images, 0x17FFFFFF high byte for
         // flash-direct images (documented web/flash distinction).
         uint flags = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(8, 4));
-        if (flags != 0xFFFFFFFF && flags != 0x17FFFFFF) return null;
+        bool web = flags == 0xFFFFFFFF;
+        bool flashDirect = flags == 0x17FFFFFF;
+        if (!web && !flashDirect) return null;
         if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(12, 4)) != 1) return null;
         uint headerLen = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(16, 4));
         if (!Printable(image.AsSpan(0x14, 4))) return null;
-        uint count = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0xB0, 4));
-        uint entrySize = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0xB4, 4));
+        if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x18, 4)) != 0x10203040) return null;
+        if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x1C, 4)) != 0x0B010000) return null;
+        uint fileSize = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x20, 4));
+        uint miniLen = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x24, 4));
+        long tableBase = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x28, 4));
+        if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(0x2C, 4)) != 0xFFFFFFFF) return null;
+        if (tableBase < 0x30 || tableBase + 12 > image.Length) return null;
+
+        long fileNameOff = 0x40 + miniLen;
+        if (fileNameOff < 0x40 || fileNameOff + 0x40 > image.Length) return null;
+        string fileName = DisplayName(image, (int)fileNameOff, 0x40);
+        if (fileName.Length == 0 || !Printable(image.AsSpan((int)fileNameOff, 0x40))) return null;
+
+        uint count = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)tableBase, 4));
+        uint entrySize = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)tableBase + 4, 4));
         if (count == 0 || count > 64) return null;
         if (entrySize != EntrySize) return null;
-        long tableEnd = (long)TableOffset + count * entrySize;
+        long recordsBase = tableBase + 12;
+        if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)tableBase + 8, 4)) != recordsBase) return null;
+        long tableEnd = recordsBase + count * entrySize;
         if (tableEnd > image.Length) return null;
         if (headerLen != tableEnd) return null;
 
-        string fileName = DisplayName(image, 0x70, 0x40);
-        if (fileName.Length == 0 || !Printable(image.AsSpan(0x70, 0x40))) return null;
-
         var entries = new List<CdtmEntry>();
+        // Web images end with the 8-byte trailer; flash-direct images end
+        // with payload. Bounds below are relative to the payload end.
+        long payloadEnd = web ? image.Length - TrailerSize : image.Length;
         for (long i = 0; i < count; i++)
         {
-            long baseOff = TableOffset + i * entrySize;
-            uint index = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)baseOff + EntryIndexOffset, 4));
+            long baseOff = recordsBase + i * entrySize;
+            uint mtd = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)baseOff + EntryIndexOffset, 4));
             var nameSpan = image.AsSpan((int)baseOff + EntryNameOffset, EntryNameSize);
             if (!Printable(nameSpan)) return null;
             string name = DisplayName(image, (int)baseOff + EntryNameOffset, EntryNameSize);
-            if (name.Length == 0 || index == 0 || index > 999) return null;
+            if (name.Length == 0 || mtd == 0 || mtd > 999) return null;
             long off = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)baseOff, 4));
             long size = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)baseOff + 4, 4));
             long content = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan((int)baseOff + 8, 4));
             if (size <= 0) return null;
             if (off < tableEnd) return null;
-            if (off + size > image.Length - TrailerSize) return null;
+            if (off + size > payloadEnd) return null;
             if (content > size) return null;
-            entries.Add(new CdtmEntry { Index = index, Name = name, Offset = off, Size = size });
+            entries.Add(new CdtmEntry { MtdNum = mtd, Name = name, Offset = off, Size = size });
         }
         if (entries.Count == 0) return null;
-        // Entries must not overlap, and the image ends with payload plus
-        // the 8-byte trailer (exact fit).
+        // Entries must not overlap, and the image ends with payload plus,
+        // on web images, the 8-byte trailer (exact fit).
         var ordered = new List<CdtmEntry>(entries);
         ordered.Sort((a, b) => a.Offset.CompareTo(b.Offset));
         for (int i = 1; i < ordered.Count; i++)
@@ -126,11 +144,19 @@ public static class CdtmParser
             if (ordered[i].Offset < ordered[i - 1].Offset + ordered[i - 1].Size) return null;
         }
         long lastEnd = ordered[^1].Offset + ordered[^1].Size;
-        if (lastEnd != image.Length - TrailerSize) return null;
-        if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(image.Length - 8, 4)) != TrailerMagic) return null;
-        // Trailer checksum at -4 and per-entry checksums use an
-        // unidentified algorithm (not IEEE CRC32/adler/CRC-32C/MPEG-2/JAM,
-        // sums, Fletcher, or MD5/SHA truncations): read, never verified.
+        if (web)
+        {
+            if (lastEnd != image.Length - TrailerSize) return null;
+            if (fileSize != image.Length - TrailerSize) return null;
+            if (BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(image.Length - 8, 4)) != TrailerMagic) return null;
+            uint stored = BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(image.Length - 4, 4));
+            if (CdtmChecksum.Compute(image.AsSpan(0, image.Length - TrailerSize)) != stored) return null;
+        }
+        else
+        {
+            if (lastEnd != image.Length) return null;
+            if (fileSize != image.Length) return null;
+        }
         return (fileName, entries);
     }
 }
@@ -142,7 +168,7 @@ public class CdtmDetector : IFormatDetector
         try
         {
             var data = source.Data;
-            if (data.Length < CdtmParser.TableOffset + 8 + CdtmParser.TrailerSize) return DetectionResult.Fail;
+            if (data.Length < 0xBC + 8 + CdtmParser.TrailerSize) return DetectionResult.Fail;
             var parsed = CdtmParser.Open(data.ToArray());
             if (parsed == null) return DetectionResult.Fail;
             return new CdtmDetectionResult(90, parsed.Value.Item1, parsed.Value.Item2);

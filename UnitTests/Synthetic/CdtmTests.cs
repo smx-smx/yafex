@@ -33,9 +33,11 @@ public class CdtmTests
         (uint Idx, string Name, byte[] Blob)[] entries,
         uint flags = 0xFFFFFFFF,
         string product = "CYWM",
-        string fileName = "wrt-11.1.1-r0707.img")
+        string fileName = "wrt-11.1.1-r0707.img",
+        bool trailer = true)
     {
-        const int tableOff = 0xBC;
+        const int tableBase = 0xBC;
+        const int tableOff = 0xB0;
         const int entrySize = 40;
         long blobAt = 0x400;
         var blobs = new List<(long Off, byte[] Data)>();
@@ -44,20 +46,27 @@ public class CdtmTests
             blobs.Add((blobAt, blob));
             blobAt += blob.Length;
         }
-        long total = blobAt + 8;
+        long total = blobAt + (trailer ? 8 : 0);
         var image = new byte[total];
         Encoding.ASCII.GetBytes("CDTM").CopyTo(image, 0);
         BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(4, 4), 0x00010000);
         BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(8, 4), flags);
         BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(12, 4), 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(16, 4), (uint)(tableOff + entries.Length * entrySize));
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(16, 4), (uint)(tableBase + entries.Length * entrySize));
         Encoding.ASCII.GetBytes(product).CopyTo(image, 0x14);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x18, 4), 0x10203040);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x1C, 4), 0x0B010000);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x20, 4), (uint)(trailer ? total - 8 : total));
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x24, 4), 0x30);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x28, 4), (uint)tableOff);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x2C, 4), 0xFFFFFFFF);
         Encoding.ASCII.GetBytes(fileName).CopyTo(image, 0x70);
-        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0xB0, 4), (uint)entries.Length);
-        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0xB4, 4), entrySize);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(tableOff, 4), (uint)entries.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(tableOff + 4, 4), entrySize);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(tableOff + 8, 4), (uint)tableBase);
         for (int i = 0; i < entries.Length; i++)
         {
-            int baseOff = tableOff + i * entrySize;
+            int baseOff = tableBase + i * entrySize;
             BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(baseOff, 4), (uint)blobs[i].Off);
             BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(baseOff + 4, 4), (uint)blobs[i].Data.Length);
             BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(baseOff + 8, 4), (uint)blobs[i].Data.Length);
@@ -70,7 +79,12 @@ public class CdtmTests
         {
             Array.Copy(blob, 0, image, off, blob.Length);
         }
-        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(image.Length - 8, 4), 0xC453DE23);
+        if (trailer)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(image.Length - 8, 4), 0xC453DE23);
+            BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(image.Length - 4, 4),
+                Yafex.FileFormats.Cdtm.CdtmChecksum.Compute(image.AsSpan(0, image.Length - 8)));
+        }
         return image;
     }
 
@@ -95,13 +109,6 @@ public class CdtmTests
         Assert.AreEqual(0x400, det.Entries[0].Offset);
         Assert.AreEqual(256, det.Entries[0].Size);
         Assert.AreEqual("root", det.Entries[1].Name);
-    }
-
-    [Test]
-    public void FlashFlagsVariant_Detects()
-    {
-        var image = BuildImage(new[] { (1u, "kernel", Kernel) }, flags: 0x17FFFFFF);
-        Assert.AreEqual(90, new CdtmDetector().Detect(Mem(image)).Confidence);
     }
 
     [Test]
@@ -200,6 +207,60 @@ public class CdtmTests
         Assert.AreEqual("root.bin", artifacts[1].Name);
         CollectionAssert.AreEqual(Kernel, artifacts[0].Data.ToArray());
         CollectionAssert.AreEqual(Root, artifacts[1].Data.ToArray());
+    }
+
+    [Test]
+    public void Checksum_GoldenVectors()
+    {
+        Assert.AreEqual(0xFFFFFFFFu, Yafex.FileFormats.Cdtm.CdtmChecksum.Compute([]));
+        Assert.AreEqual(0x377A6011u, Yafex.FileFormats.Cdtm.CdtmChecksum.Compute("123456789"u8.ToArray()));
+        Assert.AreEqual(0x27CFA612u, Yafex.FileFormats.Cdtm.CdtmChecksum.Compute("kernel"u8.ToArray()));
+        Assert.AreEqual(0xCE1A9ADEu, Yafex.FileFormats.Cdtm.CdtmChecksum.Compute(Enumerable.Repeat((byte)0xAA, 256).ToArray()));
+    }
+
+    [Test]
+    public void CorruptTrailerChecksum_Rejects()
+    {
+        var image = StandardImage();
+        image[image.Length - 1] ^= 0xFF;
+        Assert.AreEqual(0, new CdtmDetector().Detect(Mem(image)).Confidence);
+    }
+
+    [Test]
+    public void FlashDirect_NoTrailer_Detects()
+    {
+        var payloads = new[] { (1u, "kernel", Kernel), (2u, "root", Root) };
+        var web = BuildImage(payloads);
+        // Same bytes minus the trailer, flash flags, file size covering all.
+        var image = web[..^8].ToArray();
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(8, 4), 0x17FFFFFF);
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x20, 4), (uint)image.Length);
+        Assert.AreEqual(90, new CdtmDetector().Detect(Mem(image)).Confidence);
+    }
+
+    [Test]
+    public void FileSizeMismatch_Rejects()
+    {
+        var image = StandardImage();
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x20, 4), 1234u);
+        Assert.AreEqual(0, new CdtmDetector().Detect(Mem(image)).Confidence);
+    }
+
+    [Test]
+    public void TableOffsetMismatch_Rejects()
+    {
+        var image = StandardImage();
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(0x28, 4), 0xC0u);
+        Assert.AreEqual(0, new CdtmDetector().Detect(Mem(image)).Confidence);
+    }
+
+    [Test]
+    public void FlashFlags_WithTrailer_Rejects()
+    {
+        // Inconsistent combination: flash flags but a web trailer present.
+        var image = StandardImage();
+        BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(8, 4), 0x17FFFFFF);
+        Assert.AreEqual(0, new CdtmDetector().Detect(Mem(image)).Confidence);
     }
 
     [Test]
