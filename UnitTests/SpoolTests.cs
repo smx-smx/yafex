@@ -118,6 +118,38 @@ public class SpoolTests
     }
 
     [Test]
+    public void TestWriteAtLong_Past2GB()
+    {
+        var parent = Parent(_root);
+        var buff = ArtifactBuilder.BeginBuffer(_root, "huge.bin", DataSourceFlags.Output, SpoolHint.File);
+        const long past2G = 3L << 30;
+        buff.WriteAt(past2G, new Memory64<byte>(new byte[] { 7, 8, 9 }).AsReadonlySpan());
+        var ds = ArtifactBuilder.Complete(buff, parent, _root);
+        try
+        {
+            Assert.AreEqual(past2G + 3, ds.Data.Length);
+            CollectionAssert.AreEqual(
+                new byte[] { 7, 8, 9 }, ds.Data.Slice(past2G, 3).ToArray());
+            CollectionAssert.AreEqual(
+                new byte[] { 0, 0 }, ds.Data.Slice(past2G - 2, 2).ToArray());
+        }
+        finally
+        {
+            if (ds is IDisposable d) d.Dispose();
+        }
+    }
+
+    [Test]
+    public void TestWriteAtLong_MemoryBuffer()
+    {
+        using var buff = new MemoryDataSourceBuffer("m.bin", DataSourceFlags.Output);
+        buff.WriteAt(1L << 20, new Memory64<byte>(new byte[] { 5 }).AsReadonlySpan());
+        var ds = buff.ToDataSource();
+        Assert.AreEqual((1L << 20) + 1, ds.Data.Length);
+        Assert.AreEqual(5, ds.Data.Slice(1L << 20, 1).ToArray()[0]);
+    }
+
+    [Test]
     public void TestAbandonedBuffer_DeletesPartial()
     {
         var buff = ArtifactBuilder.BeginBuffer(_root, "ab.bin", DataSourceFlags.Output, SpoolHint.File);

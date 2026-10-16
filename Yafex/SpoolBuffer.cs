@@ -52,6 +52,9 @@ public interface IArtifactBuffer : IDisposable
     void Write(byte[] data);
     void Write(ReadOnlySpan64<byte> data);
     void WriteAt(int index, ReadOnlySpan64<byte> data);
+    /// <summary>Random-access write past the 2 GB <see cref="WriteAt(int, ReadOnlySpan64{byte})"/>
+    /// range (multi-GB assembled images). Implementations route to 64-bit positions.</summary>
+    void WriteAt(long index, ReadOnlySpan64<byte> data);
     IDataSource ToDataSource();
 }
 
@@ -150,6 +153,12 @@ public sealed class SpoolBuffer : BaseDataSource, IArtifactBuffer
 
     public void WriteAt(int index, ReadOnlySpan64<byte> data)
     {
+        WriteAt((long)index, data);
+    }
+
+    public void WriteAt(long index, ReadOnlySpan64<byte> data)
+    {
+        if (index < 0) throw new ArgumentOutOfRangeException(nameof(index));
         if (_file != null)
         {
             var saved = _file.Position;

@@ -43,6 +43,11 @@ namespace Yafex
 
         public void WriteAt(int index, ReadOnlySpan64<byte> data)
         {
+            WriteAt((long)index, data);
+        }
+
+        public void WriteAt(long index, ReadOnlySpan64<byte> data)
+        {
             var savedPos = mem.Position;
             mem.Position = index;
             foreach(var chunk in data.GetChunks())
