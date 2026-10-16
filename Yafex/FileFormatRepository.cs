@@ -64,6 +64,7 @@ using Yafex.FileFormats.MtkBdp;
 using Yafex.FileFormats.Funai;
 using Yafex.FileFormats.Zipper;
 using Yafex.FileFormats.Sparse;
+using Yafex.FileFormats.Cdtm;
 
 namespace Yafex
 {
@@ -163,6 +164,7 @@ namespace Yafex
             services.AddKeyedSingleton<IFormatAddon, FunaiMstarAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, ZipperAddon>(key);
             services.AddKeyedSingleton<IFormatAddon, SparseAddon>(key);
+            services.AddKeyedSingleton<IFormatAddon, CdtmAddon>(key);
         }
     }
 }

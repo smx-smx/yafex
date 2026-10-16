@@ -64,6 +64,7 @@ namespace Yafex
         FunaiBdp,
         FunaiMstar,
         Zipper,
-        Sparse
+        Sparse,
+        Cdtm
     }
 }
