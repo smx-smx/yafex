@@ -15,10 +15,14 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using log4net;
+
 namespace Yafex.FileFormats.MStarPkg
 {
     public class MStarPkgExtractor : IFormatExtractor
     {
+        private static readonly ILog log = LogManager.GetLogger(typeof(MStarPkgExtractor));
+
         public MStarPkgExtractor()
         {
         }
@@ -47,6 +51,30 @@ namespace Yafex.FileFormats.MStarPkg
                     source.Data.Span.Slice(part.Offset, part.Size).ToArray());
                 artifact.Flags |= DataSourceFlags.ProcessFurther;
                 yield return artifact;
+            }
+
+            // Flash-plan groups (lz4 -d + sparse_write chains): replay each
+            // target's segments into one raw image, additive to the .pak
+            // segments above. A broken group is skipped loudly, never
+            // partially emitted.
+            foreach (var group in MStarFlashPlan.ParseSparseWrites(mbootScript, source.Data.Length))
+            {
+                if (group.Segments.Count == 0) continue;
+                var fileName = $"{group.Target}.raw.bin";
+                IArtifactBuffer buff = ArtifactBuilder.BeginBuffer(
+                    baseDir, fileName, DataSourceFlags.ProcessFurther, SpoolHint.File);
+                try
+                {
+                    MstarSparseCombiner.Combine(source, group, buff);
+                }
+                catch (Exception ex) when (ex is InvalidDataException
+                    || ex is ArgumentException || ex is OverflowException)
+                {
+                    buff.Dispose();
+                    log.Warn($"Skipping flash group '{group.Target}': {ex.Message}");
+                    continue;
+                }
+                yield return ArtifactBuilder.Complete(buff, source, baseDir);
             }
         }
     }
